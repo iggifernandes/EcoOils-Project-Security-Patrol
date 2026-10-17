@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>UAUC QR stickers</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#000;background:#fff}
+.ctl{padding:12px 16px;background:#f2f2f2;border-bottom:1px solid #ccc;font-size:14px}
+.ctl input[type=text]{width:100%;max-width:640px;padding:6px;font-size:14px}
+.ctl button{padding:8px 16px;font-size:14px;margin-top:8px;cursor:pointer}
+.ctl small{display:block;color:#555;margin-top:4px}
+.sheet{display:grid;grid-template-columns:repeat(2,90mm);gap:6mm 8mm;justify-content:center;padding:8mm 0}
+.st{width:90mm;height:88mm;border:0.3mm dashed #999;display:flex;flex-direction:column;align-items:center;justify-content:center;page-break-inside:avoid;break-inside:avoid;padding:2mm;box-sizing:border-box}
+.st .top{font-size:22pt;font-weight:900;letter-spacing:2px;line-height:1}
+.st svg{width:58mm;height:58mm;margin:2mm 0}
+.st .nm{font-size:13pt;font-weight:700;text-align:center;line-height:1.15;max-width:84mm}
+.ver{font-size:7pt;color:#777;text-align:center;margin:4mm 0}
+@media print{.ctl{display:none}.sheet{padding:0}@page{size:A4 portrait;margin:8mm}}
+</style></head><body>
+<div class="ctl">
+  <label for="base"><b>Link opened by a normal phone camera</b> (the UA/UC form address; the location number is added automatically):</label><br>
+  <input type="text" id="base" value="https://iggifernandes.github.io/EcoOils-Project-UAUC-Report/">
+  <small>Each sticker opens: link + ?loc=&lt;number&gt;. A normal phone opens the UA/UC report form. Print on A4, 6 stickers per page, then laminate and seal the edges with silicone.</small>
+  <br><label for="extra"><b>Extra / new points</b> (one per line: number, name. Use the number you put in the Points sheet):</label><br><textarea id="extra" rows="3" style="width:100%;max-width:640px" placeholder="46, GENERATOR HOUSE"></textarea><br><button id="go">Update stickers</button> <button onclick="window.print()">Print</button>
+</div>
+<div class="sheet" id="sheet"></div>
+<div class="ver">Sticker sheet v1.2</div>
+<script src="qrcode.js"></script>
+<script>
+/* number, name  (generated from the checkpoint list) */
+var POINTS=[[1,"Main gate / security building"],[2,"West gate / security post"],[3,"Weighbridge"],[4,"Administration building"],[5,"Warehouse Block B"],[6,"Workshop area(In admin Building)"],[7,"Block 6 B South East Corner"],[8,"GSB Office"],[9,"WEN Office"],[10,"PBS Office"],[11,"KKS Office"],[12,"MCC Building"],[13,"DDE treatment plant (DTP)"],[14,"Vapor absorption machine (VAM) shed"],[15,"Pipe rack - north"],[16,"Cooling tower"],[17,"Dirty cooling tower"],[18,"FFA plant"],[19,"Pipe rack - centre"],[20,"Oil polishing plant"],[21,"Boiler / chimney area"],[22,"Electrical substation (PLN)"],[23,"Extraction plant - north"],[24,"Pre-treatment unit (PTU)"],[25,"Control room / MCC room"],[26,"Extraction plant - centre"],[27,"Silo"],[28,"Extraction plant - south"],[29,"Scheduled and domestic waste shed"],[30,"Dry and liquid chemical storage"],[31,"Raw water pit"],[32,"Hexane tank"],[33,"Tank farm -21T03"],[34,"Tank farm - 21T01"],[35,"Tank farm - 21T08"],[36,"Fire water tank"],[37,"Fire water pump house"],[38,"Hexane and diesel receiving bay"],[39,"Water treatment plant (WTP) and tanks"],[40,"Loading / unloading area (pump house)"],[41,"Diesel tank / generator area"],[42,"Effluent treatment plant (ETP)"],[43,"Waste water treatment plant (WWTP)"],[44,"North-west corner Block 6a"],[45,"EcoOils Ware House"]];
+function qrSvg(text,label){
+  var qr=qrcode(0,'H');qr.addData(text);qr.make();
+  var n=qr.getModuleCount(),q=4,size=n+2*q,d='';
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))d+='M'+(c+q)+' '+(r+q)+'h1v1h-1z';
+  var cx=size/2,rad=n*0.125,fs=(String(label).length>2?rad*0.95:rad*1.25);
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" shape-rendering="crispEdges"><rect width="'+size+'" height="'+size+'" fill="#fff"/><path d="'+d+'" fill="#000"/>'+
+    '<circle cx="'+cx+'" cy="'+cx+'" r="'+rad+'" fill="#fff" stroke="#000" stroke-width="0.5"/>'+
+    '<text x="'+cx+'" y="'+(cx+fs*0.36)+'" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="'+fs+'" text-anchor="middle" fill="#000">'+label+'</text></svg>';
+}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function build(){
+  var base=document.getElementById('base').value.trim();
+  if(base.indexOf('?')>=0)base=base.split('?')[0];
+  var h='';
+  var ex=document.getElementById('extra').value.split('\n').map(function(l){var i=l.indexOf(',');return i>0?[parseInt(l.slice(0,i),10),l.slice(i+1).trim()]:null;}).filter(function(x){return x&&x[0]&&x[1];});
+  POINTS.concat(ex).forEach(function(p){
+    h+='<div class="st"><div class="top">UAUC</div>'+qrSvg(base+'?loc='+p[0],p[0])+'<div class="nm">'+esc(p[1])+'</div></div>';
+  });
+  document.getElementById('sheet').innerHTML=h;
+}
+document.getElementById('go').addEventListener('click',build);build();
+</script></body></html>

@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Patrol">
+<meta name="theme-color" content="#122238">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg">
+<title>Patrol</title>
+<style>
+:root{--bg:#0b1626;--panel:#122238;--panel2:#18304d;--line:#27425f;--text:#eaf0f7;--mute:#93a6bd;--amber:#f5a623;--amber2:#ffc861;--ok:#3ecf8e;--bad:#ff6b6b;--r:12px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-bottom:2px solid var(--amber);background:var(--panel)}
+.brand{font-size:14px;font-weight:700;color:var(--amber2)}
+.right{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+#ver{font-size:11px;color:var(--mute);line-height:1}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button{background:none;border:0;color:var(--mute);padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.lang button.on{background:var(--amber);color:#1a1200;font-weight:700}
+main{max-width:640px;margin:0 auto;padding:12px 14px 40px}
+h1{font-size:19px;margin:4px 0 8px}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+input,select{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit;font-size:16px}
+.btn{display:block;width:100%;background:var(--amber);color:#1a1200;border:0;border-radius:var(--r);padding:15px;font:inherit;font-weight:700;font-size:17px;cursor:pointer;margin-top:12px}
+.btn.ghost{background:none;color:var(--text);border:1px solid var(--line);font-size:14px;padding:10px;font-weight:600}
+.btn.sm{display:inline-block;width:auto;padding:8px 14px;font-size:14px;margin:4px 6px 0 0}
+.btn:disabled{opacity:.5}
+.note{color:var(--mute);font-size:13px;margin:6px 0}
+.err{color:var(--bad);font-size:14px;margin:6px 0}
+.banner{border-radius:var(--r);padding:10px 12px;margin:8px 0;font-size:14px;background:#3b2f10;border:1px solid var(--amber)}
+.hidden{display:none!important}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:10px}
+.round{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.round b{font-size:15px}.round span{color:var(--mute);font-size:13px}
+#left{font-variant-numeric:tabular-nums;font-size:22px;font-weight:800}
+#left.warn{color:var(--amber2)}#left.late{color:var(--bad)}
+.counts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.cnt{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:10px;text-align:center}
+.cnt b{display:block;font-size:46px;line-height:1.05;font-variant-numeric:tabular-nums}
+.cnt span{font-size:13px;color:var(--mute)}
+.cnt.d b{color:var(--ok)}.cnt.r b{color:var(--amber2)}
+.bar{height:14px;border-radius:7px;background:var(--panel2);overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .4s}
+.tabs{display:flex;gap:6px;margin:14px 0 6px}
+.tabs button{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button.on{background:var(--amber);color:#1a1200;border-color:var(--amber)}
+.zh{font-weight:700;font-size:13px;color:var(--amber2);margin:10px 0 3px}
+.pt{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:4px 0;font-size:15px}
+.pt small{color:var(--mute);white-space:nowrap}
+.pt.hi b::after{content:" \2605";color:var(--amber2)}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}th{background:var(--panel2)}
+.scroll{overflow-x:auto}
+.fl{color:var(--bad);font-weight:700}
+.modal{position:fixed;inset:0;background:rgba(3,8,16,.85);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:100%;max-width:400px;max-height:92vh;overflow:auto}
+#scanModal{padding:0;background:#000;flex-direction:column}
+#cam{width:100%;max-height:75vh;object-fit:cover;background:#000}
+.frame{position:absolute;left:50%;top:38%;width:62vmin;height:62vmin;max-width:300px;max-height:300px;transform:translate(-50%,-50%);border:3px solid var(--amber);border-radius:18px;pointer-events:none}
+.big{font-size:56px;text-align:center;line-height:1}
+.okc{color:var(--ok)}.wrn{color:var(--amber2)}
+.sp{display:inline-block;width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--amber);border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.links{margin-top:22px;text-align:center}
+.links button{background:none;border:0;color:var(--mute);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
+.remember{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}.remember input{width:20px;height:20px;margin:0}
+</style></head><body>
+<header><div class="brand" id="brand">Security Patrol</div>
+<div class="right"><span id="ver">v1.2</span><div class="lang" role="group" aria-label="Language"><button id="lEN" class="on" type="button">EN</button><button id="lID" type="button">BI</button></div></div></header>
+<main>
+<div id="banner"></div>
+
+<section id="vSetup">
+  <h1 id="tSetup"></h1>
+  <div id="teamBox" class="hidden">
+    <label for="team" id="lTeam"></label><input id="team" inputmode="numeric" autocomplete="off">
+    <div class="note" id="hTeam"></div>
+    <button class="btn" id="bTeam" type="button"></button>
+  </div>
+  <div id="guardBox" class="hidden">
+    <label for="guard" id="lGuard"></label><select id="guard"></select>
+    <button class="btn" id="bStart" type="button"></button>
+  </div>
+  <div class="err" id="setErr"></div>
+  <div class="links"><button id="bAdmin" type="button"></button></div>
+</section>
+
+<section id="vPatrol" class="hidden">
+  <div class="card">
+    <div class="round"><div><b id="rLabel"></b><br><span id="who"></span></div><div style="text-align:right"><span id="lTime"></span><div id="left">--:--</div></div></div>
+    <div class="counts"><div class="cnt d"><b id="nDone">0</b><span id="lDone"></span></div><div class="cnt r"><b id="nRem">0</b><span id="lRem"></span></div></div>
+    <div class="bar"><i id="pbar"></i></div>
+    <div class="note" id="ofTotal"></div>
+  </div>
+  <button class="btn" id="bScan" type="button"></button>
+  <div class="note" id="pend"></div>
+  <div class="tabs"><button id="tRem" class="on" type="button"></button><button id="tDone" type="button"></button></div>
+  <div id="list"></div>
+  <div class="links"><button id="bChange" type="button"></button></div>
+</section>
+
+<section id="vAdmin" class="hidden">
+  <div class="tabs"><button id="aLive" class="on" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button></div>
+  <div id="aBody"></div>
+  <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
+</section>
+</main>
+
+<div class="modal hidden" id="scanModal">
+  <video id="cam" playsinline muted></video><div class="frame"></div><canvas id="cv" class="hidden"></canvas>
+  <div style="padding:14px;text-align:center;width:100%"><div id="scanMsg" class="note" style="font-size:15px;color:#fff"></div><button class="btn ghost" id="scanX" type="button"></button></div>
+</div>
+<div class="modal hidden" id="resModal"><div class="box" id="resBody"></div></div>
+<div class="modal hidden" id="pinModal"><form class="box" id="pinForm" autocomplete="off">
+  <h1 style="margin-top:0">Admin</h1>
+  <label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off">
+  <label class="remember"><input id="pinKeep" type="checkbox"><span id="lKeep"></span></label>
+  <div class="err" id="pinErr"></div>
+  <button class="btn" type="submit" id="pinGo"></button><button class="btn ghost" type="button" id="pinX"></button>
+</form></div>
+
+<script src="jsQR.js"></script>
+<script>
+(function(){'use strict';
+/* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
+var API_URL='';
+var VERSION='v1.2';
+var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
+var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
+        id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
+var T={en:{
+ title:'Security Patrol',setup:'Start your patrol',teamCode:'Team code',teamHelp:'Enter the code from your supervisor. You only need it once on this phone.',next:'Continue',
+ guard:'Your name',pick:'Select your name...',start:'Start patrol',round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
+ scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
+ offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
+ notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'A photo is needed at this point.',takePhoto:'Take photo',skipPhoto:'Skip photo (will be flagged)',sending:'Sending...',
+ recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
+ scanNext:'Scan next',close:'Close',queued:'No connection. Saved on this phone and will send automatically.',badTeam:'Team code is wrong.',change:'Change name',admin:'Admin',
+ adminLogin:'Log in',keep:'Keep me signed in on this phone',badPin:'PIN is wrong or locked. Try again later.',err_unknown_point:'This point is not active.',err_unknown_guard:'Your name is not on the list.',err_server:'Server error. Try again.',
+ ann:'Not configured: the app has no server address yet.',noGuards:'No names found.',later:'min'},
+ id:{
+ title:'Patroli Keamanan',setup:'Mulai patroli',teamCode:'Kode tim',teamHelp:'Masukkan kode dari supervisor. Cukup sekali di ponsel ini.',next:'Lanjut',
+ guard:'Nama Anda',pick:'Pilih nama Anda...',start:'Mulai patroli',round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
+ scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
+ offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
+ notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Foto diperlukan di titik ini.',takePhoto:'Ambil foto',skipPhoto:'Lewati foto (akan ditandai)',sending:'Mengirim...',
+ recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
+ scanNext:'Pindai berikutnya',close:'Tutup',queued:'Tidak ada koneksi. Disimpan di ponsel dan terkirim otomatis.',badTeam:'Kode tim salah.',change:'Ganti nama',admin:'Admin',
+ adminLogin:'Masuk',keep:'Biarkan saya tetap masuk di ponsel ini',badPin:'PIN salah atau terkunci. Coba lagi nanti.',err_unknown_point:'Titik ini tidak aktif.',err_unknown_guard:'Nama Anda tidak ada dalam daftar.',err_server:'Kesalahan server. Coba lagi.',
+ ann:'Belum dikonfigurasi: aplikasi belum memiliki alamat server.',noGuards:'Nama tidak ditemukan.',later:'mnt'}};
+var lang='en';
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
+lang=ls('sp_lang')||(/^id/i.test(navigator.language||'')?'id':'en');
+function tr(k){return (T[lang]&&T[lang][k])||T.en[k]||k;}
+var $=function(id){return document.getElementById(id);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function pad(n){return (n<10?'0':'')+n;}
+function fmtT(ms){return new Date(ms+7*3600000).toISOString().slice(11,16);}
+function fmtLeft(s){s=Math.max(0,Math.floor(s));var h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+':':'')+pad(m)+':'+pad(s%60);}
+var S={team:ls('sp_team')||'',guard:'',state:null,off:0,tab:'rem',queue:[],loading:false,online:true};
+try{S.queue=JSON.parse(ls('sp_q')||'[]');}catch(e){S.queue=[];}
+function saveQ(){ls('sp_q',JSON.stringify(S.queue));}
+function nowMs(){return Date.now()+S.off;}
+
+/* ===== server ===== */
+function api(body,ms){
+  var ctl=window.AbortController?new AbortController():null,t=ctl?setTimeout(function(){ctl.abort();},ms||25000):null;
+  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),redirect:'follow',signal:ctl?ctl.signal:undefined})
+    .then(function(r){return r.json();}).then(function(j){if(t)clearTimeout(t);return j;},function(e){if(t)clearTimeout(t);throw e;});
+}
+function loadState(quiet){
+  if(!API_URL||!S.team)return Promise.resolve(false);
+  S.loading=true;
+  return api({action:'state',team:S.team}).then(function(r){
+    S.loading=false;
+    if(!r||!r.ok){if(r&&r.err==='team'){S.team='';ls('sp_team',null);showSetup(tr('badTeam'));}return false;}
+    S.state=r;S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));render();return true;
+  }).catch(function(){
+    S.loading=false;S.online=false;
+    if(!S.state){try{S.state=JSON.parse(ls('sp_state')||'null');}catch(e){}}
+    render();return false;
+  });
+}
+function flush(){
+  if(!S.queue.length||!API_URL)return Promise.resolve();
+  var q=S.queue.slice(),p=Promise.resolve(),stop=false;
+  q.forEach(function(it){p=p.then(function(){
+    if(stop)return;
+    var b={action:'scan',team:S.team,guard:it.guard,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo,queued:true};
+    return api(b).then(function(r){
+      if(r&&(r.ok||r.err==='unknown_point'||r.err==='unknown_guard')){S.queue=S.queue.filter(function(x){return x!==it&&x.ts!==it.ts;});saveQ();}
+      else if(r&&r.err==='team'){stop=true;}
+    },function(){stop=true;});
+  });});
+  return p.then(function(){render();return loadState(true);});
+}
+
+/* ===== language and static text ===== */
+function applyLang(){
+  document.documentElement.lang=lang;$('lEN').classList.toggle('on',lang==='en');$('lID').classList.toggle('on',lang==='id');
+  $('ver').textContent=VERSION;$('brand').textContent=tr('title');
+  $('tSetup').textContent=tr('setup');$('lTeam').textContent=tr('teamCode');$('hTeam').textContent=tr('teamHelp');$('bTeam').textContent=tr('next');
+  $('lGuard').textContent=tr('guard');$('bStart').textContent=tr('start');$('bAdmin').textContent=tr('admin');
+  $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
+  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('bChange').textContent=tr('change');$('scanX').textContent=tr('cancel');
+  $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
+  $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
+  fillGuards();render();
+}
+function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
+
+/* ===== setup / name ===== */
+function show(id){['vSetup','vPatrol','vAdmin'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function showSetup(err){
+  show('vSetup');$('setErr').textContent=err||'';
+  $('teamBox').classList.toggle('hidden',!!S.team);$('guardBox').classList.toggle('hidden',!S.team);
+}
+function fillGuards(){
+  var sel=$('guard'),cur=sel.value||ls('sp_guard')||'';sel.innerHTML='';
+  var o=document.createElement('option');o.value='';o.textContent=tr('pick');sel.appendChild(o);
+  var gs=(S.state&&S.state.guards)||[];
+  gs.forEach(function(g){var x=document.createElement('option');x.value=g.name;x.textContent=g.name+' ('+g.role+')';sel.appendChild(x);});
+  sel.value=cur;
+}
+function startUp(){
+  if(!S.team){showSetup('');return;}
+  showSetup('');
+  loadState().then(function(){fillGuards();});
+  S.state=S.state||(function(){try{return JSON.parse(ls('sp_state')||'null');}catch(e){return null;}})();
+  fillGuards();
+}
+
+/* ===== patrol screen ===== */
+var ZIDX=function(z){var i=ZORD.indexOf(z);return i<0?99:i;};
+function doneSet(){
+  var st=S.state,d={};if(!st)return d;
+  Object.keys(st.done||{}).forEach(function(k){d[k]=st.done[k];});
+  S.queue.forEach(function(q){if(q.ts>=st.round.start&&q.ts<st.round.end&&!d[q.pid])d[q.pid]={t:q.ts,by:q.guard};});
+  return d;
+}
+function render(){
+  var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
+  var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
+  $('rLabel').textContent=tr('round')+' '+st.round.label;$('who').textContent=S.guard;
+  $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
+  $('ofTotal').textContent=n+' '+tr('of')+' '+total+' '+tr('points');
+  $('pend').textContent=(S.online?'':tr('offline')+' ')+(S.queue.length?S.queue.length+' '+tr('pending'):'');
+  tick();renderList(d);
+}
+function tick(){
+  var st=S.state;if(!st)return;
+  var left=(st.round.end-nowMs())/1000,el=$('left');
+  el.textContent=fmtLeft(left);el.className=left<300?'late':(left<900?'warn':'');
+  if(left<=0&&!S.loading){loadState(true);}
+}
+function renderList(d){
+  var st=S.state,box=$('list'),rem=S.tab==='rem';
+  if(rem&&!st.showNames){box.innerHTML='<p class="note">'+esc(tr('hidden'))+'</p>';return;}
+  var items=st.points.filter(function(p){return rem?!d[p.id]:!!d[p.id];});
+  if(rem&&!items.length){box.innerHTML='<div class="card" style="text-align:center"><div class="big okc">&#10003;</div><p>'+esc(tr('allDone'))+'</p></div>';return;}
+  items.sort(function(a,b){return (a.seq||a.no)-(b.seq||b.no)||a.no-b.no;});
+  var h='';
+  items.forEach(function(p){
+    h+='<div class="pt'+(p.photo?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+'</b>'+(rem?'':'<small>'+fmtT(d[p.id].t)+' '+esc(d[p.id].by)+'</small>')+'</div>';
+  });
+  box.innerHTML=h;
+}
+
+/* ===== scanning ===== */
+var stream=null,scanning=false,onCode=null;
+function openScan(cb){
+  onCode=cb;$('scanModal').classList.remove('hidden');$('scanMsg').textContent=tr('scanHelp');
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false}).then(function(s){
+    stream=s;var v=$('cam');v.srcObject=s;v.setAttribute('playsinline','');return v.play();
+  }).then(function(){scanning=true;scanLoop();}).catch(function(){$('scanMsg').textContent=tr('camErr');});
+}
+function scanLoop(){
+  if(!scanning)return;
+  var v=$('cam'),c=$('cv');
+  if(v.readyState>=2&&v.videoWidth&&window.jsQR){
+    var w=Math.min(640,v.videoWidth),h=Math.round(w*v.videoHeight/v.videoWidth);c.width=w;c.height=h;
+    var x=c.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0,w,h);
+    var im=x.getImageData(0,0,w,h),r=jsQR(im.data,w,h,{inversionAttempts:'dontInvert'});
+    if(r&&r.data){var f=onCode;closeScan();if(f)f(r.data);return;}
+  }
+  setTimeout(scanLoop,120);
+}
+function closeScan(){scanning=false;if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('scanModal').classList.add('hidden');}
+function parseCode(raw){
+  var s=String(raw||'').trim(),n=null;
+  try{var u=new URL(s);var v=u.searchParams.get('loc');if(v!==null)n=parseInt(v,10);}catch(e){if(/^\d{1,3}$/.test(s))n=parseInt(s,10);}
+  return n;
+}
+function getFix(){
+  return new Promise(function(res){
+    if(!navigator.geolocation)return res(null);
+    var best=null,fin=false,id=null,t1=null,t2=null;
+    function end(){if(fin)return;fin=true;try{navigator.geolocation.clearWatch(id);}catch(e){}clearTimeout(t1);clearTimeout(t2);res(best);}
+    id=navigator.geolocation.watchPosition(function(p){var f={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};if(!best||f.acc<best.acc)best=f;if(f.acc<=8)end();},function(){},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+    t1=setTimeout(function(){if(best)end();},7000);t2=setTimeout(end,20000);
+  });
+}
+function shrink(file){
+  return new Promise(function(res,rej){
+    var u=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){var k=Math.min(1,1024/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+      c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.7).split(',')[1]);};
+    im.onerror=function(){URL.revokeObjectURL(u);rej();};im.src=u;
+  });
+}
+function showRes(html){$('resBody').innerHTML=html;$('resModal').classList.remove('hidden');}
+function hideRes(){$('resModal').classList.add('hidden');}
+function askPhoto(pt){
+  return new Promise(function(res){
+    showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr('photoNeed'))+'</p>'+
+      '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="environment" style="display:none"></label>'+
+      '<button class="btn ghost" id="phSkip" type="button">'+esc(tr('skipPhoto'))+'</button>');
+    $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f).then(res,function(){res('');});});
+    $('phSkip').addEventListener('click',function(){res('');});
+  });
+}
+function handleCode(raw){
+  var no=parseCode(raw),pt=null;
+  if(S.state&&no!=null)S.state.points.forEach(function(p){if(p.no===no)pt=p;});
+  if(!pt){showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(tr('notPoint'))+'</p><button class="btn" data-act="again">'+esc(tr('scanNext'))+'</button><button class="btn ghost" data-act="close">'+esc(tr('close'))+'</button>');return;}
+  showRes('<p><span class="sp"></span>'+esc(tr('gps'))+'</p>');
+  getFix().then(function(fix){return (pt.photo?askPhoto(pt):Promise.resolve('')).then(function(photo){return submit(pt,fix,photo);});});
+}
+function submit(pt,fix,photo){
+  showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
+  var it={pid:pt.id,guard:S.guard,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||''};
+  return api({action:'scan',team:S.team,guard:it.guard,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo}).then(function(r){return r;},function(){return null;}).then(function(r){
+    if(!r){S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);}
+    if(!r.ok){
+      if(r.err==='team'){S.team='';ls('sp_team',null);hideRes();showSetup(tr('badTeam'));return;}
+      showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(tr('err_'+r.err)||r.err)+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;
+    }
+    return loadState(true).then(function(){result(pt,r);});
+  });
+}
+function result(pt,r){
+  var d=doneSet(),n=0,total=S.state.points.length;S.state.points.forEach(function(p){if(d[p.id])n++;});
+  var msg=r===null?tr('queued'):(r.gps==='OK'?tr('locOk'):(r.gps==='OUTSIDE'?tr('locOut'):(r.gps==='NO_GPS'?tr('locNone'):tr('locCal'))));
+  var good=r===null||r.gps==='OK'||r.gps==='UNCALIBRATED';
+  showRes('<div class="big '+(good?'okc':'wrn')+'">'+(good?'&#10003;':'!')+'</div><p style="text-align:center;font-size:18px;margin:8px 0 2px"><b>'+esc(pt.no+'. '+pt.name)+'</b></p>'+
+    '<p style="text-align:center;margin:2px 0" class="note">'+esc(msg)+'</p><p style="text-align:center;font-size:20px;margin:10px 0"><b>'+esc(tr('done'))+' '+n+' / '+total+' &nbsp; '+esc(tr('rem'))+' '+(total-n)+'</b></p>'+
+    '<button class="btn" data-act="again">'+esc(tr('scanNext'))+'</button><button class="btn ghost" data-act="close">'+esc(tr('close'))+'</button>');
+}
+
+/* ===== admin ===== */
+var A={pin:'',tab:'live',pts:[],cal:null};
+function aApi(b){b.pin=A.pin;return api(b);}
+function aTab(t){
+  A.tab=t;['Live','Hist','Cal','Set'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===({live:'live',hist:'hist',cal:'cal',set:'set'})[t]);});
+  var f={live:aLive,hist:aHist,cal:aCal,set:aSet}[t];f();
+}
+function aLive(idx){
+  var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
+  var b={action:'a_live'};if(idx!==undefined&&date){b.date=date;b.idx=i;}
+  $('aBody').innerHTML='<p><span class="sp"></span></p>';
+  aApi(b).then(function(r){
+    if(!r.ok){return aErr(r);}
+    var sel='<select id="rSel">';for(var k=0;k<12;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+pad(k*2)+':00-'+pad(k*2+2)+':00</option>';}sel+='</select>';
+    var h='<label>Round ('+esc(r.round.date)+')</label>'+sel+'<div class="counts"><div class="cnt d"><b>'+r.done.length+'</b><span>Done</span></div><div class="cnt r"><b>'+r.missed.length+'</b><span>Missed / remaining</span></div></div>';
+    h+='<div class="zh">Not scanned</div>';
+    r.missed.forEach(function(p){h+='<div class="pt'+(p.hi?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+'</b></div>';});
+    if(!r.missed.length)h+='<p class="note">All points scanned.</p>';
+    h+='<div class="zh">Scanned</div>';
+    r.done.forEach(function(p){h+='<div class="pt"><b>'+p.no+'. '+esc(p.name)+(p.flags?' <span class="fl">'+esc(p.flags)+'</span>':'')+'</b><small>'+fmtT(p.t)+' '+esc(p.by)+'</small></div>';});
+    $('aBody').innerHTML=h;$('rSel').addEventListener('change',function(){aLive(this.value);});
+  }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+function aErr(r){if(r&&r.err==='pin'){aLogout();showSetup('');return;}$('aBody').innerHTML='<p class="err">'+esc(r&&r.err||'error')+'</p>';}
+function today(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
+function aHist(){
+  $('aBody').innerHTML='<label>From</label><input type="date" id="hF" value="'+today()+'"><label>To</label><input type="date" id="hT" value="'+today()+'"><button class="btn" id="hGo" type="button">Load</button><div id="hOut"></div>';
+  $('hGo').addEventListener('click',function(){
+    $('hOut').innerHTML='<p><span class="sp"></span></p>';
+    aApi({action:'a_history',from:$('hF').value,to:$('hT').value}).then(function(r){
+      if(!r.ok)return aErr(r);
+      var h='<p class="note">'+r.rows.length+' scans</p><button class="btn ghost" id="hCsv" type="button">Download CSV</button><div class="scroll"><table><tr><th>Time</th><th>Guard</th><th>Point</th><th>GPS</th><th>Flags</th><th>Photo</th></tr>';
+      r.rows.slice().reverse().forEach(function(x){h+='<tr><td>'+esc(x.t.slice(5,16))+'</td><td>'+esc(x.guard)+'</td><td>'+x.no+'. '+esc(x.name)+'</td><td>'+esc(x.gps)+(x.dist!==''?' '+x.dist+'m':'')+'</td><td class="fl">'+esc(x.flags)+'</td><td>'+(x.photo?'<a href="'+esc(x.photo)+'" target="_blank" rel="noopener" style="color:#ffc861">photo</a>':'')+'</td></tr>';});
+      $('hOut').innerHTML=h+'</table></div>';
+      $('hCsv').addEventListener('click',function(){
+        var c='Time,Round,Guard,No,Point,GPS,Distance m,Accuracy m,Flags,Photo\n';
+        r.rows.forEach(function(x){c+=[x.t,x.round,x.guard,x.no,x.name,x.gps,x.dist,x.acc,x.flags,x.photo].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',')+'\n';});
+        var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));a.download='patrol-history-'+$('hF').value+'.csv';a.click();
+      });
+    }).catch(function(){$('hOut').innerHTML='<p class="err">No connection.</p>';});
+  });
+}
+function aCal(){
+  $('aBody').innerHTML='<p><span class="sp"></span></p>';
+  aApi({action:'a_points'}).then(function(r){
+    if(!r.ok)return aErr(r);A.pts=r.points;
+    var h='<p class="note">Stand at the QR, outdoors if possible. The phone takes up to 10 readings and averages them.</p><label>Point</label><select id="cP"><option value="">Select...</option>';
+    r.points.forEach(function(p){h+='<option value="'+esc(p.id)+'">'+p.no+'. '+esc(p.name)+(p.cal?' [done]':' [not calibrated]')+'</option>';});
+    h+='</select><label>Radius (m) for this point</label><input id="cR" type="number" min="5" max="200" inputmode="numeric"><button class="btn" id="cGo" type="button">Start reading (GPS + radius)</button><button class="btn" id="cRo" type="button">Save radius only</button><div id="cOut" class="card hidden"></div><hr><p class="note">After calibrating the points, build the walking order from the real positions. Sticker numbers do not change.</p><button class="btn" id="cRoute" type="button">Auto-sequence walking route</button>';
+    $('aBody').innerHTML=h;
+    function curR(){var v=$('cP').value,r=25;A.pts.forEach(function(p){if(p.id===v)r=p.radius;});return r;}
+    $('cP').addEventListener('change',function(){$('cR').value=curR();});
+    $('cRo').addEventListener('click',function(){var pid=$('cP').value;if(!pid)return;var out=$('cOut');out.classList.remove('hidden');aApi({action:'a_radius',pid:pid,radius:$('cR').value}).then(function(x){out.innerHTML=x.ok?'<p class="okc">Radius saved.</p>':'<p class="err">'+esc(x.err)+'</p>';if(x.ok)aCal();});});
+    $('cRoute').addEventListener('click',function(){var out=$('cOut');out.classList.remove('hidden');out.innerHTML='<span class="sp"></span>';aApi({action:'a_route'}).then(function(x){out.innerHTML=x.ok?'<p class="okc">Route set for '+x.n+' points ('+x.uncal+' not calibrated, placed last).</p>':'<p class="err">'+esc(x.err==='calibrate_first'?'Calibrate at least 2 points first.':x.err)+'</p>';});});
+    $('cGo').addEventListener('click',function(){
+      var pid=$('cP').value;if(!pid)return;
+      var out=$('cOut');out.classList.remove('hidden');out.innerHTML='<span class="sp"></span>Reading...';
+      var fixes=[],wid=null,t0=Date.now(),done=false;
+      function finish(){
+        if(done)return;done=true;try{navigator.geolocation.clearWatch(wid);}catch(e){}
+        if(!fixes.length){out.innerHTML='<p class="err">No location. Allow location access and try outdoors.</p>';return;}
+        var sw=0,la=0,ln=0,best=1e9;fixes.forEach(function(f){var w=1/(Math.max(f.acc,3)*Math.max(f.acc,3));sw+=w;la+=f.lat*w;ln+=f.lng*w;best=Math.min(best,f.acc);});
+        var res={lat:la/sw,lng:ln/sw,acc:best,n:fixes.length};A.cal=res;
+        out.innerHTML='<p>'+res.n+' readings. Best accuracy '+Math.round(res.acc)+' m.</p><p class="note">'+res.lat.toFixed(6)+', '+res.lng.toFixed(6)+'</p>'+(res.acc>20?'<p class="err">Accuracy is poor. Move to open sky and read again, or save anyway.</p>':'')+'<button class="btn" id="cSave" type="button">Save as official location</button>';
+        $('cSave').addEventListener('click',function(){
+          aApi({action:'a_calibrate',pid:pid,radius:$('cR').value,lat:res.lat,lng:res.lng,acc:res.acc,n:res.n}).then(function(x){out.innerHTML=x.ok?'<p class="okc">Saved.</p>':'<p class="err">'+esc(x.err)+'</p>';if(x.ok)aCal();});
+        });
+      }
+      wid=navigator.geolocation.watchPosition(function(p){fixes.push({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy});out.innerHTML='<span class="sp"></span>Reading '+fixes.length+'/10, accuracy '+Math.round(p.coords.accuracy)+' m';if(fixes.length>=10||(fixes.length>=3&&p.coords.accuracy<=5))finish();},function(){finish();},{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+      setTimeout(finish,60000);
+    });
+  }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+function aSet(){
+  var on=S.state?S.state.showNames:true;
+  $('aBody').innerHTML='<div class="card"><label class="remember"><input id="sN" type="checkbox"'+(on?' checked':'')+'><span>Show names of remaining points to guards</span></label><p class="note">Off = guards see only the counter. Edit points, radius, guards and the email address directly in the Google Sheet tabs: Points, Guards, Config.</p></div>';
+  $('sN').addEventListener('change',function(){aApi({action:'a_config',showNames:this.checked}).then(function(r){if(r.ok&&S.state){S.state.showNames=r.showNames;}});});
+}
+function aLogout(){A.pin='';ls('sp_pin',null);show('vSetup');}
+function openPin(){$('pin').value='';$('pinErr').textContent='';$('pinModal').classList.remove('hidden');$('pin').focus();}
+function enterAdmin(){show('vAdmin');aTab('live');}
+
+/* ===== wiring ===== */
+$('lEN').addEventListener('click',function(){setLang('en');});$('lID').addEventListener('click',function(){setLang('id');});
+$('bTeam').addEventListener('click',function(){
+  var v=$('team').value.trim();if(!v)return;S.team=v;ls('sp_team',v);$('setErr').textContent='';
+  loadState().then(function(ok){if(ok){showSetup('');fillGuards();}});
+});
+$('bStart').addEventListener('click',function(){
+  var g=$('guard').value;if(!g){$('setErr').textContent=tr('pick');return;}
+  S.guard=g;ls('sp_guard',g);show('vPatrol');render();flush();
+});
+$('bChange').addEventListener('click',function(){showSetup('');fillGuards();});
+$('bScan').addEventListener('click',function(){openScan(handleCode);});
+$('scanX').addEventListener('click',closeScan);
+$('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');render();});
+$('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList.add('on');$('tRem').classList.remove('on');render();});
+$('resBody').addEventListener('click',function(e){
+  var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');
+  if(a==='close')hideRes();if(a==='again'){hideRes();openScan(handleCode);}
+});
+$('bAdmin').addEventListener('click',function(){var p=ls('sp_pin');if(p){A.pin=p;enterAdmin();}else openPin();});
+$('pinX').addEventListener('click',function(){$('pinModal').classList.add('hidden');});
+$('pinForm').addEventListener('submit',function(e){
+  e.preventDefault();var p=$('pin').value.trim();if(!p)return;A.pin=p;
+  api({action:'a_points',pin:p}).then(function(r){
+    if(r&&r.ok){if($('pinKeep').checked)ls('sp_pin',p);$('pinModal').classList.add('hidden');enterAdmin();}
+    else{$('pinErr').textContent=tr('badPin');}
+  }).catch(function(){$('pinErr').textContent='No connection.';});
+});
+$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
+$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});
+$('aOut').addEventListener('click',function(){aLogout();showSetup('');});
+window.addEventListener('online',function(){S.online=true;flush();});
+window.addEventListener('offline',function(){S.online=false;render();});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&!$('vPatrol').classList.contains('hidden')){loadState(true);flush();}});
+setInterval(tick,1000);
+setInterval(function(){if(!$('vPatrol').classList.contains('hidden')&&!document.hidden){loadState(true);flush();}},30000);
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+applyLang();startUp();
+})();
+</script></body></html>

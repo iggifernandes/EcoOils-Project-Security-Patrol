@@ -1,0 +1,46 @@
+id,location,uauc_location_name,zone,radius_m,photo_required,latitude,longitude,notes,sticker_no
+MEN-SEC-GT-01,Main gate / security building,SECURITY BUILDING,Gate / entry,25,Yes,,,Entry and exit control,1
+MEN-SEC-GT-02,West gate / security post,SECURITY POST,Gate / entry,25,Yes,,,Confirm actual gate position,2
+MEN-SEC-GT-03,Weighbridge,WEIGHT BRIDGE,Gate / entry,25,No,,,Confirm position,3
+MEN-SEC-BL-02,Administration building,ADMINISTRATION BUILDING,Building,25,No,,,Confirm position,4
+MEN-SEC-BL-03,Warehouse Block B,,Building,25,No,,,Confirm position,5
+MEN-SEC-BL-04,Workshop area(In admin Building),WORKSHOP AREA,Building,25,No,,,Confirm position,6
+MEN-SEC-LD-01,Block 6 B South East Corner,,Laydown,25,No,,,,7
+MEN-SEC-LD-02,GSB Office,,Laydown,25,No,,,,8
+MEN-SEC-LD-03,WEN Office,,Laydown,25,No,,,,9
+MEN-SEC-LD-04,PBS Office,,Laydown,25,No,,,,10
+MEN-SEC-LD-05,KKS Office ,,Laydown,25,No,,,,11
+MEN-SEC-MP-01,MCC Building,,Muster point,25,No,,,Confirm position,12
+MEN-SEC-PL-01,DDE treatment plant (DTP),DDE TREATMENT PLANT (DTP),Process plant,40,No,,,,13
+MEN-SEC-PL-02,Vapor absorption machine (VAM) shed,VAPOR ABSORPTION MACHINE (VAM) SHED,Process plant,40,No,,,,14
+MEN-SEC-PL-03,Pipe rack - north,PIPE RACK,Process plant,40,No,,,Fix on a column; not on pipe,15
+MEN-SEC-PL-04,Cooling tower,COOLING TOWER,Process plant,40,No,,,Confirm position,16
+MEN-SEC-PL-05,Dirty cooling tower,DIRTY COOLING TOWER,Process plant,40,No,,,Confirm position,17
+MEN-SEC-PL-06,FFA plant,FA PLANT,Process plant,40,No,,,Confirm position,18
+MEN-SEC-PL-07,Pipe rack - centre,PIPE RACK,Process plant,40,No,,,Fix on a column; not on pipe,19
+MEN-SEC-PL-08,Oil polishing plant,OIL POLISHING PLANT,Process plant,40,No,,,Confirm position,20
+MEN-SEC-PL-09,Boiler / chimney area,,Process plant,40,Yes,,,High risk; hot surfaces; keep QR clear of heat,21
+MEN-SEC-PL-10,Electrical substation (PLN),ELECTRICAL SUBSTATION (PLN),Process plant,40,Yes,,,Fix on outer fence or wall only,22
+MEN-SEC-PL-11,Extraction plant - north,EXTRACTION PLANT,Process plant,40,No,,,,23
+MEN-SEC-PL-12,Pre-treatment unit (PTU),PRE TREATMENT UNIT (PTU),Process plant,40,No,,,,24
+MEN-SEC-PL-13,Control room / MCC room,"CONTROL ROOM, MCC ROOM",Process plant,40,No,,,Outer wall at entrance,25
+MEN-SEC-PL-14,Extraction plant - centre,EXTRACTION PLANT,Process plant,40,Yes,,,High risk; hexane process,26
+MEN-SEC-PL-15,Silo,SILO,Process plant,40,No,,,,27
+MEN-SEC-PL-16,Extraction plant - south,EXTRACTION PLANT,Process plant,40,No,,,,28
+MEN-SEC-UT-01,Scheduled and domestic waste shed,SCHEDULED & DOMESTIC WASTE SHED,Utilities / tanks,40,No,,,,29
+MEN-SEC-UT-02,Dry and liquid chemical storage,DRY AND LIQUID CHEMICAL STORAGE,Utilities / tanks,40,Yes,,,Chemical storage,30
+MEN-SEC-UT-03,Raw water pit,RAW WATER PIT,Utilities / tanks,40,No,,,Fix on fence; not at pit edge,31
+MEN-SEC-UT-04,Hexane tank,HEXANE TANK,Utilities / tanks,40,Yes,,,High risk; outside bund wall,32
+MEN-SEC-UT-05,Tank farm -21T03,TANK FARM,Utilities / tanks,40,No,,,Outside bund wall,33
+MEN-SEC-UT-06,Tank farm - 21T01,TANK FARM,Utilities / tanks,40,Yes,,,High risk; outside bund wall,34
+MEN-SEC-UT-07,Tank farm - 21T08,TANK FARM,Utilities / tanks,40,No,,,Outside bund wall,35
+MEN-SEC-UT-08,Fire water tank,FIRE WATER TANK,Utilities / tanks,40,No,,,Confirm position,36
+MEN-SEC-UT-09,Fire water pump house,FIRE WATER PUMP HOUSE,Utilities / tanks,40,No,,,Confirm position,37
+MEN-SEC-UT-10,Hexane and diesel receiving bay,HEXANE AND DIESEL RECEIVING BAY,Utilities / tanks,40,Yes,,,High risk; offloading area,38
+MEN-SEC-UT-11,Water treatment plant (WTP) and tanks,WATER TREATMENT PLANT (WTP) AND WATER TANKS,Utilities / tanks,40,No,,,,39
+MEN-SEC-UT-12,Loading / unloading area (pump house),LOADING/UNLOADING AREA (PUMP HOUSE),Utilities / tanks,40,No,,,,40
+MEN-SEC-UT-13,Diesel tank / generator area,DIESEL TANK,Utilities / tanks,40,Yes,,,Fuel storage; outside bund wall,41
+MEN-SEC-UT-14,Effluent treatment plant (ETP),EFFLUENT TREATMENT PLANT (ETP),Utilities / tanks,40,No,,,Confirm position,42
+MEN-SEC-UT-15,Waste water treatment plant (WWTP),WASTE WATER TREATMENT PLANT (WWTP),Utilities / tanks,40,No,,,Confirm position,43
+MEN-SEC-FN-01,North-west corner Block 6a,,Perimeter fence,25,No,,,,44
+MEN-SEC-FN-02,EcoOils Ware House,,Perimeter fence,25,No,,,,45
