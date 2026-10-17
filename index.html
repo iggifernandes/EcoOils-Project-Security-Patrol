@@ -66,6 +66,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 @keyframes sp{to{transform:rotate(360deg)}}
 .links{margin-top:22px;text-align:center}
 .links button{background:none;border:0;color:var(--mute);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
+.mem{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:4px 0}.mem.off{opacity:.55}.mem small{color:var(--mute)}.mem .acts{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.mem .btn.sm{margin:0;padding:6px 10px;font-size:13px}.pinbig{font-size:44px;font-weight:800;letter-spacing:8px;text-align:center;color:var(--amber2);margin:8px 0;font-variant-numeric:tabular-nums}
 .remember{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}.remember input{width:20px;height:20px;margin:0}
 </style></head><body>
 <header><div class="brand" id="brand">EcoOils Patrol</div>
@@ -75,15 +76,11 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 
 <section id="vSetup">
   <h1 id="tSetup"></h1>
-  <div id="teamBox" class="hidden">
-    <label for="team" id="lTeam"></label><input id="team" inputmode="numeric" autocomplete="off">
-    <div class="note" id="hTeam"></div>
-    <button class="btn" id="bTeam" type="button"></button>
-  </div>
-  <div id="guardBox" class="hidden">
-    <label for="guard" id="lGuard"></label><select id="guard"></select>
-    <button class="btn" id="bStart" type="button"></button>
-  </div>
+  <form id="pinBox" autocomplete="off">
+    <label for="gpin" id="lGpin"></label><input id="gpin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
+    <div class="note" id="hGpin"></div>
+    <button class="btn" id="bGpin" type="submit"></button>
+  </form>
   <div class="err" id="setErr"></div>
   <div class="links"><button id="bAdmin" type="button"></button></div>
 </section>
@@ -97,13 +94,19 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   </div>
   <button class="btn" id="bScan" type="button"></button>
   <div class="note" id="pend"></div>
+  <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
   <div class="tabs"><button id="tRem" class="on" type="button"></button><button id="tDone" type="button"></button></div>
   <div id="list"></div>
   <div class="links"><button id="bChange" type="button"></button></div>
 </section>
 
+<section id="vTeam" class="hidden">
+  <button class="btn ghost" id="tBack" type="button"></button>
+  <div id="teamBody"></div>
+</section>
+
 <section id="vAdmin" class="hidden">
-  <div class="tabs"><button id="aLive" class="on" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button></div>
+  <div class="tabs"><button id="aLive" class="on" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -127,28 +130,32 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.3.3';
+var VERSION='v1.5';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
 var T={en:{
- title:'EcoOils Patrol',setup:'Start your patrol',teamCode:'Team code',teamHelp:'Enter the code from your supervisor. You only need it once on this phone.',next:'Continue',
- guard:'Your name',pick:'Select your name...',start:'Start patrol',round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
+ title:'EcoOils Patrol',setup:'Start your patrol',pinLabel:'Your personal PIN',pinHelp:'Your Danru gives you a 6-digit PIN. You only enter it once on this phone.',pinGo:'Continue',
+ round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
  scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
  notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'A photo is needed at this point.',takePhoto:'Take photo',skipPhoto:'Skip photo (will be flagged)',sending:'Sending...',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
- scanNext:'Scan next',close:'Close',queued:'No connection. Saved on this phone and will send automatically.',badTeam:'Team code is wrong.',change:'Change name',admin:'Admin',
+ scanNext:'Scan next',close:'Close',queued:'No connection. Saved on this phone and will send automatically.',badGuardPin:'PIN is wrong. Check it with your Danru.',locked:'Too many wrong tries. Wait 10 minutes and try again.',logout:'Log out',admin:'Admin',
+ team:'Team (Danru)',teamTitle:'Team',back:'Back',addTitle:'Add a new member',namePh:'Full name',addGo:'Add and create PIN',search:'Search name',newPin:'New PIN',deact:'Deactivate',act:'Activate',pinSet:'PIN set',noPin:'No PIN yet',danru:'Danru',inactive:'Inactive',pinShowTitle:'PIN for',pinShowHelp:'Give this PIN to the guard now. It cannot be shown again. If it is lost, make a new PIN.',done2:'Done',confirmReset:'Make a new PIN for',confirmOff:'Deactivate',confirmOn:'Activate',yes:'Yes',no:'No',mkDanru:'Make Danru',rmDanru:'Remove Danru',members:'members',
+ err_dup:'This name is already in the list.',err_bad_name:'Enter the full name (2 to 40 characters).',err_auth:'Not allowed.',err_locked:'Too many wrong tries. Wait 10 minutes.',err_danru_locked:'Only the admin can change a Danru.',err_pin:'PIN is wrong.',err_self:'You cannot deactivate yourself.',
  adminLogin:'Log in',keep:'Keep me signed in on this phone',badPin:'PIN is wrong or locked. Try again later.',err_unknown_point:'This point is not active.',err_unknown_guard:'Your name is not on the list.',err_server:'Server error. Try again.',
  ann:'Not configured: the app has no server address yet.',noGuards:'No names found.',later:'min'},
  id:{
- title:'EcoOils Patroli',setup:'Mulai patroli',teamCode:'Kode tim',teamHelp:'Masukkan kode dari supervisor. Cukup sekali di ponsel ini.',next:'Lanjut',
- guard:'Nama Anda',pick:'Pilih nama Anda...',start:'Mulai patroli',round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
+ title:'EcoOils Patroli',setup:'Mulai patroli',pinLabel:'PIN pribadi Anda',pinHelp:'Danru memberi Anda PIN 6 angka. Cukup dimasukkan sekali di ponsel ini.',pinGo:'Lanjut',
+ round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
  scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
  notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Foto diperlukan di titik ini.',takePhoto:'Ambil foto',skipPhoto:'Lewati foto (akan ditandai)',sending:'Mengirim...',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
- scanNext:'Pindai berikutnya',close:'Tutup',queued:'Tidak ada koneksi. Disimpan di ponsel dan terkirim otomatis.',badTeam:'Kode tim salah.',change:'Ganti nama',admin:'Admin',
+ scanNext:'Pindai berikutnya',close:'Tutup',queued:'Tidak ada koneksi. Disimpan di ponsel dan terkirim otomatis.',badGuardPin:'PIN salah. Tanyakan kepada Danru Anda.',locked:'Terlalu banyak salah. Tunggu 10 menit lalu coba lagi.',logout:'Keluar',admin:'Admin',
+ team:'Tim (Danru)',teamTitle:'Tim',back:'Kembali',addTitle:'Tambah anggota baru',namePh:'Nama lengkap',addGo:'Tambah dan buat PIN',search:'Cari nama',newPin:'PIN baru',deact:'Nonaktifkan',act:'Aktifkan',pinSet:'PIN sudah ada',noPin:'Belum ada PIN',danru:'Danru',inactive:'Tidak aktif',pinShowTitle:'PIN untuk',pinShowHelp:'Berikan PIN ini kepada anggota sekarang. PIN tidak dapat ditampilkan lagi. Jika hilang, buat PIN baru.',done2:'Selesai',confirmReset:'Buat PIN baru untuk',confirmOff:'Nonaktifkan',confirmOn:'Aktifkan',yes:'Ya',no:'Tidak',mkDanru:'Jadikan Danru',rmDanru:'Cabut Danru',members:'anggota',
+ err_dup:'Nama ini sudah ada dalam daftar.',err_bad_name:'Masukkan nama lengkap (2 sampai 40 karakter).',err_auth:'Tidak diizinkan.',err_locked:'Terlalu banyak salah. Tunggu 10 menit.',err_danru_locked:'Hanya admin yang dapat mengubah Danru.',err_pin:'PIN salah.',err_self:'Anda tidak dapat menonaktifkan diri sendiri.',
  adminLogin:'Masuk',keep:'Biarkan saya tetap masuk di ponsel ini',badPin:'PIN salah atau terkunci. Coba lagi nanti.',err_unknown_point:'Titik ini tidak aktif.',err_unknown_guard:'Nama Anda tidak ada dalam daftar.',err_server:'Kesalahan server. Coba lagi.',
  ann:'Belum dikonfigurasi: aplikasi belum memiliki alamat server.',noGuards:'Nama tidak ditemukan.',later:'mnt'}};
 var lang='en';
@@ -156,11 +163,13 @@ function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null
 lang=ls('sp_lang')||(/^id/i.test(navigator.language||'')?'id':'en');
 function tr(k){return (T[lang]&&T[lang][k])||T.en[k]||k;}
 var $=function(id){return document.getElementById(id);};
+function errText(c){var k='err_'+c;return (T[lang]&&T[lang][k])||T.en[k]||String(c);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function pad(n){return (n<10?'0':'')+n;}
 function fmtT(ms){return new Date(ms+7*3600000).toISOString().slice(11,16);}
 function fmtLeft(s){s=Math.max(0,Math.floor(s));var h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+':':'')+pad(m)+':'+pad(s%60);}
-var S={team:ls('sp_team')||'',guard:'',state:null,off:0,tab:'rem',queue:[],loading:false,online:true};
+ls('sp_team',null);ls('sp_guard',null);
+var S={pin:ls('sp_gpin')||'',guard:ls('sp_gname')||'',state:null,off:0,tab:'rem',queue:[],loading:false,online:true};
 try{S.queue=JSON.parse(ls('sp_q')||'[]');}catch(e){S.queue=[];}
 function saveQ(){ls('sp_q',JSON.stringify(S.queue));}
 function nowMs(){return Date.now()+S.off;}
@@ -171,13 +180,14 @@ function api(body,ms){
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),redirect:'follow',signal:ctl?ctl.signal:undefined})
     .then(function(r){return r.json();}).then(function(j){if(t)clearTimeout(t);return j;},function(e){if(t)clearTimeout(t);throw e;});
 }
+function dropLogin(msg){S.pin='';S.guard='';S.state=null;ls('sp_gpin',null);ls('sp_gname',null);ls('sp_state',null);showSetup(msg||'');}
 function loadState(quiet){
-  if(!API_URL||!S.team)return Promise.resolve(false);
+  if(!API_URL||!S.pin)return Promise.resolve(false);
   S.loading=true;
-  return api({action:'state',team:S.team}).then(function(r){
+  return api({action:'state',gp:S.pin}).then(function(r){
     S.loading=false;
-    if(!r||!r.ok){if(r&&r.err==='team'){S.team='';ls('sp_team',null);showSetup(tr('badTeam'));}return false;}
-    S.state=r;S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));render();return true;
+    if(!r||!r.ok){if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));}else if(r&&r.err==='locked'){S.online=false;render();}return false;}
+    S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));render();return true;
   }).catch(function(){
     S.loading=false;S.online=false;
     if(!S.state){try{S.state=JSON.parse(ls('sp_state')||'null');}catch(e){}}
@@ -186,13 +196,15 @@ function loadState(quiet){
 }
 function flush(){
   if(!S.queue.length||!API_URL)return Promise.resolve();
+  var lim=Date.now()-36*3600000;S.queue=S.queue.filter(function(x){return x.ts>lim;});saveQ();
   var q=S.queue.slice(),p=Promise.resolve(),stop=false;
   q.forEach(function(it){p=p.then(function(){
     if(stop)return;
-    var b={action:'scan',team:S.team,guard:it.guard,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo,queued:true};
+    var b={action:'scan',gp:it.pin||S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo,queued:true};
     return api(b).then(function(r){
-      if(r&&(r.ok||r.err==='unknown_point'||r.err==='unknown_guard')){S.queue=S.queue.filter(function(x){return x!==it&&x.ts!==it.ts;});saveQ();}
-      else if(r&&r.err==='team'){stop=true;}
+      if(r&&(r.ok||r.err==='unknown_point')){S.queue=S.queue.filter(function(x){return x!==it&&x.ts!==it.ts;});saveQ();}
+      else if(r&&r.err==='pin'){if(S.pin&&it.guard===S.guard&&it.pin!==S.pin){it.pin=S.pin;saveQ();}stop=true;}
+      else if(r&&r.err==='locked'){stop=true;}
     },function(){stop=true;});
   });});
   return p.then(function(){render();return loadState(true);});
@@ -202,35 +214,24 @@ function flush(){
 function applyLang(){
   document.documentElement.lang=lang;$('lEN').classList.toggle('on',lang==='en');$('lID').classList.toggle('on',lang==='id');
   $('ver').textContent=VERSION;$('brand').textContent=tr('title');
-  $('tSetup').textContent=tr('setup');$('lTeam').textContent=tr('teamCode');$('hTeam').textContent=tr('teamHelp');$('bTeam').textContent=tr('next');
-  $('lGuard').textContent=tr('guard');$('bStart').textContent=tr('start');$('bAdmin').textContent=tr('admin');
+  $('tSetup').textContent=tr('setup');$('lGpin').textContent=tr('pinLabel');$('hGpin').textContent=tr('pinHelp');$('bGpin').textContent=tr('pinGo');
+  $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');
   $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
-  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('bChange').textContent=tr('change');$('scanX').textContent=tr('cancel');
+  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
-  fillGuards();render();
+  render();if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
-/* ===== setup / name ===== */
-function show(id){['vSetup','vPatrol','vAdmin'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
-function showSetup(err){
-  show('vSetup');$('setErr').textContent=err||'';
-  $('teamBox').classList.toggle('hidden',!!S.team);$('guardBox').classList.toggle('hidden',!S.team);
-}
-function fillGuards(){
-  var sel=$('guard'),cur=sel.value||ls('sp_guard')||'';sel.innerHTML='';
-  var o=document.createElement('option');o.value='';o.textContent=tr('pick');sel.appendChild(o);
-  var gs=(S.state&&S.state.guards)||[];
-  gs.forEach(function(g){var x=document.createElement('option');x.value=g.name;x.textContent=g.name+' ('+g.role+')';sel.appendChild(x);});
-  sel.value=cur;
-}
+/* ===== login ===== */
+function show(id){['vSetup','vPatrol','vAdmin','vTeam'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
+function showPatrol(){show('vPatrol');render();}
 function startUp(){
-  if(!S.team){showSetup('');return;}
-  showSetup('');
-  loadState().then(function(){fillGuards();});
-  S.state=S.state||(function(){try{return JSON.parse(ls('sp_state')||'null');}catch(e){return null;}})();
-  fillGuards();
+  if(!S.pin){showSetup('');return;}
+  if(!S.state){try{S.state=JSON.parse(ls('sp_state')||'null');}catch(e){S.state=null;}}
+  showPatrol();loadState().then(function(){flush();});
 }
 
 /* ===== patrol screen ===== */
@@ -243,6 +244,7 @@ function doneSet(){
 }
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=tr('round')+' '+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -331,12 +333,13 @@ function handleCode(raw){
 }
 function submit(pt,fix,photo){
   showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
-  var it={pid:pt.id,guard:S.guard,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||''};
-  return api({action:'scan',team:S.team,guard:it.guard,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo}).then(function(r){return r;},function(){return null;}).then(function(r){
+  var it={pid:pt.id,guard:S.guard,pin:S.pin,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||''};
+  return api({action:'scan',gp:S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo}).then(function(r){return r;},function(){return null;}).then(function(r){
     if(!r){S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);}
     if(!r.ok){
-      if(r.err==='team'){S.team='';ls('sp_team',null);hideRes();showSetup(tr('badTeam'));return;}
-      showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(tr('err_'+r.err)||r.err)+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;
+      if(r.err==='locked'){S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);}
+      if(r.err==='pin'){hideRes();dropLogin(tr('badGuardPin'));return;}
+      showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(errText(r.err))+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;
     }
     return loadState(true).then(function(){result(pt,r);});
   });
@@ -354,8 +357,8 @@ function result(pt,r){
 var A={pin:'',tab:'live',pts:[],cal:null};
 function aApi(b){b.pin=A.pin;return api(b);}
 function aTab(t){
-  A.tab=t;['Live','Hist','Cal','Set'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===({live:'live',hist:'hist',cal:'cal',set:'set'})[t]);});
-  var f={live:aLive,hist:aHist,cal:aCal,set:aSet}[t];f();
+  A.tab=t;['Live','Hist','Cal','Set','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  var f={live:aLive,hist:aHist,cal:aCal,set:aSet,team:aTeam}[t];f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -373,7 +376,7 @@ function aLive(idx){
     $('aBody').innerHTML=h;$('rSel').addEventListener('change',function(){aLive(this.value);});
   }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
 }
-function aErr(r){if(r&&r.err==='pin'){aLogout();showSetup('');return;}$('aBody').innerHTML='<p class="err">'+esc(r&&r.err||'error')+'</p>';}
+function aErr(r){if(r&&r.err==='pin'){aLogout();return;}$('aBody').innerHTML='<p class="err">'+esc(r&&r.err||'error')+'</p>';}
 function today(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
 function aHist(){
   $('aBody').innerHTML='<label>From</label><input type="date" id="hF" value="'+today()+'"><label>To</label><input type="date" id="hT" value="'+today()+'"><button class="btn" id="hGo" type="button">Load</button><div id="hOut"></div>';
@@ -428,21 +431,88 @@ function aSet(){
   $('aBody').innerHTML='<div class="card"><label class="remember"><input id="sN" type="checkbox"'+(on?' checked':'')+'><span>Show names of remaining points to guards</span></label><p class="note">Off = guards see only the counter. Edit points, radius, guards and the email address directly in the Google Sheet tabs: Points, Guards, Config.</p></div>';
   $('sN').addEventListener('change',function(){aApi({action:'a_config',showNames:this.checked}).then(function(r){if(r.ok&&S.state){S.state.showNames=r.showNames;}});});
 }
-function aLogout(){A.pin='';ls('sp_pin',null);show('vSetup');}
+function aLogout(){A.pin='';ls('sp_pin',null);if(S.pin)showPatrol();else showSetup('');}
 function openPin(){$('pin').value='';$('pinErr').textContent='';$('pinModal').classList.remove('hidden');$('pin').focus();}
 function enterAdmin(){show('vAdmin');aTab('live');}
 
+
+/* ===== Team (Danru and admin) ===== */
+var TM={mode:'danru',box:null,q:'',data:null,pending:null};
+function tApi(b){if(TM.mode==='admin')b.pin=A.pin;else b.gp=S.pin;return api(b);}
+function teamOpen(){TM.q='';TM.mode='danru';TM.box=$('teamBody');show('vTeam');teamLoad();}
+function aTeam(){TM.q='';TM.mode='admin';TM.box=$('aBody');teamLoad();}
+function teamLoad(){
+  (TM.mode==='admin'?$('teamBody'):$('aBody')).innerHTML='';
+  TM.box.innerHTML='<p><span class="sp"></span></p>';
+  tApi({action:'d_list'}).then(function(r){
+    if(!r.ok){if(r.err==='pin'||r.err==='auth'&&TM.mode==='admin'){TM.mode==='admin'?aErr({err:'pin'}):dropLogin(tr('badGuardPin'));return;}TM.box.innerHTML='<p class="err">'+esc(errText(r.err))+'</p>';return;}
+    TM.data=r;teamDraw();
+  }).catch(function(){TM.box.innerHTML='<p class="err">No connection.</p>';});
+}
+function teamDraw(){
+  var r=TM.data,adm=TM.mode==='admin',q=TM.q.toLowerCase(),h='';
+  h+='<div class="card"><b>'+esc(tr('addTitle'))+'</b><input id="tmName" placeholder="'+esc(tr('namePh'))+'" maxlength="40" autocomplete="off" style="margin-top:8px"><button class="btn" id="tmAdd" type="button">'+esc(tr('addGo'))+'</button><div class="err" id="tmErr"></div></div>';
+  h+='<input id="tmQ" placeholder="'+esc(tr('search'))+'" value="'+esc(TM.q)+'" style="margin-top:12px"><p class="note">'+r.members.filter(function(m){return m.active;}).length+' '+esc(tr('members'))+'</p>';
+  r.members.slice().sort(function(a,b){return (b.active-a.active)||a.name.localeCompare(b.name);}).forEach(function(m){
+    if(q&&m.name.toLowerCase().indexOf(q)<0)return;
+    var lock=m.danru&&!adm,n=esc(m.name);
+    h+='<div class="mem'+(m.active?'':' off')+'"><div><b>'+n+'</b>'+(m.danru?' <span class="wrn">&#9733; '+esc(tr('danru'))+'</span>':'')+'<br><small>'+esc(m.role)+' &middot; '+esc(m.hasPin?tr('pinSet'):tr('noPin'))+(m.active?'':' &middot; '+esc(tr('inactive')))+'</small></div><div class="acts">';
+    if(!lock){
+      if(m.active)h+='<button class="btn sm" data-a="reset" data-n="'+n+'" type="button">'+esc(tr('newPin'))+'</button>';
+      h+='<button class="btn sm ghost" data-a="'+(m.active?'off':'on')+'" data-n="'+n+'" type="button">'+esc(m.active?tr('deact'):tr('act'))+'</button>';
+      if(adm)h+='<button class="btn sm ghost" data-a="'+(m.danru?'undanru':'danru')+'" data-n="'+n+'" type="button">'+esc(m.danru?tr('rmDanru'):tr('mkDanru'))+'</button>';
+    }
+    h+='</div></div>';
+  });
+  TM.box.innerHTML=h;
+  var keep=$('tmQ');keep.addEventListener('input',function(){TM.q=this.value;var pos=this.selectionStart;teamDraw();var k=$('tmQ');k.focus();try{k.setSelectionRange(pos,pos);}catch(e){}});
+  $('tmAdd').addEventListener('click',teamAdd);
+  $('tmName').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();teamAdd();}});
+  TM.box.onclick=function(e){
+    var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-a'),n=e.target&&e.target.getAttribute&&e.target.getAttribute('data-n');
+    if(!a||!n)return;
+    var nm=n;
+    if(a==='reset')ask(tr('confirmReset')+' '+nm+'?',function(){teamAct({action:'d_reset',name:nm},true);});
+    if(a==='off')ask(tr('confirmOff')+' '+nm+'?',function(){teamAct({action:'d_active',name:nm,active:false});});
+    if(a==='on')ask(tr('confirmOn')+' '+nm+'?',function(){teamAct({action:'d_active',name:nm,active:true});});
+    if(a==='danru'||a==='undanru')ask((a==='danru'?tr('mkDanru'):tr('rmDanru'))+': '+nm+'?',function(){teamAct({action:'d_danru',name:nm,danru:a==='danru'});});
+  };
+}
+function ask(text,yes){TM.pending=yes;showRes('<p style="font-size:17px;text-align:center"><b>'+esc(text)+'</b></p><button class="btn" data-act="yes">'+esc(tr('yes'))+'</button><button class="btn ghost" data-act="close">'+esc(tr('no'))+'</button>');}
+function pinCard(name,pin){showRes('<p style="text-align:center;margin:0"><b>'+esc(tr('pinShowTitle'))+' '+esc(name)+'</b></p><div class="pinbig">'+esc(pin)+'</div><p class="note" style="text-align:center">'+esc(tr('pinShowHelp'))+'</p><button class="btn" data-act="close">'+esc(tr('done2'))+'</button>');}
+function teamAct(b,wantPin){
+  showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
+  tApi(b).then(function(r){
+    if(!r.ok){showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(errText(r.err))+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;}
+    if(wantPin&&r.pin)pinCard(r.name,r.pin);else hideRes();
+    teamLoad();
+  }).catch(function(){showRes('<p class="err">No connection.</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');});
+}
+function teamAdd(){
+  var v=$('tmName').value.replace(/\s+/g,' ').trim();$('tmErr').textContent='';
+  if(v.length<2){$('tmErr').textContent=errText('bad_name');return;}
+  showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
+  tApi({action:'d_add',name:v}).then(function(r){
+    if(!r.ok){hideRes();$('tmErr').textContent=errText(r.err);return;}
+    pinCard(r.name,r.pin);TM.q='';teamLoad();
+  }).catch(function(){hideRes();$('tmErr').textContent='No connection.';});
+}
+
 /* ===== wiring ===== */
 $('lEN').addEventListener('click',function(){setLang('en');});$('lID').addEventListener('click',function(){setLang('id');});
-$('bTeam').addEventListener('click',function(){
-  var v=$('team').value.trim();if(!v)return;S.team=v;ls('sp_team',v);$('setErr').textContent='';
-  loadState().then(function(ok){if(ok){showSetup('');fillGuards();}});
+$('pinBox').addEventListener('submit',function(e){
+  e.preventDefault();var v=$('gpin').value.trim();
+  if(!/^\d{6}$/.test(v)){$('setErr').textContent=tr('badGuardPin');return;}
+  $('setErr').textContent='';$('bGpin').disabled=true;
+  api({action:'state',gp:v}).then(function(r){
+    $('bGpin').disabled=false;
+    if(r&&r.ok){S.pin=v;ls('sp_gpin',v);S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));showPatrol();flush();}
+    else $('setErr').textContent=r&&r.err==='locked'?tr('locked'):tr('badGuardPin');
+  }).catch(function(){$('bGpin').disabled=false;$('setErr').textContent='No connection.';});
 });
-$('bStart').addEventListener('click',function(){
-  var g=$('guard').value;if(!g){$('setErr').textContent=tr('pick');return;}
-  S.guard=g;ls('sp_guard',g);show('vPatrol');render();flush();
-});
-$('bChange').addEventListener('click',function(){showSetup('');fillGuards();});
+$('bChange').addEventListener('click',function(){dropLogin('');});
+$('bTeamOpen').addEventListener('click',teamOpen);
+$('tBack').addEventListener('click',function(){showPatrol();});
 $('bScan').addEventListener('click',function(){openScan(handleCode);});
 $('scanX').addEventListener('click',closeScan);
 $('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');render();});
@@ -450,6 +520,7 @@ $('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList
 $('resBody').addEventListener('click',function(e){
   var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');
   if(a==='close')hideRes();if(a==='again'){hideRes();openScan(handleCode);}
+  if(a==='yes'){var f=TM.pending;TM.pending=null;hideRes();if(f)f();}
 });
 $('bAdmin').addEventListener('click',function(){var p=ls('sp_pin');if(p){A.pin=p;enterAdmin();}else openPin();});
 $('pinX').addEventListener('click',function(){$('pinModal').classList.add('hidden');});
@@ -461,8 +532,8 @@ $('pinForm').addEventListener('submit',function(e){
   }).catch(function(){$('pinErr').textContent='No connection.';});
 });
 $('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
-$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});
-$('aOut').addEventListener('click',function(){aLogout();showSetup('');});
+$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aTeam').addEventListener('click',function(){aTab('team');});
+$('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;flush();});
 window.addEventListener('offline',function(){S.online=false;render();});
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&!$('vPatrol').classList.contains('hidden')){loadState(true);flush();}});

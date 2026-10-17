@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.4
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.5
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.4';
+var VERSION = 'v1.5';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -10,7 +10,7 @@ var ZNAME = {GT: 'Gate / entry', FN: 'Perimeter fence', PL: 'Process plant', UT:
 var HEAD = {
   Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms'],
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
-  Guards: ['Name', 'Role', 'Active'],
+  Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Config: ['Key', 'Value']
 };
 var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",25,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",25,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",25,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",25,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",25,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",25,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",25,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",25,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",25,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",25,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",25,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",25,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",40,"No",""],["MEN-SEC-PL-02",14,"Vapor absorption machine (VAM) shed","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",40,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Oil polishing plant","OIL POLISHING PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",40,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",40,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",40,"No",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",40,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",40,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",40,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",40,"No",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",40,"No",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",40,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",40,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",40,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"Hexane tank","HEXANE TANK","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",40,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",40,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",40,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",40,"No",""],["MEN-SEC-UT-12",40,"Loading / unloading area (pump house)","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",40,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",40,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",40,"No","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",40,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",25,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",25,"No",""]];
@@ -44,11 +44,11 @@ function setup() {
     }));
   }
   var g = s.getSheetByName('Guards');
-  if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 3).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes']; }));
+  if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 6).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes', '', (x[1] === 'Leader' || x[1] === 'Supervisor') ? 'Yes' : 'No', '']; }));
+  upgrade_();
   var c = s.getSheetByName('Config');
   if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_REQUIRED', 'no']]);
   var p = PropertiesService.getScriptProperties();
-  if (!p.getProperty('TEAM_CODE')) p.setProperty('TEAM_CODE', rand6_());
   if (!p.getProperty('ADMIN_PIN')) p.setProperty('ADMIN_PIN', rand6_());
   folder_();
   showCodes();
@@ -56,9 +56,34 @@ function setup() {
 function rand6_() { return String(Math.floor(100000 + Math.random() * 900000)); }
 function showCodes() {
   var p = PropertiesService.getScriptProperties();
-  Logger.log('TEAM_CODE (give to the guards, one time on each phone): ' + p.getProperty('TEAM_CODE'));
   Logger.log('ADMIN_PIN (for you only): ' + p.getProperty('ADMIN_PIN'));
-  Logger.log('To change either, edit it in Project Settings > Script Properties.');
+  Logger.log('To change it, edit it in Project Settings > Script Properties.');
+  Logger.log('Guards log in with a personal PIN given by their Danru. Run makeDanruPins() once to create the first PINs for the Danru.');
+}
+/* Run once from the editor: gives every Danru without a PIN a new PIN and prints them in the log (execution log). Hand each one over in person. */
+function makeDanruPins() {
+  upgrade_();
+  var sh = sh_('Guards'), n = sh.getLastRow(), v = sh.getRange(2, 1, n - 1, 6).getValues(), made = 0;
+  v.forEach(function (r, i) {
+    if (!r[0] || String(r[2]) === 'No' || String(r[4]) !== 'Yes' || r[3]) return;
+    var pin = newPin_();
+    sh.getRange(i + 2, 4).setValue(hash_(pin));
+    sh.getRange(i + 2, 6).setValue(ymdhms_(Date.now()));
+    Logger.log('DANRU PIN  ' + r[0] + '  =  ' + pin);
+    made++;
+  });
+  Logger.log(made ? 'Done. Give each PIN to its owner in person. PINs cannot be read back later; use New PIN in the Team tab to reissue.' : 'No Danru without a PIN found. Check the Guards sheet: column E (Danru) must say Yes.');
+}
+/* Adds the new Guards columns on an existing sheet and marks Leaders and Supervisors as Danru the first time. */
+function upgrade_() {
+  var sh = sh_('Guards');
+  if (!sh) return;
+  if (String(sh.getRange(1, 4).getValue()) === 'PIN hash') return;
+  sh.getRange(1, 4, 1, 3).setValues([['PIN hash', 'Danru', 'PIN set (WIB)']]).setFontWeight('bold');
+  var n = sh.getLastRow();
+  if (n < 2) return;
+  var v = sh.getRange(2, 1, n - 1, 2).getValues();
+  sh.getRange(2, 5, n - 1, 1).setValues(v.map(function (r) { return [(r[1] === 'Leader' || r[1] === 'Supervisor') ? 'Yes' : 'No']; }));
 }
 function setupTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -116,10 +141,43 @@ function points_(activeOnly) {
   out.sort(function (a, b) { return a.seq - b.seq || a.no - b.no; });
   return out;
 }
-function guards_() {
+function guardsAll_() {
+  upgrade_();
   var sh = sh_('Guards'), n = sh.getLastRow();
   if (n < 2) return [];
-  return sh.getRange(2, 1, n - 1, 3).getValues().filter(function (r) { return r[0] && String(r[2]) !== 'No'; }).map(function (r) { return {name: String(r[0]).trim(), role: String(r[1])}; });
+  var out = [];
+  sh.getRange(2, 1, n - 1, 6).getValues().forEach(function (r, i) {
+    if (!r[0]) return;
+    out.push({row: i + 2, name: String(r[0]).trim(), role: String(r[1]), active: String(r[2]) !== 'No', hash: String(r[3] || ''), danru: String(r[4]) === 'Yes', setAt: String(r[5] || '')});
+  });
+  return out;
+}
+function guards_() { return guardsAll_().filter(function (g) { return g.active; }); }
+function salt_() {
+  var p = props_(), s = p.getProperty('PIN_SALT');
+  if (!s) { s = Utilities.getUuid(); p.setProperty('PIN_SALT', s); }
+  return s;
+}
+function hash_(pin) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt_() + '|' + String(pin).trim()).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+}
+/* A new, unused 6-digit PIN. The PIN alone identifies the guard, so it must be unique. */
+function newPin_() {
+  var used = {};
+  guardsAll_().forEach(function (g) { if (g.hash) used[g.hash] = 1; });
+  for (var i = 0; i < 200; i++) {
+    var pin = rand6_();
+    if (!used[hash_(pin)]) return pin;
+  }
+  throw new Error('no free PIN');
+}
+/* Returns the active guard who owns this PIN, or null. Wrong guesses are counted; too many wrong guesses lock everyone out for about 10 minutes. */
+function guardByPin_(pin) {
+  if (!pin || !/^\d{6}$/.test(String(pin).trim())) { failed_('fg'); return null; }
+  var h = hash_(pin), hit = null;
+  guards_().forEach(function (g) { if (g.hash && g.hash === h) hit = g; });
+  if (!hit) failed_('fg');
+  return hit;
 }
 function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
@@ -138,12 +196,6 @@ function doneMap_(r) {
 function props_() { return PropertiesService.getScriptProperties(); }
 function failed_(k) { var c = CacheService.getScriptCache(); c.put(k, String(Number(c.get(k) || 0) + 1), 600); }
 function locked_(k, max) { return Number(CacheService.getScriptCache().get(k) || 0) >= max; }
-function teamOk_(t) {
-  if (locked_('ft', 40)) return false;
-  var ok = !!t && String(t).trim() === String(props_().getProperty('TEAM_CODE') || '').trim();
-  if (!ok) failed_('ft');
-  return ok;
-}
 function adminOk_(pin) {
   if (locked_('fp', 10)) return false;
   var ok = !!pin && String(pin).trim() === String(props_().getProperty('ADMIN_PIN') || '').trim();
@@ -173,26 +225,26 @@ function route_(b) {
     if (!adminOk_(b.pin)) return {ok: false, err: 'pin'};
     return admin_(a, b);
   }
-  if (!teamOk_(b.team)) return {ok: false, err: 'team'};
-  if (a === 'state') return state_();
-  if (a === 'scan') return scan_(b);
-  return {ok: false, err: 'action'};
+  if (a.indexOf('d_') === 0) return team_(a, b);
+  if (a !== 'state' && a !== 'scan') return {ok: false, err: 'action'};
+  if (locked_('fg', 20)) return {ok: false, err: 'locked'};
+  var me = guardByPin_(b.gp);
+  if (!me) return {ok: false, err: 'pin'};
+  if (a === 'state') return state_(me);
+  return scan_(b, me);
 }
-function state_() {
+function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
-    ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', guards: guards_(),
+    ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, photo: p.photo, hi: p.hi}; }),
     done: doneMap_(r)
   };
 }
-function scan_(b) {
+function scan_(b, g) {
   var pts = points_(false), pt = null, i;
   for (i = 0; i < pts.length; i++) if (pts[i].id === String(b.pid)) pt = pts[i];
   if (!pt || !pt.active) return {ok: false, err: 'unknown_point'};
-  var gname = String(b.guard || '').trim().toLowerCase(), g = null;
-  guards_().forEach(function (x) { if (x.name.toLowerCase() === gname) g = x; });
-  if (!g) return {ok: false, err: 'unknown_guard'};
   var now = Date.now(), ts = now, flags = [];
   if (b.queued) {
     var c = Number(b.clientTs);
@@ -238,6 +290,57 @@ function scan_(b) {
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
   return {ok: true, gps: gps, dist: dist, flags: flags, done: Object.keys(dn).length, total: points_(true).length, round: cur};
+}
+
+/* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
+function team_(a, b) {
+  var adm = false, me = null;
+  if (b.pin) { adm = adminOk_(b.pin); if (!adm) return {ok: false, err: locked_('fp', 10) ? 'locked' : 'auth'}; }
+  else {
+    if (locked_('fg', 20)) return {ok: false, err: 'locked'};
+    me = guardByPin_(b.gp);
+    if (!me || !me.danru) return {ok: false, err: 'auth'};
+  }
+  var all = guardsAll_(), sh = sh_('Guards');
+  function find(name) { var h = null, k = String(name || '').trim().toLowerCase(); all.forEach(function (g) { if (g.name.toLowerCase() === k) h = g; }); return h; }
+  function setPin(g) {
+    var pin = newPin_();
+    sh.getRange(g.row, 4).setValue(hash_(pin));
+    sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
+    return pin;
+  }
+  if (a === 'd_list') {
+    return {ok: true, admin: adm, me: me ? me.name : '', members: all.map(function (g) { return {name: g.name, role: g.role, active: g.active, danru: g.danru, hasPin: !!g.hash, setAt: g.setAt}; })};
+  }
+  if (a === 'd_add') {
+    var nm = String(b.name || '').replace(/\s+/g, ' ').trim();
+    if (nm.length < 2 || nm.length > 40) return {ok: false, err: 'bad_name'};
+    if (find(nm)) return {ok: false, err: 'dup'};
+    var role = adm && b.role ? String(b.role).trim().slice(0, 30) : 'Security Guard';
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      sh.appendRow([nm, role, 'Yes', '', 'No', '']);
+      all = guardsAll_();
+      var g = find(nm), pin = setPin(g);
+      return {ok: true, name: g.name, pin: pin};
+    } finally { lock.releaseLock(); }
+  }
+  var t = find(b.name);
+  if (!t) return {ok: false, err: 'unknown_guard'};
+  /* Only the admin may touch a Danru account (a Danru cannot take over a colleague's login). */
+  if (t.danru && !adm) return {ok: false, err: 'danru_locked'};
+  if (a === 'd_reset') return {ok: true, name: t.name, pin: setPin(t)};
+  if (a === 'd_active') {
+    if (me && me.name === t.name) return {ok: false, err: 'self'};
+    sh.getRange(t.row, 3).setValue(b.active ? 'Yes' : 'No');
+    return {ok: true};
+  }
+  if (a === 'd_danru' && adm) {
+    sh.getRange(t.row, 5).setValue(b.danru ? 'Yes' : 'No');
+    return {ok: true};
+  }
+  return {ok: false, err: 'action'};
 }
 
 /* ---------- admin ---------- */
