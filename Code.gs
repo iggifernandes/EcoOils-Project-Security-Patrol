@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.3
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.4
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.3';
+var VERSION = 'v1.4';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -69,7 +69,7 @@ function setupTriggers() {
   ScriptApp.newTrigger('dailySummary').timeBased().atHour(7).nearMinute(10).everyDays(1).inTimezone(TZ).create();
   Logger.log('Triggers created: 12 round checks (every 2 hours) and 1 daily summary at about 07:10 Jakarta time.');
 }
-function testEmail() { send_('Patrol app test email', '<p>This is a test from the Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p>'); }
+function testEmail() { send_('Patrol app test email / Email uji coba', '<p>This is a test from the EcoOils Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p><hr><p>Ini adalah email uji coba dari aplikasi Patroli Keamanan EcoOils Mentari ' + VERSION + '. Jika Anda dapat membaca ini, ringkasan titik yang terlewat akan sampai kepada Anda.</p>'); }
 
 /* ---------- helpers ---------- */
 function sh_(n) { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(n); }
@@ -304,18 +304,30 @@ function admin_(a, b) {
   return {ok: false, err: 'action'};
 }
 
-/* ---------- emails ---------- */
+/* ---------- emails (English + Bahasa Indonesia) ---------- */
+var ZNAME_ID = {GT: 'Gerbang / pintu masuk', FN: 'Pagar keliling', PL: 'Area pabrik', UT: 'Utilitas / tangki', LD: 'Area penyimpanan', BL: 'Bangunan', MP: 'Titik kumpul'};
+var FLAGTXT = {
+  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed'},
+  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal'}
+};
+var TXT = {
+  en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol'},
+  id: {round: 'Ronde', done: 'Selesai', of: 'dari', missed: 'Terlewat', notScanned: 'Titik yang tidak dipindai pada ronde ini', highFirst: 'risiko tinggi lebih dulu', high: 'RISIKO TINGGI', no: 'No.', flagged: 'Pemindaian bertanda', away: 'm dari titik', daily: 'Ringkasan patroli harian', tRound: 'Ronde', tDone: 'Selesai', tMiss: 'Terlewat', often: 'Titik yang paling sering terlewat', missedIn: 'terlewat pada', rounds: 'ronde', app: 'Patroli Keamanan EcoOils Mentari'}
+};
 function send_(subject, html) {
   var to = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my');
   MailApp.sendEmail({to: to, subject: subject, htmlBody: html});
 }
-function groupHtml_(arr) {
-  var h = '';
+function both_(enHtml, idHtml) {
+  return '<div style="font-family:Arial,sans-serif;font-size:14px">' + enHtml + '<hr style="margin:18px 0;border:0;border-top:2px solid #999">' + idHtml + '</div>';
+}
+function groupHtml_(arr, L) {
+  var h = '', T = TXT[L], Z = L === 'id' ? ZNAME_ID : ZNAME;
   ZORDER.forEach(function (z) {
     var items = arr.filter(function (p) { return p.zone === z; });
     if (!items.length) return;
-    h += '<p style="margin:8px 0 2px"><b>' + esc_(ZNAME[z]) + '</b></p><ul style="margin:0">';
-    items.forEach(function (p) { h += '<li>' + (p.hi ? '<b>[HIGH RISK] ' : '') + 'No. ' + p.no + ' ' + esc_(p.name) + (p.hi ? '</b>' : '') + '</li>'; });
+    h += '<p style="margin:8px 0 2px"><b>' + esc_(Z[z]) + '</b></p><ul style="margin:0">';
+    items.forEach(function (p) { h += '<li>' + (p.hi ? '<b>[' + T.high + '] ' : '') + T.no + ' ' + p.no + ' ' + esc_(p.name) + (p.hi ? '</b>' : '') + '</li>'; });
     h += '</ul>';
   });
   return h;
@@ -326,15 +338,26 @@ function flagged_(r) {
     var ms = Number(row[17]);
     if (ms < r.start || ms >= r.end) return;
     var f = String(row[15]).split(' ').filter(function (x) { return x && x !== 'QUEUED' && x !== 'REPEAT'; });
-    if (f.length) out.push({t: String(row[1]), guard: String(row[4]), no: row[7], name: String(row[8]), flags: f.join(' '), dist: row[13]});
+    if (f.length) out.push({t: String(row[1]), guard: String(row[4]), no: row[7], name: String(row[8]), flags: f, dist: row[13]});
   });
   return out;
 }
-function flagHtml_(list) {
+function flagHtml_(list, L) {
   if (!list.length) return '';
-  var h = '<p style="margin:12px 0 2px"><b>Flagged scans</b></p><ul style="margin:0">';
-  list.slice(0, 40).forEach(function (f) { h += '<li>' + esc_(f.t.slice(11, 16)) + ' ' + esc_(f.guard) + ' - No. ' + f.no + ' ' + esc_(f.name) + ' - ' + esc_(f.flags) + (f.dist !== '' ? ' (' + f.dist + ' m from point)' : '') + '</li>'; });
+  var T = TXT[L], F = FLAGTXT[L];
+  var h = '<p style="margin:12px 0 2px"><b>' + T.flagged + '</b></p><ul style="margin:0">';
+  list.slice(0, 40).forEach(function (f) {
+    var ft = f.flags.map(function (x) { return F[x] || x; }).join(', ');
+    h += '<li>' + esc_(f.t.slice(11, 16)) + ' ' + esc_(f.guard) + ' - ' + T.no + ' ' + f.no + ' ' + esc_(f.name) + ' - ' + esc_(ft) + (f.dist !== '' ? ' (' + f.dist + ' ' + T.away + ')' : '') + '</li>';
+  });
   return h + '</ul>';
+}
+function roundHtml_(L, r, pts, missed, hi, flagged) {
+  var T = TXT[L];
+  var h = '<h3 style="margin:0 0 6px">' + T.round + ' ' + esc_(r.label) + ' (' + r.date + ')</h3><p><b>' + T.done + ' ' + (pts.length - missed.length) + ' ' + T.of + ' ' + pts.length + '. ' + T.missed + ' ' + missed.length + '.</b></p>';
+  if (missed.length) h += '<p style="margin:8px 0 0"><b>' + T.notScanned + '</b> (' + T.highFirst + ')</p>' + groupHtml_(hi, L) + groupHtml_(missed.filter(function (p) { return !p.hi; }), L);
+  h += flagHtml_(flagged, L);
+  return h;
 }
 function roundCheck() {
   var boundary = Math.floor((Date.now() + OFF) / RMS) * RMS - OFF, r = roundAt_(boundary - 1);
@@ -342,11 +365,15 @@ function roundCheck() {
   var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r);
   if (!missed.length && !flagged.length) return;
   var hi = missed.filter(function (p) { return p.hi; });
-  var subj = 'Patrol ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + ' done' + (missed.length ? ', ' + missed.length + ' missed' : '') + (hi.length ? ' (' + hi.length + ' high-risk)' : '');
-  var h = '<h3 style="margin:0 0 6px">Round ' + esc_(r.label) + ' (' + r.date + ')</h3><p><b>Done ' + (pts.length - missed.length) + ' of ' + pts.length + '. Missed ' + missed.length + '.</b></p>';
-  if (missed.length) h += '<p style="margin:8px 0 0"><b>Points not scanned in this round</b> (high-risk first)</p>' + groupHtml_(hi) + groupHtml_(missed.filter(function (p) { return !p.hi; }));
-  h += flagHtml_(flagged) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol ' + VERSION + '</p>';
+  var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : '') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
+  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged), roundHtml_('id', r, pts, missed, hi, flagged)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
   send_(subj, h);
+}
+function dailyHtml_(L, y, tr, top, missCount, flagList) {
+  var T = TXT[L];
+  var h = '<h3 style="margin:0 0 6px">' + T.daily + ' ' + y + '</h3><table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + T.tRound + '</th><th>' + T.tDone + '</th><th>' + T.tMiss + '</th></tr>' + tr + '</table>';
+  if (top.length) { h += '<p style="margin:12px 0 2px"><b>' + T.often + '</b></p><ul style="margin:0">'; top.forEach(function (p) { h += '<li>' + T.no + ' ' + p.no + ' ' + esc_(p.name) + ': ' + T.missedIn + ' ' + missCount[p.id] + ' ' + T.of + ' 12 ' + T.rounds + '</li>'; }); h += '</ul>'; }
+  return h + flagHtml_(flagList, L);
 }
 function dailySummary() {
   var y = new Date(Date.now() + OFF - 86400000).toISOString().slice(0, 10);
@@ -361,8 +388,6 @@ function dailySummary() {
     flagList = flagList.concat(flagged_(r));
   }
   var top = pts.filter(function (p) { return missCount[p.id]; }).sort(function (a, b) { return missCount[b.id] - missCount[a.id]; }).slice(0, 10);
-  var h = '<h3 style="margin:0 0 6px">Daily patrol summary ' + y + '</h3><table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>Round</th><th>Done</th><th>Missed</th></tr>' + tr + '</table>';
-  if (top.length) { h += '<p style="margin:12px 0 2px"><b>Points missed most often</b></p><ul style="margin:0">'; top.forEach(function (p) { h += '<li>No. ' + p.no + ' ' + esc_(p.name) + ': missed in ' + missCount[p.id] + ' of 12 rounds</li>'; }); h += '</ul>'; }
-  h += flagHtml_(flagList) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol ' + VERSION + '</p>';
-  send_('Daily patrol summary ' + y + ': ' + totalMissed + ' missed point-rounds', h);
+  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList), dailyHtml_('id', y, tr, top, missCount, flagList)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  send_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat', h);
 }
