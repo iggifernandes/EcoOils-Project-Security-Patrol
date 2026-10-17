@@ -1,4 +1,4 @@
-# EcoOils Project Security Patrol (v1.5)
+# EcoOils Project Security Patrol (v1.6)
 
 ## Files
 Upload to the GitHub repo (EcoOils-Project-Security-Patrol): index.html, sw.js, manifest.json, icon.svg, jsQR.js, README.md
@@ -16,6 +16,7 @@ Do NOT upload Code.gs (it goes into Google Sheets) or qr-sheet.html (print it fr
 9. UA/UC form: no change needed..
 
 ## Notes
+- Random photo checks: 5 points per round (change in Admin > Settings, 0 = off). The server picks them and the phone only learns a photo is wanted after the scan is accepted. A skipped or missing photo leaves the scan flagged NO_PHOTO. Photos go to the Drive folder 'EcoOils Patrol Photos' (about 60 per day, roughly 2 GB a year).
 - Danru = Yes in column E of the Guards sheet (seeded for Leaders and Supervisor). A Danru can add guards, make new PINs and deactivate guards, but cannot change another Danru; only the Admin PIN can (Admin > Team).
 - 20 wrong PIN tries in 10 minutes locks guard logins for about 10 minutes. Scans made while locked are saved on the phone and sent later.
 - Rounds: 12 per day, 2 hours, Jakarta time. Missed-point email at 5 min past each round end, daily summary 07:10.

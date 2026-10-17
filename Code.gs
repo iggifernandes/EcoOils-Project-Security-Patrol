@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.5
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.6
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.5';
+var VERSION = 'v1.6';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -47,7 +47,7 @@ function setup() {
   if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 6).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes', '', (x[1] === 'Leader' || x[1] === 'Supervisor') ? 'Yes' : 'No', '']; }));
   upgrade_();
   var c = s.getSheetByName('Config');
-  if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_REQUIRED', 'no']]);
+  if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_PER_ROUND', '5']]);
   var p = PropertiesService.getScriptProperties();
   if (!p.getProperty('ADMIN_PIN')) p.setProperty('ADMIN_PIN', rand6_());
   folder_();
@@ -131,11 +131,11 @@ function setCfg_(k, val) {
 function points_(activeOnly) {
   var sh = sh_('Points'), n = sh.getLastRow();
   if (n < 2) return [];
-  var out = [], photoOn = cfg_('PHOTO_REQUIRED', 'no') === 'yes';
+  var out = [];
   sh.getRange(2, 1, n - 1, 13).getValues().forEach(function (r, i) {
     if (!r[0]) return;
     var p = {row: i + 2, id: String(r[0]), no: Number(r[1]), name: String(r[2]), uauc: String(r[3]), zone: String(r[4]), radius: Number(r[5]) || 25,
-      hi: String(r[6]) === 'Yes', photo: photoOn && String(r[6]) === 'Yes', active: String(r[7]) !== 'No', lat: num_(r[8]), lng: num_(r[9]), cal: r[10] ? String(r[10]) : '', notes: String(r[11] || ''), seq: Number(r[12]) || Number(r[1])};
+      hi: String(r[6]) === 'Yes', photo: false, active: String(r[7]) !== 'No', lat: num_(r[8]), lng: num_(r[9]), cal: r[10] ? String(r[10]) : '', notes: String(r[11] || ''), seq: Number(r[12]) || Number(r[1])};
     if (!activeOnly || p.active) out.push(p);
   });
   out.sort(function (a, b) { return a.seq - b.seq || a.no - b.no; });
@@ -193,6 +193,23 @@ function doneMap_(r) {
   });
   return d;
 }
+/* Random photo checks: N points per round, chosen by the server from a secret, stable for the whole round, never sent to the phones in advance. */
+function photoN_() { var n = parseInt(cfg_('PHOTO_PER_ROUND', '5'), 10); return isFinite(n) && n > 0 ? Math.min(n, 45) : 0; }
+function photoSecret_() {
+  var p = props_(), s = p.getProperty('PHOTO_SECRET');
+  if (!s) { s = Utilities.getUuid(); p.setProperty('PHOTO_SECRET', s); }
+  return s;
+}
+function photoSet_(r, pts) {
+  var n = photoN_(), set = {};
+  if (!n) return set;
+  var sec = photoSecret_();
+  pts.filter(function (p) { return p.active; }).map(function (p) {
+    var h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sec + '|' + r.date + '|' + r.idx + '|' + p.id).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+    return {id: p.id, h: h};
+  }).sort(function (a, b) { return a.h < b.h ? -1 : a.h > b.h ? 1 : 0; }).slice(0, n).forEach(function (x) { set[x.id] = true; });
+  return set;
+}
 function props_() { return PropertiesService.getScriptProperties(); }
 function failed_(k) { var c = CacheService.getScriptCache(); c.put(k, String(Number(c.get(k) || 0) + 1), 600); }
 function locked_(k, max) { return Number(CacheService.getScriptCache().get(k) || 0) >= max; }
@@ -226,18 +243,19 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
   if (a === 'state') return state_(me);
+  if (a === 'photo') return photo_(b, me);
   return scan_(b, me);
 }
 function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
-    points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, photo: p.photo, hi: p.hi}; }),
+    points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
     done: doneMap_(r)
   };
 }
@@ -260,11 +278,11 @@ function scan_(b, g) {
   }
   if (acc != null && acc === 0) flags.push('SUSPECT_GPS');
   if (acc != null && acc > 50) flags.push('LOW_ACCURACY');
-  if (pt.photo && !(b.photo && String(b.photo).length > 100)) flags.push('NO_PHOTO');
-  var lock = LockService.getScriptLock();
+  var lock = LockService.getScriptLock(), sid = Utilities.getUuid().slice(0, 8), needPhoto = false;
   lock.waitLock(20000);
   try {
     var r = roundAt_(ts), prev = doneMap_(r);
+    needPhoto = !!photoSet_(r, pts)[pt.id];
     if (prev[pt.id]) flags.push('REPEAT');
     var recent = scans_(200);
     for (i = recent.length - 1; i >= 0; i--) {
@@ -280,16 +298,40 @@ function scan_(b, g) {
         break;
       }
     }
-    var url = '';
+    var url = '', gotPhoto = false;
     if (b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
-      try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', r.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + pt.id + '_' + g.name + '.jpg')).getUrl(); }
+      try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', r.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + pt.id + '_' + g.name + '.jpg')).getUrl(); gotPhoto = true; }
       catch (e2) { flags.push('PHOTO_FAIL'); }
     }
-    sh_('Scans').appendRow([Utilities.getUuid().slice(0, 8), ymdhms_(ts), r.date, r.label, g.name, g.role, pt.id, pt.no, pt.name, pt.zone,
+    if (needPhoto && !gotPhoto) flags.push('NO_PHOTO');
+    sh_('Scans').appendRow([sid, ymdhms_(ts), r.date, r.label, g.name, g.role, pt.id, pt.no, pt.name, pt.zone,
       lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts]);
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
-  return {ok: true, gps: gps, dist: dist, flags: flags, done: Object.keys(dn).length, total: points_(true).length, round: cur};
+  return {ok: true, gps: gps, dist: dist, flags: flags, done: Object.keys(dn).length, total: points_(true).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
+}
+/* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
+function photo_(b, me) {
+  var photo = String(b.photo || '');
+  if (photo.length < 100 || photo.length > 6000000) return {ok: false, err: 'bad_photo'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sh_('Scans'), last = sh.getLastRow();
+    if (last < 2) return {ok: false, err: 'no_scan'};
+    var st = Math.max(2, last - 300 + 1), v = sh.getRange(st, 1, last - st + 1, 18).getValues(), hit = -1, i;
+    for (i = v.length - 1; i >= 0; i--) if (String(v[i][0]) === String(b.scanId) && String(v[i][4]) === me.name) { hit = i; break; }
+    if (hit < 0) return {ok: false, err: 'no_scan'};
+    var row = v[hit];
+    if (row[16]) return {ok: false, err: 'has_photo'};
+    if (Date.now() - Number(row[17]) > 15 * 60000) return {ok: false, err: 'too_late'};
+    var ts = Number(row[17]), url;
+    try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(photo), 'image/jpeg', row[2] + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + row[6] + '_' + me.name + '.jpg')).getUrl(); }
+    catch (e) { return {ok: false, err: 'photo_fail'}; }
+    sh.getRange(st + hit, 17).setValue(url);
+    sh.getRange(st + hit, 16).setValue(String(row[15]).split(' ').filter(function (f) { return f && f !== 'NO_PHOTO'; }).join(' '));
+    return {ok: true};
+  } finally { lock.releaseLock(); }
 }
 
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
@@ -347,10 +389,10 @@ function team_(a, b) {
 function admin_(a, b) {
   if (a === 'a_live') {
     var r = b.date ? roundBy_(String(b.date), Number(b.idx)) : roundAt_(Date.now());
-    var pts = points_(true), d = doneMap_(r);
+    var pts = points_(true), d = doneMap_(r), ps = photoSet_(r, pts);
     return {ok: true, round: r, total: pts.length,
-      done: pts.filter(function (p) { return d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, t: d[p.id].t, by: d[p.id].by, flags: d[p.id].flags, gps: d[p.id].gps, photo: d[p.id].photo}; }),
-      missed: pts.filter(function (p) { return !d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, hi: p.hi}; })};
+      done: pts.filter(function (p) { return d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, t: d[p.id].t, by: d[p.id].by, flags: d[p.id].flags, gps: d[p.id].gps, photo: d[p.id].photo, pc: !!ps[p.id]}; }),
+      missed: pts.filter(function (p) { return !d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, hi: p.hi, pc: !!ps[p.id]}; })};
   }
   if (a === 'a_history') {
     var from = String(b.from || ''), to = String(b.to || from), rows = [];
@@ -402,7 +444,8 @@ function admin_(a, b) {
   }
   if (a === 'a_config') {
     if (b.showNames != null) setCfg_('SHOW_NAMES', b.showNames ? 'yes' : 'no');
-    return {ok: true, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes'};
+    if (b.photoN != null) { var pn = Math.round(Number(b.photoN)); if (!(pn >= 0 && pn <= 45)) return {ok: false, err: 'bad_number'}; setCfg_('PHOTO_PER_ROUND', String(pn)); }
+    return {ok: true, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', photoN: photoN_()};
   }
   return {ok: false, err: 'action'};
 }
