@@ -1,5 +1,5 @@
 /* Patrol app service worker: network first, cached copy when offline. */
-var CACHE = 'patrol-v1.3.1';
+var CACHE = 'patrol-v1.3.2';
 var FILES = ['./', 'index.html', 'jsQR.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
