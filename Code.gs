@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.2
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.3
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.2';
+var VERSION = 'v1.3';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -46,7 +46,7 @@ function setup() {
   var g = s.getSheetByName('Guards');
   if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 3).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes']; }));
   var c = s.getSheetByName('Config');
-  if (c.getLastRow() < 2) c.getRange(2, 1, 2, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my']]);
+  if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_REQUIRED', 'no']]);
   var p = PropertiesService.getScriptProperties();
   if (!p.getProperty('TEAM_CODE')) p.setProperty('TEAM_CODE', rand6_());
   if (!p.getProperty('ADMIN_PIN')) p.setProperty('ADMIN_PIN', rand6_());
@@ -106,11 +106,11 @@ function setCfg_(k, val) {
 function points_(activeOnly) {
   var sh = sh_('Points'), n = sh.getLastRow();
   if (n < 2) return [];
-  var out = [];
+  var out = [], photoOn = cfg_('PHOTO_REQUIRED', 'no') === 'yes';
   sh.getRange(2, 1, n - 1, 13).getValues().forEach(function (r, i) {
     if (!r[0]) return;
     var p = {row: i + 2, id: String(r[0]), no: Number(r[1]), name: String(r[2]), uauc: String(r[3]), zone: String(r[4]), radius: Number(r[5]) || 25,
-      photo: String(r[6]) === 'Yes', active: String(r[7]) !== 'No', lat: num_(r[8]), lng: num_(r[9]), cal: r[10] ? String(r[10]) : '', notes: String(r[11] || ''), seq: Number(r[12]) || Number(r[1])};
+      hi: String(r[6]) === 'Yes', photo: photoOn && String(r[6]) === 'Yes', active: String(r[7]) !== 'No', lat: num_(r[8]), lng: num_(r[9]), cal: r[10] ? String(r[10]) : '', notes: String(r[11] || ''), seq: Number(r[12]) || Number(r[1])};
     if (!activeOnly || p.active) out.push(p);
   });
   out.sort(function (a, b) { return a.seq - b.seq || a.no - b.no; });
@@ -182,7 +182,7 @@ function state_() {
   var now = Date.now(), r = roundAt_(now);
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', guards: guards_(),
-    points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, photo: p.photo}; }),
+    points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, photo: p.photo, hi: p.hi}; }),
     done: doneMap_(r)
   };
 }
@@ -247,7 +247,7 @@ function admin_(a, b) {
     var pts = points_(true), d = doneMap_(r);
     return {ok: true, round: r, total: pts.length,
       done: pts.filter(function (p) { return d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, t: d[p.id].t, by: d[p.id].by, flags: d[p.id].flags, gps: d[p.id].gps, photo: d[p.id].photo}; }),
-      missed: pts.filter(function (p) { return !d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, hi: p.photo}; })};
+      missed: pts.filter(function (p) { return !d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, hi: p.hi}; })};
   }
   if (a === 'a_history') {
     var from = String(b.from || ''), to = String(b.to || from), rows = [];
@@ -315,7 +315,7 @@ function groupHtml_(arr) {
     var items = arr.filter(function (p) { return p.zone === z; });
     if (!items.length) return;
     h += '<p style="margin:8px 0 2px"><b>' + esc_(ZNAME[z]) + '</b></p><ul style="margin:0">';
-    items.forEach(function (p) { h += '<li>' + (p.photo ? '<b>[HIGH RISK] ' : '') + 'No. ' + p.no + ' ' + esc_(p.name) + (p.photo ? '</b>' : '') + '</li>'; });
+    items.forEach(function (p) { h += '<li>' + (p.hi ? '<b>[HIGH RISK] ' : '') + 'No. ' + p.no + ' ' + esc_(p.name) + (p.hi ? '</b>' : '') + '</li>'; });
     h += '</ul>';
   });
   return h;
@@ -341,10 +341,10 @@ function roundCheck() {
   var pts = points_(true), d = doneMap_(r);
   var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r);
   if (!missed.length && !flagged.length) return;
-  var hi = missed.filter(function (p) { return p.photo; });
+  var hi = missed.filter(function (p) { return p.hi; });
   var subj = 'Patrol ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + ' done' + (missed.length ? ', ' + missed.length + ' missed' : '') + (hi.length ? ' (' + hi.length + ' high-risk)' : '');
   var h = '<h3 style="margin:0 0 6px">Round ' + esc_(r.label) + ' (' + r.date + ')</h3><p><b>Done ' + (pts.length - missed.length) + ' of ' + pts.length + '. Missed ' + missed.length + '.</b></p>';
-  if (missed.length) h += '<p style="margin:8px 0 0"><b>Points not scanned in this round</b> (high-risk first)</p>' + groupHtml_(hi) + groupHtml_(missed.filter(function (p) { return !p.photo; }));
+  if (missed.length) h += '<p style="margin:8px 0 0"><b>Points not scanned in this round</b> (high-risk first)</p>' + groupHtml_(hi) + groupHtml_(missed.filter(function (p) { return !p.hi; }));
   h += flagHtml_(flagged) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol ' + VERSION + '</p>';
   send_(subj, h);
 }
