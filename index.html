@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Patrol">
 <meta name="theme-color" content="#122238">
-<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Patrol</title>
 <style>
 :root{--bg:#0b1626;--panel:#122238;--panel2:#18304d;--line:#27425f;--text:#eaf0f7;--mute:#93a6bd;--amber:#f5a623;--amber2:#ffc861;--ok:#3ecf8e;--bad:#ff6b6b;--r:12px}
@@ -69,7 +69,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .remember{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}.remember input{width:20px;height:20px;margin:0}
 </style></head><body>
 <header><div class="brand" id="brand">Security Patrol</div>
-<div class="right"><span id="ver">v1.3</span><div class="lang" role="group" aria-label="Language"><button id="lEN" class="on" type="button">EN</button><button id="lID" type="button">BI</button></div></div></header>
+<div class="right"><span id="ver">v1.3.1</span><div class="lang" role="group" aria-label="Language"><button id="lEN" class="on" type="button">EN</button><button id="lID" type="button">BI</button></div></div></header>
 <main>
 <div id="banner"></div>
 
@@ -127,7 +127,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.3';
+var VERSION='v1.3.1';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
