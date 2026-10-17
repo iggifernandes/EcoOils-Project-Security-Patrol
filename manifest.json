@@ -1,6 +1,6 @@
 {
-  "name": "Security Patrol",
-  "short_name": "Patrol",
+  "name": "EcoOils Patroli",
+  "short_name": "Patroli",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -5,10 +5,10 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Patrol">
+<meta name="apple-mobile-web-app-title" content="Patroli">
 <meta name="theme-color" content="#122238">
 <link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>Patrol</title>
+<title>EcoOils Patroli</title>
 <style>
 :root{--bg:#0b1626;--panel:#122238;--panel2:#18304d;--line:#27425f;--text:#eaf0f7;--mute:#93a6bd;--amber:#f5a623;--amber2:#ffc861;--ok:#3ecf8e;--bad:#ff6b6b;--r:12px}
 *{box-sizing:border-box}
@@ -68,8 +68,8 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .links button{background:none;border:0;color:var(--mute);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
 .remember{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}.remember input{width:20px;height:20px;margin:0}
 </style></head><body>
-<header><div class="brand" id="brand">Security Patrol</div>
-<div class="right"><span id="ver">v1.3.2</span><div class="lang" role="group" aria-label="Language"><button id="lEN" class="on" type="button">EN</button><button id="lID" type="button">BI</button></div></div></header>
+<header><div class="brand" id="brand">EcoOils Patrol</div>
+<div class="right"><span id="ver">v1.3.3</span><div class="lang" role="group" aria-label="Language"><button id="lEN" class="on" type="button">EN</button><button id="lID" type="button">BI</button></div></div></header>
 <main>
 <div id="banner"></div>
 
@@ -127,12 +127,12 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.3.2';
+var VERSION='v1.3.3';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
 var T={en:{
- title:'Security Patrol',setup:'Start your patrol',teamCode:'Team code',teamHelp:'Enter the code from your supervisor. You only need it once on this phone.',next:'Continue',
+ title:'EcoOils Patrol',setup:'Start your patrol',teamCode:'Team code',teamHelp:'Enter the code from your supervisor. You only need it once on this phone.',next:'Continue',
  guard:'Your name',pick:'Select your name...',start:'Start patrol',round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
  scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
@@ -142,7 +142,7 @@ var T={en:{
  adminLogin:'Log in',keep:'Keep me signed in on this phone',badPin:'PIN is wrong or locked. Try again later.',err_unknown_point:'This point is not active.',err_unknown_guard:'Your name is not on the list.',err_server:'Server error. Try again.',
  ann:'Not configured: the app has no server address yet.',noGuards:'No names found.',later:'min'},
  id:{
- title:'Patroli Keamanan',setup:'Mulai patroli',teamCode:'Kode tim',teamHelp:'Masukkan kode dari supervisor. Cukup sekali di ponsel ini.',next:'Lanjut',
+ title:'EcoOils Patroli',setup:'Mulai patroli',teamCode:'Kode tim',teamHelp:'Masukkan kode dari supervisor. Cukup sekali di ponsel ini.',next:'Lanjut',
  guard:'Nama Anda',pick:'Pilih nama Anda...',start:'Mulai patroli',round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
  scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
