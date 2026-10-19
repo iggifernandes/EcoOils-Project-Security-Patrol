@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.9.1
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.10
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.9.1';
+var VERSION = 'v1.10';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -12,6 +12,7 @@ var HEAD = {
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
+  Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Config: ['Key', 'Value']
 };
@@ -357,12 +358,13 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
   if (a === 'state') return state_(me);
   if (a === 'photo') return photo_(b, me);
+  if (a === 'clockin') return clockIn_(b, me);
   return scan_(b, me);
 }
 function state_(me) {
@@ -370,7 +372,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_()
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me)
   };
 }
 function planNow_() {
@@ -457,6 +459,111 @@ function photo_(b, me) {
   } finally { lock.releaseLock(); }
 }
 
+
+/* ---------- clock-in (shift start; no clock-out) ----------
+   The Clock in button only appears on the phone inside the circle around the guard house (Config CLOCK_LAT, CLOCK_LNG, CLOCK_RADIUS m);
+   the server checks the distance again, so a tap from outside is refused. Window: CLOCK_EARLY min before the shift start until CLOCK_AFTER min after.
+   More than CLOCK_GRACE min after the start = LATE. One clock-in per guard per shift. Record only, never blocks patrolling. */
+function clockCfg_() {
+  return {lat: Number(cfg_('CLOCK_LAT', '3.131338')), lng: Number(cfg_('CLOCK_LNG', '99.347791')), r: Math.max(10, Number(cfg_('CLOCK_RADIUS', '100')) || 100),
+    grace: Math.max(0, Number(cfg_('CLOCK_GRACE', '15')) || 0), early: Math.max(0, Number(cfg_('CLOCK_EARLY', '30')) || 0), after: Math.max(10, Number(cfg_('CLOCK_AFTER', '120')) || 120)};
+}
+function clockSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Clock');
+  if (!sh) {
+    sh = s.insertSheet('Clock');
+    sh.appendRow(HEAD.Clock);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.Clock.length).setFontWeight('bold');
+    sh.getRange('A:B').setNumberFormat('@');
+    sh.getRange('N:N').setNumberFormat('@');
+  }
+  return sh;
+}
+/* The shift whose clock-in window is open at ms (or null): {date, shift, label, start, opens, closes}. */
+function clockWin_(ms) {
+  var c = clockCfg_(), hours = {P: 7, S: 15, M: 23}, best = null;
+  var base = new Date(ms + OFF), y = base.getUTCFullYear(), mo = base.getUTCMonth(), d = base.getUTCDate();
+  for (var off = -1; off <= 1; off++) {
+    Object.keys(hours).forEach(function (code) {
+      var start = Date.UTC(y, mo, d + off, hours[code] - 7, 0, 0), opens = start - c.early * 60000, closes = start + c.after * 60000;
+      if (ms >= opens && ms <= closes) best = {date: new Date(start + OFF).toISOString().slice(0, 10), shift: code, label: SHIFTS[code], start: start, opens: opens, closes: closes};
+    });
+  }
+  return best;
+}
+function clockKey_(date, shift, name) { return date + '|' + shift + '|' + String(name).toLowerCase(); }
+function clockRows_() {
+  var sh = clockSheet_(), n = sh.getLastRow();
+  if (n < 2) return [];
+  return sh.getRange(2, 1, n - 1, 14).getValues().map(function (r) {
+    var k = String(r[13] || '').split('|');
+    return {date: k[0] || '', shift: k[1] || String(r[1]), guard: String(r[2]), role: String(r[3]), at: String(r[4]), status: String(r[9]), late: Number(r[10]) || 0, by: String(r[11]), ms: Number(r[12]) || 0, key: String(r[13])};
+  });
+}
+function clockMine_(date, shift, name) {
+  var key = clockKey_(date, shift, name), hit = null;
+  clockRows_().forEach(function (r) { if (r.key === key) hit = r; });
+  return hit;
+}
+function clockState_(me) {
+  try {
+    var now = Date.now(), c = clockCfg_(), w = clockWin_(now), cur = shiftAt_(now), tgt = w ? {date: w.date, shift: w.shift} : {date: cur.date, shift: cur.code};
+    var mine = clockMine_(tgt.date, tgt.shift, me.name);
+    var nx = null;
+    if (!w) for (var k = 1; k <= 540 && !nx; k += 5) { var w2 = clockWin_(now + k * 60000); if (w2) nx = w2.opens; }
+    return {open: !!w && !mine, nextOpens: nx, win: w ? {date: w.date, shift: w.shift, label: w.label, opens: w.opens, closes: w.closes} : null, shift: tgt.shift, date: tgt.date, label: SHIFTS[tgt.shift],
+      mine: mine ? {at: mine.at.slice(11, 16), status: mine.status, late: mine.late} : null, gate: {lat: c.lat, lng: c.lng, r: c.r}};
+  } catch (e) { return {open: false, win: null, mine: null}; }
+}
+function clockIn_(b, me) {
+  var now = Date.now(), c = clockCfg_(), w = clockWin_(now);
+  if (!w) return {ok: false, err: 'no_window'};
+  var lat = num_(b.lat), lng = num_(b.lng), acc = num_(b.acc);
+  if (lat == null || lng == null) return {ok: false, err: 'not_here'};
+  var dist = Math.round(hav_(lat, lng, c.lat, c.lng));
+  if (dist > c.r + Math.min(acc || 0, 30)) return {ok: false, err: 'not_here'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ex = clockMine_(w.date, w.shift, me.name);
+    if (ex) return {ok: true, already: true, at: ex.at.slice(11, 16), status: ex.status, late: ex.late};
+    var late = Math.max(0, Math.round((now - w.start) / 60000)), status = late > c.grace ? 'LATE' : 'ON_TIME';
+    clockSheet_().appendRow([w.date, w.shift, me.name, me.role, ymdhms_(now), lat, lng, acc == null ? '' : Math.round(acc), dist, status, late, 'Self', now, clockKey_(w.date, w.shift, me.name)]);
+    return {ok: true, at: ymdhms_(now).slice(11, 16), status: status, late: late};
+  } finally { lock.releaseLock(); }
+}
+/* Danru / Admin records a clock-in by hand for the shift that is open (or running now); marked MANUAL. */
+function clockManual_(name, by) {
+  var now = Date.now(), w = clockWin_(now), cur = shiftAt_(now), date = w ? w.date : cur.date, shift = w ? w.shift : cur.code, start = w ? w.start : null;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ex = clockMine_(date, shift, name.name);
+    if (ex) return {ok: true, already: true, status: ex.status, shift: shift};
+    clockSheet_().appendRow([date, shift, name.name, name.role, ymdhms_(now), '', '', '', '', 'MANUAL', start ? Math.max(0, Math.round((now - start) / 60000)) : '', by, now, clockKey_(date, shift, name.name)]);
+    return {ok: true, status: 'MANUAL', shift: shift, date: date};
+  } finally { lock.releaseLock(); }
+}
+
+/* Guards (and buddies) on the shift plan with no clock-in, for shifts whose start + grace has passed. */
+function clockMissing_(fromD, to) {
+  var out = [], c = clockCfg_(), now = Date.now(), hours = {P: 7, S: 15, M: 23}, have = {};
+  clockRows_().forEach(function (r) { have[r.key] = 1; });
+  var dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), cnt = 0;
+  for (; dd <= end && cnt < 31; dd += 86400000, cnt++) {
+    var ds = new Date(dd).toISOString().slice(0, 10);
+    Object.keys(hours).forEach(function (code) {
+      var start = Date.UTC(new Date(dd).getUTCFullYear(), new Date(dd).getUTCMonth(), new Date(dd).getUTCDate(), hours[code] - 7, 0, 0);
+      if (now < start + c.grace * 60000) return;
+      roster_(ds, code).forEach(function (r) {
+        [r.guard, r.buddy].forEach(function (nm) { if (nm && !have[clockKey_(ds, code, nm)]) out.push({date: ds, shift: code, guard: nm, duty: r.duty}); });
+      });
+    });
+  }
+  return out.slice(0, 200);
+}
+
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -473,6 +580,11 @@ function team_(a, b) {
     sh.getRange(g.row, 4).setValue(hash_(pin));
     sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
     return pin;
+  }
+  if (a === 'd_clock') {
+    var tg = find(b.name);
+    if (!tg || !tg.active) return {ok: false, err: 'bad_guard'};
+    return clockManual_(tg, adm ? 'Admin' : me.name);
   }
   if (a === 'd_list') {
     return {ok: true, admin: adm, me: me ? me.name : '', members: all.map(function (g) { return {name: g.name, role: g.role, active: g.active, danru: g.danru, hasPin: !!g.hash, setAt: g.setAt}; })};
@@ -595,8 +707,10 @@ function admin_(a, b) {
       var o = P[k], c = rs.filter(function (x) { return o.rounds[x]; }).length;
       return {no: o.no, name: o.name, zone: o.zone, hi: o.hi, cal: o.cal, covered: c, rounds: n, pct: n ? Math.round(100 * c / n) : 0, scans: o.scans, issues: o.issues, noGps: o.noGps, photos: o.photos, last: o.lastMs ? ymdhms_(o.lastMs) : '', lastBy: o.lastBy};
     }).sort(function (x, y) { return x.pct - y.pct || x.no - y.no; });
+    var clk = clockRows_().filter(function (x) { return x.date >= fromD && x.date <= to; }).sort(function (x, y) { return y.ms - x.ms; }).slice(0, 300).map(function (x) { return {date: x.date, shift: x.shift, guard: x.guard, at: x.at.slice(11, 16), status: x.status, late: x.late, by: x.by}; });
+    var cmiss = clockMissing_(fromD, to);
     var coveredSum = rows.reduce(function (t, x) { return t + x.covered; }, 0);
-    return {ok: true, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
+    return {ok: true, clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
   if (a === 'a_points') {
