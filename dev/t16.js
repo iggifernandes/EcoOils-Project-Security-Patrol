@@ -1,4 +1,5 @@
 const m=require('./mock.js');
+m.ctx.setCfg_('GPS_QUIET','no');
 m.ctx.makeDanruPins();
 const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
 const D=dp['Rendi Irawan'];
@@ -53,5 +54,5 @@ sc=call({action:'scan',gp:D,pid:call({action:'state',gp:D}).points[3].id,lat:2.9
 call({action:'d_plan_set',gp:D,date:now.date,shift:now.code,rows:[]});
 sc=call({action:'scan',gp:g4.pin,pid:call({action:'state',gp:D}).points[4].id,lat:2.9,lng:99.1,acc:10});ok(!sc.flags.includes('NOT_ON_PLAN'),'no plan = no flag');
 ok(m.ctx.FLAGTXT.en.NOT_ON_PLAN&&m.ctx.FLAGTXT.id.NOT_ON_PLAN,'email text EN+ID for the flag');
-ok(m.ctx.VERSION==='v1.8.5','version v1.8');
+ok(m.ctx.VERSION==='v1.8.6','version v1.8');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

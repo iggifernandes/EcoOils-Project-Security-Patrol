@@ -1,4 +1,5 @@
 const m=require('./mock.js');let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.setCfg_('GPS_QUIET','no');
 const rows=m.sheets.Points.rows.slice(1);
 ok(rows.length===45&&rows.every(r=>r[5]===10),'all 45 seeded points have radius 10');
 rows.forEach(r=>r[5]=25);ok(m.sheets.Points.rows[1][5]===25,'(simulate old sheet with 25)');

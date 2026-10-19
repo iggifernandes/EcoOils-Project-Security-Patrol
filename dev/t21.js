@@ -1,4 +1,5 @@
 const m=require('./mock.js');let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.setCfg_('GPS_QUIET','no');
 m.ctx.makeDanruPins();const pin=n=>m.ctx.logs.filter(l=>new RegExp('DANRU PIN\\s+'+n).test(l))[0].match(/(\d{6})$/)[1];
 const I=pin('Muhammad Irsan'),R=pin('Rendi Irawan');
 const pts=m.call({action:'state',gp:I}).points;const d=x=>x/111320;

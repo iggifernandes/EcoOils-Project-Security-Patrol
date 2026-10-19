@@ -1,4 +1,5 @@
 const m=require('./mock.js');const roundAt=m.ctx.roundAt_;
+m.ctx.setCfg_('GPS_QUIET','no');
 m.ctx.makeDanruPins();
 const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
 const A=dp['Rendi Irawan'],B=dp['Jhonsen Panjaitan'];

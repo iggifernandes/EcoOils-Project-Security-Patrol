@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.5
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.6
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.8.5';
+var VERSION = 'v1.8.6';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -422,7 +422,8 @@ function scan_(b, g) {
       lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts]);
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
-  return {ok: true, gps: gps, dist: dist, flags: flags, done: Object.keys(dn).length, total: points_(true).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
+  var quiet = quiet_();
+  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: points_(true).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
 function photo_(b, me) {
@@ -612,6 +613,25 @@ var TXT = {
   en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol', photoChecks: 'Photo checks (selfie)', photoTaken: 'photo taken', photoMissing: 'NO PHOTO', photoNone: 'not scanned', photoCol: 'Photo', photoTotal: 'Photo checks taken', photoLink: 'view'},
   id: {round: 'Ronde', done: 'Selesai', of: 'dari', missed: 'Terlewat', notScanned: 'Titik yang tidak dipindai pada ronde ini', highFirst: 'risiko tinggi lebih dulu', high: 'RISIKO TINGGI', no: 'No.', flagged: 'Pemindaian bertanda', away: 'm dari titik', daily: 'Ringkasan patroli harian', tRound: 'Ronde', tDone: 'Selesai', tMiss: 'Terlewat', often: 'Titik yang paling sering terlewat', missedIn: 'terlewat pada', rounds: 'ronde', app: 'Patroli Keamanan EcoOils Mentari', photoChecks: 'Pemeriksaan foto (selfie)', photoTaken: 'foto diambil', photoMissing: 'TANPA FOTO', photoNone: 'tidak dipindai', photoCol: 'Foto', photoTotal: 'Pemeriksaan foto terambil', photoLink: 'lihat'}
 };
+/* GPS_QUIET (Config, default yes): while points are being calibrated, guards are not told about GPS problems (the scan screen just says Recorded)
+   and addresses after the first in NOTIFY_EMAIL get emails without GPS flags. The first address (owner) and the Admin screens see everything. Set GPS_QUIET to no to switch off. */
+function quiet_() { return cfg_('GPS_QUIET', 'yes').toLowerCase() !== 'no'; }
+var GPS_FLAGS = ['NO_GPS', 'OUTSIDE', 'SUSPECT_GPS', 'LOW_ACCURACY'];
+function hideGps_(list) {
+  var out = [];
+  list.forEach(function (f) {
+    var k = f.flags.filter(function (x) { return GPS_FLAGS.indexOf(x) < 0; });
+    if (k.length) out.push({t: f.t, guard: f.guard, no: f.no, name: f.name, flags: k, dist: ''});
+  });
+  return out;
+}
+function sendTo_(subject, htmlFull, htmlQuiet) {
+  var all = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my').split(',').map(function (x) { return x.trim(); }).filter(String);
+  if (!all.length) return;
+  if (!quiet_() || all.length < 2 || htmlQuiet === undefined) { MailApp.sendEmail({to: all.join(','), subject: subject, htmlBody: htmlFull}); return; }
+  MailApp.sendEmail({to: all[0], subject: subject, htmlBody: htmlFull});
+  if (htmlQuiet) MailApp.sendEmail({to: all.slice(1).join(','), subject: subject, htmlBody: htmlQuiet});
+}
 function send_(subject, html) {
   var to = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my');
   MailApp.sendEmail({to: to, subject: subject, htmlBody: html});
@@ -690,8 +710,10 @@ function roundCheck() {
   if (!missed.length && !flagged.length) return;
   var hi = missed.filter(function (p) { return p.hi; });
   var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : '') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
-  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
-  send_(subj, h);
+  var foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + foot;
+  var fq = hideGps_(flagged), hq = (missed.length || fq.length) ? both_(roundHtml_('en', r, pts, missed, hi, fq, photos), roundHtml_('id', r, pts, missed, hi, fq, photos)) + foot : '';
+  sendTo_(subj, h, hq);
 }
 function dailyHtml_(L, y, tr, top, missCount, flagList, phTaken, phReq) {
   var T = TXT[L];
@@ -714,6 +736,8 @@ function dailySummary() {
     flagList = flagList.concat(flagged_(r));
   }
   var top = pts.filter(function (p) { return missCount[p.id]; }).sort(function (a, b) { return missCount[b.id] - missCount[a.id]; }).slice(0, 10);
-  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
-  send_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h);
+  var foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq)) + foot;
+  var fq = hideGps_(flagList), hq = both_(dailyHtml_('en', y, tr, top, missCount, fq, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, fq, phTaken, phReq)) + foot;
+  sendTo_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h, hq);
 }
