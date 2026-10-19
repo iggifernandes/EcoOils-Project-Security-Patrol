@@ -137,7 +137,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.8.4';
+var VERSION='v1.8.5';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -312,11 +312,24 @@ function getFix(){
     t1=setTimeout(function(){if(best)end();},7000);t2=setTimeout(end,20000);
   });
 }
-function shrink(file){
+function stampTime(){
+  var d=new Date(nowMs()+7*3600000),M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],p=function(n){return (n<10?'0':'')+n;};
+  return p(d.getUTCDate())+' '+M[d.getUTCMonth()]+' '+d.getUTCFullYear()+'  '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds())+' WIB';
+}
+function shrink(file,lines){
   return new Promise(function(res,rej){
     var u=URL.createObjectURL(file),im=new Image();
     im.onload=function(){var k=Math.min(1,640/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
-      c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.6).split(',')[1]);};
+      c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);var x=c.getContext('2d');x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
+      if(lines&&lines.length){
+        var fs=Math.max(15,Math.round(c.width/22)),pad=Math.round(fs*0.45),bh=lines.length*Math.round(fs*1.25)+pad*2;
+        x.fillStyle='rgba(0,0,0,0.62)';x.fillRect(0,c.height-bh,c.width,bh);
+        x.fillStyle='#fff';x.textBaseline='top';
+        lines.forEach(function(t,i){x.font=(i===0?'bold ':'')+fs+'px Arial,Helvetica,sans-serif';
+          var s=t;while(s.length>4&&x.measureText(s).width>c.width-pad*2)s=s.slice(0,-2);if(s!==t)s=s.replace(/\s+$/,'')+'...';
+          x.fillText(s,pad,c.height-bh+pad+i*Math.round(fs*1.25));});
+      }
+      res(c.toDataURL('image/jpeg',0.62).split(',')[1]);};
     im.onerror=function(){URL.revokeObjectURL(u);rej();};im.src=u;
   });
 }
@@ -327,7 +340,7 @@ function askPhoto(pt){
     showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr('photoNeed'))+'</p>'+
       '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="user" style="display:none"></label>'+
       '<button class="btn ghost" id="phSkip" type="button">'+esc(tr('skipPhoto'))+'</button>');
-    $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f).then(res,function(){res('');});});
+    $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f,[stampTime(),pt.no+'. '+pt.name+'  |  '+(S.guard||'')]).then(res,function(){res('');});});
     $('phSkip').addEventListener('click',function(){res('');});
   });
 }
