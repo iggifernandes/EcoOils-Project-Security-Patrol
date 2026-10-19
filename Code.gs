@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.3
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.4
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.8.3';
+var VERSION = 'v1.8.4';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -100,12 +100,12 @@ function fixRoles() {
   Logger.log('Roles updated for ' + done + ' people.');
 }
 /* ---------- calibrate from patrol scans (run from the editor) ----------
-   Idea: a trusted person (Config CAL_GUARD, default Muhammad Irsan) walks the points scanning each QR standing at the sticker.
+   Idea: patrol scans taken standing at the sticker give each point's position. By default every guard's scans are used (many guards = outliers drop out); Config CAL_GUARD limits it to one named person.
    Each scan stores the best GPS fix. previewCalFromScans() shows what would be saved (writes nothing, see View > Logs / Execution log).
    applyCalFromScans() saves it to Points (Lat, Lng, Calibrated at). Radius is not changed.
-   Config keys (optional): CAL_GUARD (name, blank = any guard), CAL_FROM (WIB 'yyyy-mm-dd hh:mm', default last 24 h), CAL_MAX_ACC (m, default 15). */
+   Config keys (optional): CAL_GUARD (name; default blank = all guards), CAL_FROM (WIB 'yyyy-mm-dd hh:mm', default last 24 h), CAL_MAX_ACC (m, default 15). */
 function calFromScans_(apply) {
-  var guard = cfg_('CAL_GUARD', 'Muhammad Irsan').trim().toLowerCase(), maxAcc = Number(cfg_('CAL_MAX_ACC', '15')) || 15;
+  var guard = cfg_('CAL_GUARD', '').trim().toLowerCase(), maxAcc = Number(cfg_('CAL_MAX_ACC', '15')) || 15;
   var from = Date.now() - 24 * 3600000, cf = cfg_('CAL_FROM', '');
   if (cf) { var t = Date.parse(cf.replace(' ', 'T') + ':00Z') - OFF; if (isFinite(t)) from = t; }
   var by = {};
@@ -114,7 +114,7 @@ function calFromScans_(apply) {
     if (ms < from || la == null || ln == null || ac == null || ac <= 0 || ac > maxAcc) return;
     if (guard && String(r[4]).trim().toLowerCase() !== guard) return;
     if (/SUSPECT_GPS|NO_GPS|TOO_FAST/.test(fl)) return;
-    (by[String(r[6])] = by[String(r[6])] || []).push({lat: la, lng: ln, acc: ac});
+    (by[String(r[6])] = by[String(r[6])] || []).push({lat: la, lng: ln, acc: ac, g: String(r[4])});
   });
   var out = [], saved = 0, check = 0, none = 0, sh = sh_('Points');
   points_(false).forEach(function (p) {
@@ -130,12 +130,14 @@ function calFromScans_(apply) {
     la /= sw; ln /= sw;
     var spread = 0;
     f.forEach(function (x) { spread = Math.max(spread, hav_(x.lat, x.lng, la, ln)); });
+    var gs = {};
+    f.forEach(function (x) { gs[x.g] = 1; });
     var note = [];
     if (f.length === 1) note.push('single reading');
     if (best > 10) note.push('best accuracy over 10 m');
     if (spread > 15) note.push('readings spread ' + Math.round(spread) + ' m');
     if (note.length) check++;
-    out.push(p.no + '  ' + p.name + '  n=' + f.length + '  best ' + Math.round(best) + ' m  spread ' + Math.round(spread) + ' m  ' + (note.length ? 'CHECK: ' + note.join(', ') : 'OK'));
+    out.push(p.no + '  ' + p.name + '  n=' + f.length + ' guards=' + Object.keys(gs).length + '  best ' + Math.round(best) + ' m  spread ' + Math.round(spread) + ' m  ' + (note.length ? 'CHECK: ' + note.join(', ') : 'OK'));
     if (apply) { sh.getRange(p.row, 9, 1, 3).setValues([[la, ln, ymdhms_(Date.now()) + ' (from scans, n=' + f.length + ', ' + Math.round(best) + ' m)']]); saved++; }
   });
   out.forEach(function (l) { Logger.log(l); });

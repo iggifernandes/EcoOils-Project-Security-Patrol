@@ -10,6 +10,7 @@ sc(I,2,0,30);                                    // point 3: poor accuracy -> ex
 sc(I,3,0,0);                                     // point 4: acc 0 suspect -> excluded
 sc(R,4,0,3);                                     // point 5: other guard -> excluded
 sc(I,5,0,5);sc(I,5,1,5);sc(I,5,60,5);sc(I,5,0,6);// point 6: one outlier 60 m away
+m.ctx.setCfg_('CAL_GUARD','Muhammad Irsan');
 const before=JSON.stringify(m.sheets.Points.rows);
 let r=m.ctx.previewCalFromScans();
 ok(JSON.stringify(m.sheets.Points.rows)===before,'preview writes nothing');
@@ -25,6 +26,11 @@ ok(r.saved===3&&P[0].lat!=null&&P[1].lat!=null&&P[5].lat!=null&&P[2].lat==null&&
 ok(Math.abs(P[0].lat-base[0].lat)<d(3)&&Math.abs(P[5].lat-base[5].lat)<d(2),'saved coordinates are the weighted average');
 ok(/from scans, n=3/.test(String(m.sheets.Points.rows[1][10])),'Calibrated at note says from scans');
 ok(m.sheets.Points.rows.slice(1).every(r=>r[5]===10),'radius untouched (10)');
+// all guards (default): other guard's scan on point 5 now counts
+m.ctx.setCfg_('CAL_GUARD','');
+const all=m.ctx.previewCalFromScans();
+ok(all.lines.some(l=>/^5  .*n=1 guards=1/.test(l)),'blank CAL_GUARD = every guard counts');
+ok(all.lines.some(l=>/^1  .*n=3 guards=1/.test(l)),'preview shows how many guards');
 // now a scan at the calibrated point is judged
 const o=m.call({action:'scan',gp:I,pid:pts[0].id,lat:base[0].lat+d(40),lng:base[0].lng,acc:5});ok(o.gps==='OUTSIDE','after calibration a far scan is OUTSIDE');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
