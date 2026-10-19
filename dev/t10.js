@@ -16,7 +16,7 @@ let fails=0;const ok=(c,msg)=>{console.log((c?'PASS ':'FAIL ')+msg);if(!c)fails+
  },{qrUrl});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- ok(await pg.locator('#ver').innerText()==='v1.6','version v1.6 top right');
+ ok(await pg.locator('#ver').innerText()==='v1.7','version v1.7 top right');
  ok(await pg.locator('#gpin').isVisible(),'pin screen shown first');
  ok(!(await pg.locator('#guard').count()),'no name picker any more');
  // wrong pin

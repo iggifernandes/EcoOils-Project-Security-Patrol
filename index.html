@@ -130,7 +130,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.6';
+var VERSION='v1.7';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -139,7 +139,7 @@ var T={en:{
  round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
  scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
- notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'A photo is needed at this point.',takePhoto:'Take photo',skipPhoto:'Skip photo (will be flagged)',sending:'Sending...',photoSent:'Photo sent',photoSkipped:'No photo sent. This scan is flagged.',photoFail:'Photo could not be sent.',retry:'Try again',
+ notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
  scanNext:'Scan next',close:'Close',queued:'No connection. Saved on this phone and will send automatically.',badGuardPin:'PIN is wrong. Check it with your Danru.',locked:'Too many wrong tries. Wait 10 minutes and try again.',logout:'Log out',admin:'Admin',
  team:'Team (Danru)',teamTitle:'Team',back:'Back',addTitle:'Add a new member',namePh:'Full name',addGo:'Add and create PIN',search:'Search name',newPin:'New PIN',deact:'Deactivate',act:'Activate',pinSet:'PIN set',noPin:'No PIN yet',danru:'Danru',inactive:'Inactive',pinShowTitle:'PIN for',pinShowHelp:'Give this PIN to the guard now. It cannot be shown again. If it is lost, make a new PIN.',done2:'Done',confirmReset:'Make a new PIN for',confirmOff:'Deactivate',confirmOn:'Activate',yes:'Yes',no:'No',mkDanru:'Make Danru',rmDanru:'Remove Danru',members:'members',
@@ -151,7 +151,7 @@ var T={en:{
  round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
  scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
- notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Foto diperlukan di titik ini.',takePhoto:'Ambil foto',skipPhoto:'Lewati foto (akan ditandai)',sending:'Mengirim...',photoSent:'Foto terkirim',photoSkipped:'Foto tidak dikirim. Pemindaian ini ditandai.',photoFail:'Foto gagal dikirim.',retry:'Coba lagi',
+ notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
  scanNext:'Pindai berikutnya',close:'Tutup',queued:'Tidak ada koneksi. Disimpan di ponsel dan terkirim otomatis.',badGuardPin:'PIN salah. Tanyakan kepada Danru Anda.',locked:'Terlalu banyak salah. Tunggu 10 menit lalu coba lagi.',logout:'Keluar',admin:'Admin',
  team:'Tim (Danru)',teamTitle:'Tim',back:'Kembali',addTitle:'Tambah anggota baru',namePh:'Nama lengkap',addGo:'Tambah dan buat PIN',search:'Cari nama',newPin:'PIN baru',deact:'Nonaktifkan',act:'Aktifkan',pinSet:'PIN sudah ada',noPin:'Belum ada PIN',danru:'Danru',inactive:'Tidak aktif',pinShowTitle:'PIN untuk',pinShowHelp:'Berikan PIN ini kepada anggota sekarang. PIN tidak dapat ditampilkan lagi. Jika hilang, buat PIN baru.',done2:'Selesai',confirmReset:'Buat PIN baru untuk',confirmOff:'Nonaktifkan',confirmOn:'Aktifkan',yes:'Ya',no:'Tidak',mkDanru:'Jadikan Danru',rmDanru:'Cabut Danru',members:'anggota',
@@ -308,8 +308,8 @@ function getFix(){
 function shrink(file){
   return new Promise(function(res,rej){
     var u=URL.createObjectURL(file),im=new Image();
-    im.onload=function(){var k=Math.min(1,1024/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
-      c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.7).split(',')[1]);};
+    im.onload=function(){var k=Math.min(1,640/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+      c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.6).split(',')[1]);};
     im.onerror=function(){URL.revokeObjectURL(u);rej();};im.src=u;
   });
 }
@@ -318,7 +318,7 @@ function hideRes(){$('resModal').classList.add('hidden');}
 function askPhoto(pt){
   return new Promise(function(res){
     showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr('photoNeed'))+'</p>'+
-      '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="environment" style="display:none"></label>'+
+      '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="user" style="display:none"></label>'+
       '<button class="btn ghost" id="phSkip" type="button">'+esc(tr('skipPhoto'))+'</button>');
     $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f).then(res,function(){res('');});});
     $('phSkip').addEventListener('click',function(){res('');});

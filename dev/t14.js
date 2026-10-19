@@ -17,16 +17,17 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const url=await window.qrFor();const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');const im=new Image();im.onload=()=>{setInterval(()=>{x.fillStyle='#fff';x.fillRect(0,0,640,480);x.drawImage(im,120,40,400,400);},100)};im.src=url;return c.captureStream(10);};});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- ok(await pg.locator('#ver').innerText()==='v1.6','version v1.6');
+ ok(await pg.locator('#ver').innerText()==='v1.7','version v1.7');
  await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
  // scan point 2: photo wanted (all points) -> take photo
  which=2;await pg.click('#bScan');await pg.waitForSelector('#phIn',{state:'attached',timeout:15000});
- ok((await pg.locator('#resBody').innerText()).includes('photo'),'photo prompt appears only after the scan is accepted');
+ ok((await pg.locator('#resBody').innerText()).includes('selfie'),'selfie prompt appears only after the scan is accepted');
+ ok(await pg.locator('#phIn').getAttribute('capture')==='user','selfie opens the front camera (capture=user)');
  await pg.setInputFiles('#phIn',{name:'p.png',mimeType:'image/png',buffer:pngBuf});
  await pg.waitForSelector('#resBody .big',{timeout:10000});
  let rows=m.sheets.Scans.rows;let row=rows[rows.length-1];
  ok(row[7]===2&&row[16].startsWith('https://drive')&&!/NO_PHOTO/.test(row[15]),'photo saved on the scan row, no NO_PHOTO flag');
- ok((await pg.locator('#resBody').innerText()).includes('Photo sent'),'guard sees Photo sent');
+ ok((await pg.locator('#resBody').innerText()).includes('Selfie sent'),'guard sees Selfie sent');
  await pg.click('#resBody [data-act=close]');
  // scan point 3, skip photo
  which=3;await pg.click('#bScan');await pg.waitForSelector('#phSkip',{timeout:15000});await pg.click('#phSkip');await pg.waitForSelector('#resBody .big');

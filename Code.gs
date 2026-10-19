@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.6
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.7
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.6';
+var VERSION = 'v1.7';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -13,7 +13,7 @@ var HEAD = {
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Config: ['Key', 'Value']
 };
-var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",25,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",25,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",25,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",25,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",25,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",25,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",25,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",25,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",25,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",25,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",25,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",25,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",40,"No",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",40,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",40,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",40,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",40,"No",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",40,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",40,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",40,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",40,"No",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",40,"No",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",40,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",40,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",40,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",40,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",40,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",40,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",40,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",40,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",40,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",40,"No","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",40,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",25,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",25,"No",""]];
+var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",25,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",25,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",25,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",25,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",25,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",25,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",25,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",25,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",25,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",25,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",25,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",25,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",40,"Yes",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",40,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",40,"Yes","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",40,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",40,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",40,"Yes",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",40,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",40,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",40,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",40,"Yes",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",40,"Yes",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",40,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",40,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",40,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",40,"No","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",40,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",40,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",40,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",40,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",40,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",40,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",40,"Yes","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",40,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",25,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",25,"No",""]];
 var SEED_GUARDS = [
   ['Agus Fazar', 'Army'], ['Muhammad Irsan', 'Supervisor'], ['Jhonsen Panjaitan', 'Leader'], ['Rendi Irawan', 'Leader'], ['Try Agung Pramana', 'Leader'],
   ['Arya Fahrul Manurung', 'Security Guard'], ['Syafrizal Marpaung', 'Security Guard'], ['Valen Andriano', 'Security Guard'], ['Muhammad Alfaroby Siregar', 'Security Guard'],
@@ -457,8 +457,8 @@ var FLAGTXT = {
   id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal'}
 };
 var TXT = {
-  en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol'},
-  id: {round: 'Ronde', done: 'Selesai', of: 'dari', missed: 'Terlewat', notScanned: 'Titik yang tidak dipindai pada ronde ini', highFirst: 'risiko tinggi lebih dulu', high: 'RISIKO TINGGI', no: 'No.', flagged: 'Pemindaian bertanda', away: 'm dari titik', daily: 'Ringkasan patroli harian', tRound: 'Ronde', tDone: 'Selesai', tMiss: 'Terlewat', often: 'Titik yang paling sering terlewat', missedIn: 'terlewat pada', rounds: 'ronde', app: 'Patroli Keamanan EcoOils Mentari'}
+  en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol', photoChecks: 'Photo checks (selfie)', photoTaken: 'photo taken', photoMissing: 'NO PHOTO', photoNone: 'not scanned', photoCol: 'Photo', photoTotal: 'Photo checks taken', photoLink: 'view'},
+  id: {round: 'Ronde', done: 'Selesai', of: 'dari', missed: 'Terlewat', notScanned: 'Titik yang tidak dipindai pada ronde ini', highFirst: 'risiko tinggi lebih dulu', high: 'RISIKO TINGGI', no: 'No.', flagged: 'Pemindaian bertanda', away: 'm dari titik', daily: 'Ringkasan patroli harian', tRound: 'Ronde', tDone: 'Selesai', tMiss: 'Terlewat', often: 'Titik yang paling sering terlewat', missedIn: 'terlewat pada', rounds: 'ronde', app: 'Patroli Keamanan EcoOils Mentari', photoChecks: 'Pemeriksaan foto (selfie)', photoTaken: 'foto diambil', photoMissing: 'TANPA FOTO', photoNone: 'tidak dipindai', photoCol: 'Foto', photoTotal: 'Pemeriksaan foto terambil', photoLink: 'lihat'}
 };
 function send_(subject, html) {
   var to = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my');
@@ -488,6 +488,32 @@ function flagged_(r) {
   });
   return out;
 }
+function photoChecks_(r, pts, rows) {
+  rows = rows || scans_(1500);
+  var set = photoSet_(r, pts), out = [];
+  pts.filter(function (p) { return set[p.id]; }).forEach(function (p) {
+    var st = 'none', by = '', url = '';
+    rows.forEach(function (row) {
+      var ms = Number(row[17]);
+      if (ms >= r.start && ms < r.end && String(row[6]) === p.id) {
+        by = String(row[4]);
+        if (row[16]) { st = 'taken'; url = String(row[16]); } else if (st !== 'taken') st = 'missing';
+      }
+    });
+    out.push({no: p.no, name: p.name, status: st, by: by, url: url});
+  });
+  return out.sort(function (a, b) { return a.no - b.no; });
+}
+function photoHtml_(list, L) {
+  if (!list.length) return '';
+  var T = TXT[L], taken = list.filter(function (x) { return x.status === 'taken'; }).length;
+  var h = '<p style="margin:12px 0 2px"><b>' + T.photoChecks + ': ' + taken + ' ' + T.of + ' ' + list.length + '</b></p><ul style="margin:0;list-style:none;padding-left:0">';
+  list.forEach(function (x) {
+    var lab = x.status === 'taken' ? '<span style="color:#1a7f37">&#10003; ' + T.photoTaken + '</span>' + (x.url ? ' (<a href="' + esc_(x.url) + '">' + T.photoLink + '</a>)' : '') : (x.status === 'missing' ? '<b style="color:#b00020">&#10007; ' + T.photoMissing + '</b>' : '<span style="color:#666">- ' + T.photoNone + '</span>');
+    h += '<li>' + lab + ' - ' + T.no + ' ' + x.no + ' ' + esc_(x.name) + (x.by ? ' - ' + esc_(x.by) : '') + '</li>';
+  });
+  return h + '</ul>';
+}
 function flagHtml_(list, L) {
   if (!list.length) return '';
   var T = TXT[L], F = FLAGTXT[L];
@@ -498,42 +524,44 @@ function flagHtml_(list, L) {
   });
   return h + '</ul>';
 }
-function roundHtml_(L, r, pts, missed, hi, flagged) {
+function roundHtml_(L, r, pts, missed, hi, flagged, photos) {
   var T = TXT[L];
   var h = '<h3 style="margin:0 0 6px">' + T.round + ' ' + esc_(r.label) + ' (' + r.date + ')</h3><p><b>' + T.done + ' ' + (pts.length - missed.length) + ' ' + T.of + ' ' + pts.length + '. ' + T.missed + ' ' + missed.length + '.</b></p>';
   if (missed.length) h += '<p style="margin:8px 0 0"><b>' + T.notScanned + '</b> (' + T.highFirst + ')</p>' + groupHtml_(hi, L) + groupHtml_(missed.filter(function (p) { return !p.hi; }), L);
-  h += flagHtml_(flagged, L);
+  h += photoHtml_(photos, L) + flagHtml_(flagged, L);
   return h;
 }
 function roundCheck() {
   var boundary = Math.floor((Date.now() + OFF) / RMS) * RMS - OFF, r = roundAt_(boundary - 1);
   var pts = points_(true), d = doneMap_(r);
-  var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r);
+  var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r), photos = photoChecks_(r, pts);
   if (!missed.length && !flagged.length) return;
   var hi = missed.filter(function (p) { return p.hi; });
   var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : '') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
-  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged), roundHtml_('id', r, pts, missed, hi, flagged)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
   send_(subj, h);
 }
-function dailyHtml_(L, y, tr, top, missCount, flagList) {
+function dailyHtml_(L, y, tr, top, missCount, flagList, phTaken, phReq) {
   var T = TXT[L];
-  var h = '<h3 style="margin:0 0 6px">' + T.daily + ' ' + y + '</h3><table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + T.tRound + '</th><th>' + T.tDone + '</th><th>' + T.tMiss + '</th></tr>' + tr + '</table>';
+  var h = '<h3 style="margin:0 0 6px">' + T.daily + ' ' + y + '</h3><table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + T.tRound + '</th><th>' + T.tDone + '</th><th>' + T.tMiss + '</th><th>' + T.photoCol + '</th></tr>' + tr + '</table><p style="margin:8px 0 0"><b>' + T.photoTotal + ': ' + phTaken + ' ' + T.of + ' ' + phReq + '</b></p>';
   if (top.length) { h += '<p style="margin:12px 0 2px"><b>' + T.often + '</b></p><ul style="margin:0">'; top.forEach(function (p) { h += '<li>' + T.no + ' ' + p.no + ' ' + esc_(p.name) + ': ' + T.missedIn + ' ' + missCount[p.id] + ' ' + T.of + ' 12 ' + T.rounds + '</li>'; }); h += '</ul>'; }
   return h + flagHtml_(flagList, L);
 }
 function dailySummary() {
   var y = new Date(Date.now() + OFF - 86400000).toISOString().slice(0, 10);
-  var pts = points_(true), rows = scans_(3000), tr = '', missCount = {}, flagList = [], totalMissed = 0;
+  var pts = points_(true), rows = scans_(3000), tr = '', missCount = {}, flagList = [], totalMissed = 0, phTaken = 0, phReq = 0;
   for (var i = 0; i < 12; i++) {
     var r = roundBy_(y, i), seen = {};
     rows.forEach(function (row) { var ms = Number(row[17]); if (ms >= r.start && ms < r.end) seen[row[6]] = 1; });
     var miss = pts.filter(function (p) { return !seen[p.id]; });
     totalMissed += miss.length;
     miss.forEach(function (p) { missCount[p.id] = (missCount[p.id] || 0) + 1; });
-    tr += '<tr><td>' + r.label + '</td><td align="right">' + (pts.length - miss.length) + '</td><td align="right">' + miss.length + '</td></tr>';
+    var pc = photoChecks_(r, pts, rows), pt2 = pc.filter(function (x) { return x.status === 'taken'; }).length;
+    phTaken += pt2; phReq += pc.length;
+    tr += '<tr><td>' + r.label + '</td><td align="right">' + (pts.length - miss.length) + '</td><td align="right">' + miss.length + '</td><td align="right">' + (pc.length ? pt2 + '/' + pc.length : '-') + '</td></tr>';
     flagList = flagList.concat(flagged_(r));
   }
   var top = pts.filter(function (p) { return missCount[p.id]; }).sort(function (a, b) { return missCount[b.id] - missCount[a.id]; }).slice(0, 10);
-  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList), dailyHtml_('id', y, tr, top, missCount, flagList)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
-  send_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat', h);
+  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq)) + '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  send_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h);
 }
