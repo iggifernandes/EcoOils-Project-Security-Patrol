@@ -95,6 +95,8 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <button class="btn" id="bScan" type="button"></button>
   <div class="note" id="pend"></div>
   <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
+  <button class="btn ghost hidden" id="bPlanOpen" type="button"></button>
+  <div id="planCard"></div>
   <div class="tabs"><button id="tRem" class="on" type="button"></button><button id="tDone" type="button"></button></div>
   <div id="list"></div>
   <div class="links"><button id="bChange" type="button"></button></div>
@@ -103,6 +105,11 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 <section id="vTeam" class="hidden">
   <button class="btn ghost" id="tBack" type="button"></button>
   <div id="teamBody"></div>
+</section>
+
+<section id="vPlan" class="hidden">
+  <button class="btn ghost" id="pBack" type="button"></button>
+  <div id="planBody"></div>
 </section>
 
 <section id="vAdmin" class="hidden">
@@ -130,7 +137,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.7';
+var VERSION='v1.8';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -145,7 +152,7 @@ var T={en:{
  team:'Team (Danru)',teamTitle:'Team',back:'Back',addTitle:'Add a new member',namePh:'Full name',addGo:'Add and create PIN',search:'Search name',newPin:'New PIN',deact:'Deactivate',act:'Activate',pinSet:'PIN set',noPin:'No PIN yet',danru:'Danru',inactive:'Inactive',pinShowTitle:'PIN for',pinShowHelp:'Give this PIN to the guard now. It cannot be shown again. If it is lost, make a new PIN.',done2:'Done',confirmReset:'Make a new PIN for',confirmOff:'Deactivate',confirmOn:'Activate',yes:'Yes',no:'No',mkDanru:'Make Danru',rmDanru:'Remove Danru',members:'members',
  err_dup:'This name is already in the list.',err_bad_name:'Enter the full name (2 to 40 characters).',err_auth:'Not allowed.',err_locked:'Too many wrong tries. Wait 10 minutes.',err_danru_locked:'Only the admin can change a Danru.',err_pin:'PIN is wrong.',err_self:'You cannot deactivate yourself.',
  adminLogin:'Log in',keep:'Keep me signed in on this phone',badPin:'PIN is wrong or locked. Try again later.',err_unknown_point:'This point is not active.',err_unknown_guard:'Your name is not on the list.',err_server:'Server error. Try again.',
- ann:'Not configured: the app has no server address yet.',noGuards:'No names found.',later:'min'},
+ ann:'Not configured: the app has no server address yet.',noGuards:'No names found.',later:'min',delRow:'Remove',plan:'Shift plan',planShift:'Shift',shP:'Morning 07-15',shS:'Afternoon 15-23',shM:'Night 23-07',planDate:'Date',planDuty:'Duty',planGuard:'Guard',planBuddy:'Buddy',chooseGuard:'Choose guard',noBuddy:'No buddy',addDuty:'Add duty',planSave:'Save plan',planSaved:'Plan saved.',buddyNight:'Night shift: a buddy is needed.',buddyWarn:'Saved. Night shift, no buddy for:',planYour:'Shift plan',planYou:'you',planWith:'with',planNote:'Leave the guard empty to skip a duty. The Danru is never flagged.',planLoad:'Loading plan...',err_bad_date:'Pick a date from yesterday to 14 days ahead.',err_bad_shift:'Pick a shift.',err_bad_duty:'Unknown duty.',err_bad_guard:'Choose a guard from the list.',err_bad_buddy:'The buddy must be a different guard from the list.',err_dup_person:'A guard can only be on one duty. Check the names.',err_too_many:'Too many rows.'},
  id:{
  title:'EcoOils Patroli',setup:'Mulai patroli',pinLabel:'PIN pribadi Anda',pinHelp:'Danru memberi Anda PIN 6 angka. Cukup dimasukkan sekali di ponsel ini.',pinGo:'Lanjut',
  round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
@@ -157,7 +164,7 @@ var T={en:{
  team:'Tim (Danru)',teamTitle:'Tim',back:'Kembali',addTitle:'Tambah anggota baru',namePh:'Nama lengkap',addGo:'Tambah dan buat PIN',search:'Cari nama',newPin:'PIN baru',deact:'Nonaktifkan',act:'Aktifkan',pinSet:'PIN sudah ada',noPin:'Belum ada PIN',danru:'Danru',inactive:'Tidak aktif',pinShowTitle:'PIN untuk',pinShowHelp:'Berikan PIN ini kepada anggota sekarang. PIN tidak dapat ditampilkan lagi. Jika hilang, buat PIN baru.',done2:'Selesai',confirmReset:'Buat PIN baru untuk',confirmOff:'Nonaktifkan',confirmOn:'Aktifkan',yes:'Ya',no:'Tidak',mkDanru:'Jadikan Danru',rmDanru:'Cabut Danru',members:'anggota',
  err_dup:'Nama ini sudah ada dalam daftar.',err_bad_name:'Masukkan nama lengkap (2 sampai 40 karakter).',err_auth:'Tidak diizinkan.',err_locked:'Terlalu banyak salah. Tunggu 10 menit.',err_danru_locked:'Hanya admin yang dapat mengubah Danru.',err_pin:'PIN salah.',err_self:'Anda tidak dapat menonaktifkan diri sendiri.',
  adminLogin:'Masuk',keep:'Biarkan saya tetap masuk di ponsel ini',badPin:'PIN salah atau terkunci. Coba lagi nanti.',err_unknown_point:'Titik ini tidak aktif.',err_unknown_guard:'Nama Anda tidak ada dalam daftar.',err_server:'Kesalahan server. Coba lagi.',
- ann:'Belum dikonfigurasi: aplikasi belum memiliki alamat server.',noGuards:'Nama tidak ditemukan.',later:'mnt'}};
+ ann:'Belum dikonfigurasi: aplikasi belum memiliki alamat server.',noGuards:'Nama tidak ditemukan.',later:'mnt',delRow:'Hapus',plan:'Rencana shift',planShift:'Shift',shP:'Pagi 07-15',shS:'Sore 15-23',shM:'Malam 23-07',planDate:'Tanggal',planDuty:'Tugas',planGuard:'Petugas',planBuddy:'Pendamping',chooseGuard:'Pilih petugas',noBuddy:'Tanpa pendamping',addDuty:'Tambah tugas',planSave:'Simpan rencana',planSaved:'Rencana tersimpan.',buddyNight:'Shift malam: wajib ada pendamping.',buddyWarn:'Tersimpan. Shift malam, tanpa pendamping untuk:',planYour:'Rencana shift',planYou:'Anda',planWith:'bersama',planNote:'Kosongkan petugas untuk melewati tugas. Danru tidak pernah ditandai.',planLoad:'Memuat rencana...',err_bad_date:'Pilih tanggal dari kemarin sampai 14 hari ke depan.',err_bad_shift:'Pilih shift.',err_bad_duty:'Tugas tidak dikenal.',err_bad_guard:'Pilih petugas dari daftar.',err_bad_buddy:'Pendamping harus petugas lain dari daftar.',err_dup_person:'Satu petugas hanya boleh di satu tugas. Periksa nama.',err_too_many:'Terlalu banyak baris.'}};
 var lang='en';
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
 lang=ls('sp_lang')||(/^id/i.test(navigator.language||'')?'id':'en');
@@ -215,17 +222,17 @@ function applyLang(){
   document.documentElement.lang=lang;$('lEN').classList.toggle('on',lang==='en');$('lID').classList.toggle('on',lang==='id');
   $('ver').textContent=VERSION;$('brand').textContent=tr('title');
   $('tSetup').textContent=tr('setup');$('lGpin').textContent=tr('pinLabel');$('hGpin').textContent=tr('pinHelp');$('bGpin').textContent=tr('pinGo');
-  $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');
+  $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');$('bPlanOpen').textContent=tr('plan');$('pBack').textContent=tr('back');
   $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
-  render();if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
+  render();if(!$('vPlan').classList.contains('hidden'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){['vSetup','vPatrol','vAdmin','vTeam'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){['vSetup','vPatrol','vAdmin','vTeam','vPlan'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function startUp(){
@@ -244,7 +251,7 @@ function doneSet(){
 }
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=tr('round')+' '+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -517,6 +524,83 @@ function teamAdd(){
     pinCard(r.name,r.pin);TM.q='';teamLoad();
   }).catch(function(){hideRes();$('tmErr').textContent='No connection.';});
 }
+
+/* ===== Shift plan (Danru) ===== */
+var PL={date:'',shift:'',rows:[],guards:[],duties:[],msg:'',ok:true,busy:false,loaded:false};
+function jktToday(){return new Date(nowMs()+7*3600000).toISOString().slice(0,10);}
+function addDays(d,n){return new Date(Date.parse(d+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);}
+function shiftNow(){var h=new Date(nowMs()+7*3600000).getUTCHours();return h>=7&&h<15?'P':(h>=15&&h<23?'S':'M');}
+function planCard(){
+  var st=S.state,box=$('planCard');if(!box)return;
+  var p=st&&st.plan;if(!p||!p.rows||!p.rows.length){box.innerHTML='';return;}
+  var me=(S.guard||'').toLowerCase(),h='<div class="card"><b>'+esc(tr('planYour'))+' &middot; '+esc(tr('sh'+p.shift))+'</b>';
+  p.rows.forEach(function(r){
+    var mine=r.guard.toLowerCase()===me||(r.buddy&&r.buddy.toLowerCase()===me);
+    h+='<div style="margin-top:6px'+(mine?';font-weight:700':'')+'">'+esc(r.duty)+': '+esc(r.guard)+(r.buddy?' + '+esc(r.buddy):'')+(mine?' &#9733; '+esc(tr('planYou')):'')+'</div>';
+  });
+  box.innerHTML=h+'</div>';
+}
+function pApi(b){b.gp=S.pin;return api(b);}
+function planOpen(){
+  PL.date=jktToday();PL.shift=shiftNow();PL.msg='';PL.ok=true;PL.loaded=false;show('vPlan');planLoad();
+}
+function planLoad(){
+  $('planBody').innerHTML='<p><span class="sp"></span> '+esc(tr('planLoad'))+'</p>';
+  pApi({action:'d_plan_get',date:PL.date,shift:PL.shift}).then(function(r){
+    if(!r.ok){if(r.err==='auth'||r.err==='pin'){dropLogin(tr('badGuardPin'));return;}$('planBody').innerHTML='<p class="err">'+esc(errText(r.err))+'</p>';return;}
+    PL.guards=r.guards;PL.duties=r.duties;
+    PL.rows=r.rows.map(function(x){return {duty:x.duty,guard:x.guard,buddy:x.buddy};});
+    if(!PL.rows.length)PL.rows=r.duties.map(function(d){return {duty:d,guard:'',buddy:''};});
+    PL.loaded=true;planDraw();
+  }).catch(function(){$('planBody').innerHTML='<p class="err">No connection.</p>';});
+}
+function planDraw(){
+  if(!PL.loaded){return;}
+  var used={};PL.rows.forEach(function(r){if(r.guard)used[r.guard]=1;if(r.buddy)used[r.buddy]=1;});
+  function opts(sel,blank,self){
+    var o='<option value="">'+esc(blank)+'</option>';
+    PL.guards.forEach(function(g){var dis=used[g]&&g!==sel&&g!==self;o+='<option value="'+esc(g)+'"'+(g===sel?' selected':'')+(dis?' disabled':'')+'>'+esc(g)+'</option>';});
+    return o;
+  }
+  var min=addDays(jktToday(),-1),max=addDays(jktToday(),14);
+  var h='<div class="card"><b>'+esc(tr('plan'))+'</b><label class="note" for="plDate" style="display:block;margin-top:8px">'+esc(tr('planDate'))+'</label><input type="date" id="plDate" value="'+esc(PL.date)+'" min="'+min+'" max="'+max+'"><div class="tabs" style="margin-top:10px">';
+  ['P','S','M'].forEach(function(c){h+='<button type="button" data-a="sh" data-v="'+c+'" class="'+(PL.shift===c?'on':'')+'">'+esc(tr('sh'+c))+'</button>';});
+  h+='</div><p class="note">'+esc(tr('planNote'))+'</p></div>';
+  PL.rows.forEach(function(r,i){
+    var need=PL.shift==='M'&&r.guard&&!r.buddy;
+    h+='<div class="card"><label class="note">'+esc(tr('planDuty'))+'</label><select data-i="'+i+'" data-f="duty">';
+    PL.duties.forEach(function(d){h+='<option value="'+esc(d)+'"'+(d===r.duty?' selected':'')+'>'+esc(d)+'</option>';});
+    h+='</select><label class="note" style="margin-top:8px;display:block">'+esc(tr('planGuard'))+'</label><select data-i="'+i+'" data-f="guard">'+opts(r.guard,tr('chooseGuard'))+'</select>'
+      +'<label class="note" style="margin-top:8px;display:block">'+esc(tr('planBuddy'))+'</label><select data-i="'+i+'" data-f="buddy">'+opts(r.buddy,tr('noBuddy'))+'</select>'
+      +(need?'<div class="wrn" style="margin-top:6px">'+esc(tr('buddyNight'))+'</div>':'')
+      +'<button class="btn sm ghost" type="button" data-a="del" data-v="'+i+'">'+esc(tr('delRow'))+' &times;</button></div>';
+  });
+  h+='<button class="btn ghost" type="button" data-a="add">+ '+esc(tr('addDuty'))+'</button><button class="btn" type="button" data-a="save"'+(PL.busy?' disabled':'')+'>'+esc(tr('planSave'))+'</button>';
+  h+='<div class="'+(PL.ok?'okc':'err')+'" id="plMsg" style="margin-top:8px">'+esc(PL.msg)+'</div>';
+  $('planBody').innerHTML=h;
+}
+$('planBody').addEventListener('change',function(e){
+  var t=e.target,i=t.getAttribute&&t.getAttribute('data-i'),f=t.getAttribute&&t.getAttribute('data-f');
+  if(t.id==='plDate'){if(/^\d{4}-\d{2}-\d{2}$/.test(t.value)){PL.date=t.value;PL.msg='';planLoad();}return;}
+  if(i==null||!f)return;PL.rows[+i][f]=t.value;PL.msg='';planDraw();
+});
+$('planBody').addEventListener('click',function(e){
+  var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-a'),v=e.target&&e.target.getAttribute&&e.target.getAttribute('data-v');
+  if(!a)return;
+  if(a==='sh'){PL.shift=v;PL.msg='';planLoad();}
+  if(a==='del'){PL.rows.splice(+v,1);planDraw();}
+  if(a==='add'){PL.rows.push({duty:PL.duties[PL.duties.length-1]||'',guard:'',buddy:''});planDraw();}
+  if(a==='save'){
+    PL.busy=true;PL.msg='';planDraw();
+    pApi({action:'d_plan_set',date:PL.date,shift:PL.shift,rows:PL.rows}).then(function(r){
+      PL.busy=false;
+      if(!r.ok){PL.ok=false;PL.msg=errText(r.err);planDraw();return;}
+      PL.ok=true;PL.msg=r.warn&&r.warn.length?tr('buddyWarn')+' '+r.warn.join(', '):tr('planSaved');planDraw();loadState(true);
+    }).catch(function(){PL.busy=false;PL.ok=false;PL.msg='No connection.';planDraw();});
+  }
+});
+$('bPlanOpen').addEventListener('click',planOpen);
+$('pBack').addEventListener('click',function(){showPatrol();});
 
 /* ===== wiring ===== */
 $('lEN').addEventListener('click',function(){setLang('en');});$('lID').addEventListener('click',function(){setLang('id');});

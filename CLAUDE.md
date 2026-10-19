@@ -14,13 +14,14 @@ Same QR also opens the existing UA/UC form from a normal phone camera: payload h
 • dev/ - mock Google runtime + tests: `cd dev && npm install && npm test` (backend logic in node, UI in headless Chromium against the mock). Keep all green before every push. No access to script.google.com from the sandbox, so the real deploy is tested by the owner.
 • App URL https://iggifernandes.github.io/EcoOils-Project-Security-Patrol/ ; Apps Script URL is in index.html (API_URL).
 
-## Current version v1.7 (index.html, Code.gs and sw.js cache all carry it)
+## Current version v1.8 (index.html, Code.gs and sw.js cache all carry it)
+• v1.8 Shift plan: Danru (and Admin via d_plan_* with admin PIN) opens 'Shift plan' on the patrol screen, picks date (yesterday to +14 days) and shift (P 07-15, S 15-23, M 23-07; night belongs to the date it starts), assigns Duty (Config DUTIES, default 'Gate 1,Gate 2,Gate 3,Patrol') -> Guard + optional Buddy. Night shift warns when a buddy is missing (does not block). Stored in sheet Roster (append-only, latest batch wins). Guards see the current shift plan card. A scan by a guard not on the plan (and not a Danru) is flagged NOT_ON_PLAN but still counts; no plan = no flag. Not enforced, record only.
 • Personal 6-digit PINs. PIN alone identifies the guard (no name picker); stored hashed (salt in script property PIN_SALT) in Guards sheet col D. Remembered on the phone (localStorage sp_gpin).
 • Danru (Guards col E = Yes; seeded for Leaders + Supervisor) get a Team button: add guard, New PIN, deactivate. A PIN is shown once. Only the Admin PIN (Admin > Team) can change a Danru. run makeDanruPins() once to create the first Danru PINs (printed in the Execution log).
 • 20 wrong PINs in 10 min locks guard logins ~10 min; scans made while locked are queued on the phone.
 • v1.7: the photo check is a SELFIE (front camera, capture=user), low resolution (max 640 px, JPEG q0.6, roughly 30-60 KB). Round and daily emails list the photo-check points with 'photo taken' (link) / NO PHOTO / not scanned; the daily table has a Photo column and totals. High-risk (star) points now: 1,2,13,18,21,22,23,26,27,28,30,34,38,41,42 (Points col G Yes); the random photo points stay uniform over all 45 and do not depend on the star. Do not reprint stickers; owner marked them by hand.
 • Random photo checks: PHOTO_PER_ROUND (Config sheet, default 5, 0 = off, Admin > Settings). Server picks the points per round from a secret; phones learn only after the scan is accepted (scan returns needPhoto + scanId, then action photo). Missing photo = flag NO_PHOTO. Offline scans cannot be asked, flagged QUEUED + NO_PHOTO.
-• Flags: OUTSIDE, NO_GPS, SUSPECT_GPS, LOW_ACCURACY, NO_PHOTO, REPEAT, QUEUED, TOO_FAST, PHOTO_FAIL. Flagged scans still count as done.
+• Flags: NOT_ON_PLAN, OUTSIDE, NO_GPS, SUSPECT_GPS, LOW_ACCURACY, NO_PHOTO, REPEAT, QUEUED, TOO_FAST, PHOTO_FAIL. Flagged scans still count as done.
 • Admin PIN (script property ADMIN_PIN): Live, History, Calibrate (GPS averaging + radius + auto walking route), Settings, Team.
 • Points sheet: 45 points, sticker numbers never change, Seq controls walking order, Radius per point, Active flag.
 

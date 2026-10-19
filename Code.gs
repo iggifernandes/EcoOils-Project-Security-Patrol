@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.7
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.7';
+var VERSION = 'v1.8';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -11,6 +11,7 @@ var HEAD = {
   Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms'],
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
+  Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
   Config: ['Key', 'Value']
 };
 var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",25,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",25,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",25,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",25,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",25,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",25,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",25,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",25,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",25,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",25,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",25,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",25,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",40,"Yes",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",40,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",40,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",40,"Yes","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",40,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",40,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",40,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",40,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",40,"Yes",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",40,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",40,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",40,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",40,"Yes",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",40,"Yes",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",40,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",40,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",40,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",40,"No","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",40,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",40,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",40,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",40,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",40,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",40,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",40,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",40,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",40,"Yes","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",40,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",25,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",25,"No",""]];
@@ -37,6 +38,7 @@ function setup() {
   var d = s.getSheetByName('Sheet1');
   if (d && s.getSheets().length > 1 && d.getLastRow() === 0) s.deleteSheet(d);
   s.getSheetByName('Scans').getRange('B:C').setNumberFormat('@');
+  s.getSheetByName('Roster').getRange('A:B').setNumberFormat('@');
   var pts = s.getSheetByName('Points');
   if (pts.getLastRow() < 2) {
     pts.getRange(2, 1, SEED_POINTS.length, 13).setValues(SEED_POINTS.map(function (p) {
@@ -194,6 +196,43 @@ function doneMap_(r) {
   return d;
 }
 /* Random photo checks: N points per round, chosen by the server from a secret, stable for the whole round, never sent to the phones in advance. */
+/* ---------- shift plan (Danru assigns guards and buddies per shift) ---------- */
+var SHIFTS = {P: '07:00-15:00', S: '15:00-23:00', M: '23:00-07:00'};
+function shiftAt_(ms) {
+  var l = ms + OFF, h = new Date(l).getUTCHours(), code = h >= 7 && h < 15 ? 'P' : (h >= 15 && h < 23 ? 'S' : 'M');
+  var d = new Date(h < 7 ? l - 86400000 : l).toISOString().slice(0, 10);
+  return {date: d, code: code, label: SHIFTS[code]};
+}
+function dutyList_() { return cfg_('DUTIES', 'Gate 1,Gate 2,Gate 3,Patrol').split(',').map(function (x) { return x.trim(); }).filter(String); }
+function rosterSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Roster');
+  if (!sh) {
+    sh = s.insertSheet('Roster');
+    sh.appendRow(HEAD.Roster);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.Roster.length).setFontWeight('bold');
+    sh.getRange('A:B').setNumberFormat('@');
+  }
+  return sh;
+}
+function roster_(date, code) {
+  var sh = rosterSheet_(), n = sh.getLastRow();
+  if (n < 2) return [];
+  var best = 0, rows = [];
+  sh.getRange(2, 1, n - 1, 8).getValues().forEach(function (r) {
+    var dv = r[0] instanceof Date ? Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd') : String(r[0]);
+    if (dv !== date || String(r[1]) !== code) return;
+    var b = Number(r[7]) || 0;
+    if (b > best) { best = b; rows = []; }
+    if (b === best && r[3]) rows.push({duty: String(r[2]), guard: String(r[3]), buddy: String(r[4] || '')});
+  });
+  return rows;
+}
+function onPlan_(plan, name) {
+  var k = String(name).toLowerCase(), on = false;
+  plan.forEach(function (r) { if (r.guard.toLowerCase() === k || (r.buddy && r.buddy.toLowerCase() === k)) on = true; });
+  return on;
+}
 function photoN_() { var n = parseInt(cfg_('PHOTO_PER_ROUND', '5'), 10); return isFinite(n) && n > 0 ? Math.min(n, 45) : 0; }
 function photoSecret_() {
   var p = props_(), s = p.getProperty('PHOTO_SECRET');
@@ -256,8 +295,12 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
-    done: doneMap_(r)
+    done: doneMap_(r), plan: planNow_()
   };
+}
+function planNow_() {
+  try { var sf = shiftAt_(Date.now()); return {date: sf.date, shift: sf.code, label: sf.label, rows: roster_(sf.date, sf.code)}; }
+  catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
 function scan_(b, g) {
   var pts = points_(false), pt = null, i;
@@ -276,6 +319,10 @@ function scan_(b, g) {
     dist = Math.round(hav_(lat, lng, pt.lat, pt.lng));
     if (dist <= pt.radius + Math.min(acc || 0, 30)) gps = 'OK'; else { gps = 'OUTSIDE'; flags.push('OUTSIDE'); }
   }
+  try {
+    var sf = shiftAt_(ts), pl = roster_(sf.date, sf.code);
+    if (pl.length && !g.danru && !onPlan_(pl, g.name)) flags.push('NOT_ON_PLAN');
+  } catch (e0) {}
   if (acc != null && acc === 0) flags.push('SUSPECT_GPS');
   if (acc != null && acc > 50) flags.push('LOW_ACCURACY');
   var lock = LockService.getScriptLock(), sid = Utilities.getUuid().slice(0, 8), needPhoto = false;
@@ -353,6 +400,44 @@ function team_(a, b) {
   }
   if (a === 'd_list') {
     return {ok: true, admin: adm, me: me ? me.name : '', members: all.map(function (g) { return {name: g.name, role: g.role, active: g.active, danru: g.danru, hasPin: !!g.hash, setAt: g.setAt}; })};
+  }
+  if (a === 'd_plan_get') {
+    var now = shiftAt_(Date.now()), pd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? String(b.date) : now.date, pc = SHIFTS[b.shift] ? String(b.shift) : now.code;
+    return {ok: true, date: pd, shift: pc, label: SHIFTS[pc], now: now, shifts: SHIFTS, duties: dutyList_(), rows: roster_(pd, pc),
+      guards: all.filter(function (g) { return g.active; }).map(function (g) { return g.name; })};
+  }
+  if (a === 'd_plan_set') {
+    var nw = shiftAt_(Date.now()), dt = String(b.date || ''), sc = String(b.shift || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(Date.parse(dt + 'T00:00:00Z'))) return {ok: false, err: 'bad_date'};
+    var dd = (Date.parse(dt + 'T00:00:00Z') - Date.parse(nw.date + 'T00:00:00Z')) / 86400000;
+    if (dd < -1 || dd > 14) return {ok: false, err: 'bad_date'};
+    if (!SHIFTS[sc]) return {ok: false, err: 'bad_shift'};
+    var inRows = b.rows instanceof Array ? b.rows : [];
+    if (inRows.length > 30) return {ok: false, err: 'too_many'};
+    var duties = dutyList_(), used = {}, clean = [], warn = [];
+    function who(v) { var h = find(v); return h && h.active ? h.name : null; }
+    for (var qi = 0; qi < inRows.length; qi++) {
+      var ir = inRows[qi] || {};
+      if (!ir.guard) continue;
+      if (duties.indexOf(String(ir.duty)) < 0) return {ok: false, err: 'bad_duty'};
+      var gn = who(ir.guard);
+      if (!gn) return {ok: false, err: 'bad_guard'};
+      var bn = '';
+      if (ir.buddy) { bn = who(ir.buddy); if (!bn || bn === gn) return {ok: false, err: 'bad_buddy'}; }
+      if (used[gn.toLowerCase()] || (bn && used[bn.toLowerCase()])) return {ok: false, err: 'dup_person'};
+      used[gn.toLowerCase()] = 1; if (bn) used[bn.toLowerCase()] = 1;
+      clean.push([dt, sc, String(ir.duty), gn, bn]);
+      if (sc === 'M' && !bn) warn.push(String(ir.duty));
+    }
+    var stamp = Date.now(), by = me ? me.name : 'Admin', lk = LockService.getScriptLock();
+    lk.waitLock(20000);
+    try {
+      var rs = rosterSheet_();
+      rs.getRange('A:B').setNumberFormat('@');
+      if (!clean.length) rs.appendRow([dt, sc, '', '', '', by, ymdhms_(stamp), stamp]);
+      clean.forEach(function (c) { rs.appendRow(c.concat([by, ymdhms_(stamp), stamp])); });
+    } finally { lk.releaseLock(); }
+    return {ok: true, saved: clean.length, warn: warn};
   }
   if (a === 'd_add') {
     var nm = String(b.name || '').replace(/\s+/g, ' ').trim();
@@ -453,8 +538,8 @@ function admin_(a, b) {
 /* ---------- emails (English + Bahasa Indonesia) ---------- */
 var ZNAME_ID = {GT: 'Gerbang / pintu masuk', FN: 'Pagar keliling', PL: 'Area pabrik', UT: 'Utilitas / tangki', LD: 'Area penyimpanan', BL: 'Bangunan', MP: 'Titik kumpul'};
 var FLAGTXT = {
-  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed'},
-  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal'}
+  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed', NOT_ON_PLAN: 'not on the shift plan'},
+  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal', NOT_ON_PLAN: 'tidak ada di rencana shift'}
 };
 var TXT = {
   en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol', photoChecks: 'Photo checks (selfie)', photoTaken: 'photo taken', photoMissing: 'NO PHOTO', photoNone: 'not scanned', photoCol: 'Photo', photoTotal: 'Photo checks taken', photoLink: 'view'},

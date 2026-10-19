@@ -1,1 +1,1 @@
-{"name":"patroli-dev-tests","private":true,"scripts":{"test":"node t15.js && node t9.js && node t11.js && node t13.js && node t10.js && node t14.js"},"dependencies":{"playwright-core":"^1.49.0","qrcode-generator":"^1.4.4","pngjs":"^7.0.0"}}
+{"name":"patroli-dev-tests","private":true,"scripts":{"test":"node t15.js && node t9.js && node t11.js && node t13.js && node t10.js && node t14.js && node t16.js && node t17.js"},"dependencies":{"playwright-core":"^1.49.0","qrcode-generator":"^1.4.4","pngjs":"^7.0.0"}}
