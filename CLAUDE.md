@@ -34,3 +34,8 @@ Same QR also opens the existing UA/UC form from a normal phone camera: payload h
 • Owner must: paste Code.gs v1.6 in Apps Script, run makeDanruPins, setupTriggers, testEmail, deploy New version; calibrate points on site; print + laminate stickers; Danru issue PINs at Monday familiarization.
 • On hold: in-app/Telegram missed-round alerts. Planned later: shift login/logout with GPS (guard clocking in/out; needs decisions on where to log in, grace period, who is covered, SOS schedule link), start rounds at 07:00 to match SOS shifts (P 07-15, S 15-23, M 23-07), Indonesian point names.
 • Privacy note: this repo is public and contains Code.gs with the guard names. No PINs or secrets live in the repo (they are script properties / hashes in the sheet).
+
+## Installation record
+• 19 Oct 2026: owner installed all 45 stickers on site (laminated, silicone-fixed). Printed stickers still show the original location text below the number.
+• Actual installed locations that differ from the original plan (the app name, Points sheet col C, follows the real place): 14 = Soil disposal gate (was VAM shed), 20 = Pipe rack - tank farm (was Oil polishing plant), 32 = SBE 1 (was Hexane tank), 40 = SBE 2 (was Loading/unloading area). UAUC location text (col D) left unchanged.
+• Note: the high-risk star follows the point number (Points col G). 32 was starred as Hexane tank; set it to No if SBE 1 is not high risk.
