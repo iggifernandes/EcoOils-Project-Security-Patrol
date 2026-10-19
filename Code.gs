@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.2
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.3
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.8.2';
+var VERSION = 'v1.8.3';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -99,6 +99,51 @@ function fixRoles() {
   }
   Logger.log('Roles updated for ' + done + ' people.');
 }
+/* ---------- calibrate from patrol scans (run from the editor) ----------
+   Idea: a trusted person (Config CAL_GUARD, default Muhammad Irsan) walks the points scanning each QR standing at the sticker.
+   Each scan stores the best GPS fix. previewCalFromScans() shows what would be saved (writes nothing, see View > Logs / Execution log).
+   applyCalFromScans() saves it to Points (Lat, Lng, Calibrated at). Radius is not changed.
+   Config keys (optional): CAL_GUARD (name, blank = any guard), CAL_FROM (WIB 'yyyy-mm-dd hh:mm', default last 24 h), CAL_MAX_ACC (m, default 15). */
+function calFromScans_(apply) {
+  var guard = cfg_('CAL_GUARD', 'Muhammad Irsan').trim().toLowerCase(), maxAcc = Number(cfg_('CAL_MAX_ACC', '15')) || 15;
+  var from = Date.now() - 24 * 3600000, cf = cfg_('CAL_FROM', '');
+  if (cf) { var t = Date.parse(cf.replace(' ', 'T') + ':00Z') - OFF; if (isFinite(t)) from = t; }
+  var by = {};
+  scans_(6000).forEach(function (r) {
+    var ms = Number(r[17]), la = num_(r[10]), ln = num_(r[11]), ac = num_(r[12]), fl = String(r[15]);
+    if (ms < from || la == null || ln == null || ac == null || ac <= 0 || ac > maxAcc) return;
+    if (guard && String(r[4]).trim().toLowerCase() !== guard) return;
+    if (/SUSPECT_GPS|NO_GPS|TOO_FAST/.test(fl)) return;
+    (by[String(r[6])] = by[String(r[6])] || []).push({lat: la, lng: ln, acc: ac});
+  });
+  var out = [], saved = 0, check = 0, none = 0, sh = sh_('Points');
+  points_(false).forEach(function (p) {
+    var f = by[p.id] || [];
+    if (f.length >= 3) {  /* drop fixes far from the median */
+      var ml = f.map(function (x) { return x.lat; }).sort(function (a, b) { return a - b; })[Math.floor(f.length / 2)];
+      var mn = f.map(function (x) { return x.lng; }).sort(function (a, b) { return a - b; })[Math.floor(f.length / 2)];
+      f = f.filter(function (x) { return hav_(x.lat, x.lng, ml, mn) <= 20; });
+    }
+    if (!f.length) { none++; out.push(p.no + '  ' + p.name + '  NO DATA'); return; }
+    var sw = 0, la = 0, ln = 0, best = 1e9;
+    f.forEach(function (x) { var w = 1 / (Math.max(x.acc, 3) * Math.max(x.acc, 3)); sw += w; la += x.lat * w; ln += x.lng * w; best = Math.min(best, x.acc); });
+    la /= sw; ln /= sw;
+    var spread = 0;
+    f.forEach(function (x) { spread = Math.max(spread, hav_(x.lat, x.lng, la, ln)); });
+    var note = [];
+    if (f.length === 1) note.push('single reading');
+    if (best > 10) note.push('best accuracy over 10 m');
+    if (spread > 15) note.push('readings spread ' + Math.round(spread) + ' m');
+    if (note.length) check++;
+    out.push(p.no + '  ' + p.name + '  n=' + f.length + '  best ' + Math.round(best) + ' m  spread ' + Math.round(spread) + ' m  ' + (note.length ? 'CHECK: ' + note.join(', ') : 'OK'));
+    if (apply) { sh.getRange(p.row, 9, 1, 3).setValues([[la, ln, ymdhms_(Date.now()) + ' (from scans, n=' + f.length + ', ' + Math.round(best) + ' m)']]); saved++; }
+  });
+  out.forEach(function (l) { Logger.log(l); });
+  Logger.log((apply ? 'SAVED ' + saved + ' points. ' : 'PREVIEW only, nothing saved. ') + none + ' points have no usable scan yet, ' + check + ' need a check.');
+  return {saved: saved, none: none, check: check, lines: out};
+}
+function previewCalFromScans() { return calFromScans_(false); }
+function applyCalFromScans() { return calFromScans_(true); }
 /* One-time: set the allowed radius of every point to 10 m (run from the editor). Calibration can still change a single point. */
 function setRadius10() {
   var sh = sh_('Points'), n = sh.getLastRow();
