@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.1
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.2
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.8.1';
+var VERSION = 'v1.8.2';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -16,7 +16,7 @@ var HEAD = {
 };
 var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",10,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",10,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",10,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",10,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",10,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",10,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",10,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",10,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",10,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",10,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",10,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",10,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",10,"Yes",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",10,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",10,"Yes","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",10,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",10,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",10,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",10,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",10,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",10,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",10,"Yes",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",10,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",10,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",10,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",10,"No","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",10,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",10,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",10,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",10,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",10,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",10,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",10,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",10,"Yes","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",10,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",10,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",10,"No",""]];
 var SEED_GUARDS = [
-  ['Agus Fazar', 'Army'], ['Muhammad Irsan', 'Supervisor'], ['Jhonsen Panjaitan', 'Leader'], ['Rendi Irawan', 'Leader'], ['Try Agung Pramana', 'Leader'],
+  ['Agus Fazar', 'Army'], ['Muhammad Irsan', 'Danru'], ['Jhonsen Panjaitan', 'Shift Supervisor'], ['Rendi Irawan', 'Shift Supervisor'], ['Try Agung Pramana', 'Shift Supervisor'],
   ['Arya Fahrul Manurung', 'Security Guard'], ['Syafrizal Marpaung', 'Security Guard'], ['Valen Andriano', 'Security Guard'], ['Muhammad Alfaroby Siregar', 'Security Guard'],
   ['Jona Alfian', 'Security Guard'], ['Dian Akmal', 'Security Guard'], ['Aril Septiadi', 'Security Guard'], ['Febrianto', 'Security Guard'], ['Aldi Ramadhan', 'Security Guard'],
   ['Irvan Firmansyah', 'Security Guard'], ['Muhammad Syahputra', 'Security Guard'], ['Pahrurrozi Nasution', 'Security Guard'], ['Ilham Affandi', 'Security Guard'],
@@ -46,7 +46,7 @@ function setup() {
     }));
   }
   var g = s.getSheetByName('Guards');
-  if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 6).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes', '', (x[1] === 'Leader' || x[1] === 'Supervisor') ? 'Yes' : 'No', '']; }));
+  if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 6).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes', '', isLead_(x[1]) ? 'Yes' : 'No', '']; }));
   upgrade_();
   var c = s.getSheetByName('Config');
   if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_PER_ROUND', '5']]);
@@ -85,7 +85,19 @@ function upgrade_() {
   var n = sh.getLastRow();
   if (n < 2) return;
   var v = sh.getRange(2, 1, n - 1, 2).getValues();
-  sh.getRange(2, 5, n - 1, 1).setValues(v.map(function (r) { return [(r[1] === 'Leader' || r[1] === 'Supervisor') ? 'Yes' : 'No']; }));
+  sh.getRange(2, 5, n - 1, 1).setValues(v.map(function (r) { return [isLead_(r[1]) ? 'Yes' : 'No']; }));
+}
+function isLead_(role) { return ['Leader', 'Supervisor', 'Danru', 'Shift Supervisor'].indexOf(String(role)) >= 0; }
+/* One-time (run from the editor): Pak Irsan = Danru, the other former Leaders / Supervisors = Shift Supervisor. All keep Danru access (Team + Shift plan). PINs are not touched. */
+function fixRoles() {
+  var sh = sh_('Guards'), n = sh.getLastRow(), done = 0;
+  for (var i = 2; i <= n; i++) {
+    var nm = String(sh.getRange(i, 1).getValue()).trim(), role = String(sh.getRange(i, 2).getValue());
+    if (!nm) continue;
+    if (nm.toLowerCase() === 'muhammad irsan') { sh.getRange(i, 2).setValue('Danru'); sh.getRange(i, 5).setValue('Yes'); done++; }
+    else if (role === 'Leader' || role === 'Supervisor') { sh.getRange(i, 2).setValue('Shift Supervisor'); sh.getRange(i, 5).setValue('Yes'); done++; }
+  }
+  Logger.log('Roles updated for ' + done + ' people.');
 }
 /* One-time: set the allowed radius of every point to 10 m (run from the editor). Calibration can still change a single point. */
 function setRadius10() {
@@ -235,6 +247,7 @@ function roster_(date, code) {
   });
   return rows;
 }
+function dayPlan_(date) { return {P: roster_(date, 'P'), S: roster_(date, 'S'), M: roster_(date, 'M')}; }
 function onPlan_(plan, name) {
   var k = String(name).toLowerCase(), on = false;
   plan.forEach(function (r) { if (r.guard.toLowerCase() === k || (r.buddy && r.buddy.toLowerCase() === k)) on = true; });
@@ -306,7 +319,7 @@ function state_(me) {
   };
 }
 function planNow_() {
-  try { var sf = shiftAt_(Date.now()); return {date: sf.date, shift: sf.code, label: sf.label, rows: roster_(sf.date, sf.code)}; }
+  try { var sf = shiftAt_(Date.now()); return {date: sf.date, shift: sf.code, label: sf.label, rows: roster_(sf.date, sf.code), day: dayPlan_(sf.date)}; }
   catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
 function scan_(b, g) {
@@ -410,7 +423,7 @@ function team_(a, b) {
   }
   if (a === 'd_plan_get') {
     var now = shiftAt_(Date.now()), pd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? String(b.date) : now.date, pc = SHIFTS[b.shift] ? String(b.shift) : now.code;
-    return {ok: true, date: pd, shift: pc, label: SHIFTS[pc], now: now, shifts: SHIFTS, duties: dutyList_(), rows: roster_(pd, pc),
+    return {ok: true, date: pd, shift: pc, label: SHIFTS[pc], now: now, shifts: SHIFTS, duties: dutyList_(), rows: roster_(pd, pc), day: dayPlan_(pd),
       guards: all.filter(function (g) { return g.active; }).map(function (g) { return g.name; })};
   }
   if (a === 'd_plan_set') {
