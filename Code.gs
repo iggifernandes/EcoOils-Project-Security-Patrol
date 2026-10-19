@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.8.6
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.9
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.8.6';
+var VERSION = 'v1.9';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -12,6 +12,7 @@ var HEAD = {
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
+  Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Config: ['Key', 'Value']
 };
 var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",10,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",10,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",10,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",10,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",10,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",10,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",10,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",10,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",10,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",10,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",10,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",10,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",10,"Yes",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",10,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",10,"Yes","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",10,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",10,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",10,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",10,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",10,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",10,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",10,"Yes",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",10,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",10,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",10,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",10,"No","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",10,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",10,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",10,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",10,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",10,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",10,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",10,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",10,"Yes","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",10,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",10,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",10,"No",""]];
@@ -362,7 +363,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
-    done: doneMap_(r), plan: planNow_()
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_()
   };
 }
 function planNow_() {
@@ -540,6 +541,7 @@ function team_(a, b) {
 
 /* ---------- admin ---------- */
 function admin_(a, b) {
+  if (a.indexOf('a_award') === 0) { try { return award_(a, b); } catch (e) { return {ok: false, err: String(e.message || e)}; } }
   if (a === 'a_live') {
     var r = b.date ? roundBy_(String(b.date), Number(b.idx)) : roundAt_(Date.now());
     var pts = points_(true), d = doneMap_(r), ps = photoSet_(r, pts);
@@ -554,6 +556,41 @@ function admin_(a, b) {
       if (dt >= from && dt <= to) rows.push({t: String(r2[1]), round: String(r2[3]), guard: String(r2[4]), no: r2[7], name: String(r2[8]), gps: String(r2[14]), dist: r2[13], acc: r2[12], flags: String(r2[15]), photo: String(r2[16] || '')});
     });
     return {ok: true, rows: rows.slice(-2000)};
+  }
+  if (a === 'a_stats') {
+    var to = String(b.to || ymdhms_(Date.now()).slice(0, 10)), fromD = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromD) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || fromD > to) return {ok: false, err: 'bad_date'};
+    var nowMs = Date.now(), rs = [], dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), cnt = 0;
+    for (; dd <= end && cnt < 92; dd += 86400000, cnt++) {
+      var ds = new Date(dd).toISOString().slice(0, 10);
+      for (var ri = 0; ri < 12; ri++) if (roundBy_(ds, ri).start <= nowMs) rs.push(ds + '|' + ri);
+    }
+    var pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
+    pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
+    if (last2 >= 2) sh2.getRange(2, 1, last2 - 1, 18).getValues().forEach(function (r3) {
+      var dt = String(r3[2]);
+      if (dt < fromD || dt > to) return;
+      var o = P[String(r3[6])];
+      if (!o) return;
+      var fl = String(r3[15]).split(' ').filter(String), key = dt + '|' + (Number(String(r3[3]).slice(0, 2)) / 2);
+      o.rounds[key] = 1; total++; o.scans++;
+      if (fl.some(function (f) { return f !== 'REPEAT' && f !== 'QUEUED'; })) o.issues++;
+      if (fl.indexOf('NO_GPS') >= 0) o.noGps++;
+      if (r3[16]) o.photos++;
+      var ms = Number(r3[17]) || 0;
+      if (ms >= o.lastMs) { o.lastMs = ms; o.lastBy = String(r3[4]); }
+      var gg = G[String(r3[4])] || (G[String(r3[4])] = {guard: String(r3[4]), scans: 0, issues: 0, noGps: 0});
+      gg.scans++;
+      if (fl.some(function (f) { return f !== 'REPEAT' && f !== 'QUEUED'; })) gg.issues++;
+      if (fl.indexOf('NO_GPS') >= 0) gg.noGps++;
+    });
+    var n = rs.length, rows = Object.keys(P).map(function (k) {
+      var o = P[k], c = rs.filter(function (x) { return o.rounds[x]; }).length;
+      return {no: o.no, name: o.name, zone: o.zone, hi: o.hi, cal: o.cal, covered: c, rounds: n, pct: n ? Math.round(100 * c / n) : 0, scans: o.scans, issues: o.issues, noGps: o.noGps, photos: o.photos, last: o.lastMs ? ymdhms_(o.lastMs) : '', lastBy: o.lastBy};
+    }).sort(function (x, y) { return x.pct - y.pct || x.no - y.no; });
+    var coveredSum = rows.reduce(function (t, x) { return t + x.covered; }, 0);
+    return {ok: true, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
+      totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
   if (a === 'a_points') {
     return {ok: true, points: points_(false).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, cal: p.cal, radius: p.radius, active: p.active}; })};
@@ -600,6 +637,111 @@ function admin_(a, b) {
     if (b.photoN != null) { var pn = Math.round(Number(b.photoN)); if (!(pn >= 0 && pn <= 45)) return {ok: false, err: 'bad_number'}; setCfg_('PHOTO_PER_ROUND', String(pn)); }
     return {ok: true, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', photoN: photoN_()};
   }
+  return {ok: false, err: 'action'};
+}
+
+
+/* ---------- Best Guard of the month (Admin only; random draw among guards who meet the criteria) ----------
+   Criteria live in the Config sheet (all optional, Admin > Award can edit the numbers):
+   AWARD_MIN_SCANS (default 0), AWARD_MIN_DAYS (default 0 = days with at least one scan), AWARD_MAX_ISSUES (blank = no limit),
+   AWARD_ISSUE_FLAGS (default SUSPECT_GPS,TOO_FAST,PHOTO_FAIL,NO_PHOTO), AWARD_EXCLUDE_DANRU (default yes).
+   Awards sheet is append-only: Draft rows (every draw), Announced row (what guards see). */
+function awardsSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Awards');
+  if (!sh) {
+    sh = s.insertSheet('Awards');
+    sh.appendRow(HEAD.Awards);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.Awards.length).setFontWeight('bold');
+    sh.getRange('A:A').setNumberFormat('@');
+  }
+  return sh;
+}
+function awardRows_() {
+  var sh = awardsSheet_(), n = sh.getLastRow();
+  if (n < 2) return [];
+  return sh.getRange(2, 1, n - 1, 7).getValues().map(function (r) {
+    var m = r[0] instanceof Date ? Utilities.formatDate(r[0], TZ, 'yyyy-MM') : String(r[0]);
+    return {month: m, winner: String(r[1]), q: Number(r[2]) || 0, at: String(r[3]), by: String(r[4]), status: String(r[5]), ms: Number(r[6]) || 0};
+  });
+}
+function awardCrit_() {
+  var mi = String(cfg_('AWARD_MAX_ISSUES', '')).trim();
+  return {
+    minScans: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_SCANS', '0')) || 0)),
+    minDays: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_DAYS', '0')) || 0)),
+    maxIssues: mi === '' || !isFinite(Number(mi)) ? null : Math.max(0, Math.round(Number(mi))),
+    issueFlags: cfg_('AWARD_ISSUE_FLAGS', 'SUSPECT_GPS,TOO_FAST,PHOTO_FAIL,NO_PHOTO').split(',').map(function (x) { return x.trim(); }).filter(String),
+    excludeDanru: cfg_('AWARD_EXCLUDE_DANRU', 'yes').toLowerCase() !== 'no'
+  };
+}
+function awardStats_(month) {
+  var c = awardCrit_(), sh = sh_('Scans'), last = sh.getLastRow(), by = {}, eligible = {};
+  guards_().forEach(function (g) { if (!(c.excludeDanru && g.danru)) eligible[g.name] = 1; });
+  if (last >= 2) sh.getRange(2, 1, last - 1, 18).getValues().forEach(function (r) {
+    if (String(r[2]).slice(0, 7) !== month) return;
+    var fl = String(r[15]).split(' ');
+    if (fl.indexOf('REPEAT') >= 0) return;
+    var nm = String(r[4]);
+    if (!eligible[nm]) return;
+    var o = by[nm] || (by[nm] = {guard: nm, scans: 0, days: {}, issues: 0, photos: 0});
+    o.scans++; o.days[String(r[2])] = 1;
+    if (r[16]) o.photos++;
+    if (fl.some(function (f) { return c.issueFlags.indexOf(f) >= 0; })) o.issues++;
+  });
+  var rows = Object.keys(by).map(function (k) {
+    var o = by[k], days = Object.keys(o.days).length;
+    var q = o.scans >= c.minScans && days >= c.minDays && (c.maxIssues == null || o.issues <= c.maxIssues) && o.scans > 0;
+    return {guard: o.guard, scans: o.scans, days: days, issues: o.issues, photos: o.photos, q: q};
+  }).sort(function (x, y) { return y.scans - x.scans || x.guard.localeCompare(y.guard); });
+  return {criteria: c, rows: rows};
+}
+function awardPublic_() {
+  try {
+    var best = null;
+    awardRows_().forEach(function (r) { if (r.status === 'Announced' && (!best || r.ms >= best.ms)) best = r; });
+    return best ? {month: best.month, winner: best.winner} : null;
+  } catch (e) { return null; }
+}
+function award_(a, b) {
+  var month = String(b.month || '');
+  if (a === 'a_award_set') {
+    ['minScans:AWARD_MIN_SCANS', 'minDays:AWARD_MIN_DAYS'].forEach(function (p) {
+      var k = p.split(':'), v = b[k[0]];
+      if (v != null && v !== '') { v = Math.round(Number(v)); if (!(v >= 0 && v <= 100000)) throw new Error('bad_number'); setCfg_(k[1], String(v)); }
+    });
+    if (b.maxIssues != null) {
+      if (b.maxIssues === '') setCfg_('AWARD_MAX_ISSUES', '');
+      else { var mv = Math.round(Number(b.maxIssues)); if (!(mv >= 0 && mv <= 100000)) throw new Error('bad_number'); setCfg_('AWARD_MAX_ISSUES', String(mv)); }
+    }
+    return {ok: true, criteria: awardCrit_()};
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return {ok: false, err: 'bad_month'};
+  var hist = awardRows_().filter(function (r) { return r.month === month; });
+  var announced = hist.filter(function (r) { return r.status === 'Announced'; })[0] || null;
+  if (a === 'a_award_get') {
+    var st = awardStats_(month);
+    return {ok: true, month: month, criteria: st.criteria, rows: st.rows, history: hist, announced: announced ? {winner: announced.winner, at: announced.at} : null};
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (announced) return {ok: false, err: 'announced'};
+    if (a === 'a_award_draw') {
+      var q = awardStats_(month).rows.filter(function (r) { return r.q; });
+      if (!q.length) return {ok: false, err: 'no_qualifiers'};
+      var win = q[Math.floor(Math.random() * q.length)].guard, now = Date.now();
+      awardsSheet_().appendRow([month, win, q.length, ymdhms_(now), 'Admin', 'Draft', now]);
+      return {ok: true, winner: win, qualifiers: q.length};
+    }
+    if (a === 'a_award_announce') {
+      var drafts = hist.filter(function (r) { return r.status === 'Draft'; });
+      if (!drafts.length) return {ok: false, err: 'no_draw'};
+      var d = drafts[drafts.length - 1], t = Date.now();
+      awardsSheet_().appendRow([month, d.winner, d.q, ymdhms_(t), 'Admin', 'Announced', t]);
+      return {ok: true, winner: d.winner};
+    }
+  } finally { lock.releaseLock(); }
   return {ok: false, err: 'action'};
 }
 
