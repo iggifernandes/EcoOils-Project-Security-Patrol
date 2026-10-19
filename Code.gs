@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.9
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.9.1
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.9';
+var VERSION = 'v1.9.1';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -247,6 +247,13 @@ function guardByPin_(pin) {
   guards_().forEach(function (g) { if (g.hash && g.hash === h) hit = g; });
   if (!hit) failed_('fg');
   return hit;
+}
+/* Date and round of a Scans row, taken from the Time ms column (col R) so it still works when Google Sheets has turned the Date or Round text cells into real dates/times. */
+function rowWhen_(r) {
+  var ms = Number(r[17]);
+  if (ms > 0) { var ra = roundAt_(ms); return {date: ra.date, idx: ra.idx}; }
+  var d = r[2] instanceof Date ? Utilities.formatDate(r[2], TZ, 'yyyy-MM-dd') : String(r[2]);
+  return {date: d, idx: Number(String(r[3]).slice(0, 2)) / 2};
 }
 function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
@@ -552,8 +559,8 @@ function admin_(a, b) {
   if (a === 'a_history') {
     var from = String(b.from || ''), to = String(b.to || from), rows = [];
     scans_(6000).forEach(function (r2) {
-      var dt = String(r2[2]);
-      if (dt >= from && dt <= to) rows.push({t: String(r2[1]), round: String(r2[3]), guard: String(r2[4]), no: r2[7], name: String(r2[8]), gps: String(r2[14]), dist: r2[13], acc: r2[12], flags: String(r2[15]), photo: String(r2[16] || '')});
+      var dt = rowWhen_(r2).date;
+      if (dt >= from && dt <= to) rows.push({t: r2[1] instanceof Date ? ymdhms_(Number(r2[17])) : String(r2[1]), round: String(r2[3]), guard: String(r2[4]), no: r2[7], name: String(r2[8]), gps: String(r2[14]), dist: r2[13], acc: r2[12], flags: String(r2[15]), photo: String(r2[16] || '')});
     });
     return {ok: true, rows: rows.slice(-2000)};
   }
@@ -568,11 +575,11 @@ function admin_(a, b) {
     var pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
     pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
     if (last2 >= 2) sh2.getRange(2, 1, last2 - 1, 18).getValues().forEach(function (r3) {
-      var dt = String(r3[2]);
+      var wh = rowWhen_(r3), dt = wh.date;
       if (dt < fromD || dt > to) return;
       var o = P[String(r3[6])];
       if (!o) return;
-      var fl = String(r3[15]).split(' ').filter(String), key = dt + '|' + (Number(String(r3[3]).slice(0, 2)) / 2);
+      var fl = String(r3[15]).split(' ').filter(String), key = dt + '|' + wh.idx;
       o.rounds[key] = 1; total++; o.scans++;
       if (fl.some(function (f) { return f !== 'REPEAT' && f !== 'QUEUED'; })) o.issues++;
       if (fl.indexOf('NO_GPS') >= 0) o.noGps++;
@@ -679,7 +686,7 @@ function awardStats_(month) {
   var c = awardCrit_(), sh = sh_('Scans'), last = sh.getLastRow(), by = {}, eligible = {};
   guards_().forEach(function (g) { if (!(c.excludeDanru && g.danru)) eligible[g.name] = 1; });
   if (last >= 2) sh.getRange(2, 1, last - 1, 18).getValues().forEach(function (r) {
-    if (String(r[2]).slice(0, 7) !== month) return;
+    if (rowWhen_(r).date.slice(0, 7) !== month) return;
     var fl = String(r[15]).split(' ');
     if (fl.indexOf('REPEAT') >= 0) return;
     var nm = String(r[4]);
