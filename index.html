@@ -137,7 +137,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.8';
+var VERSION='v1.8.1';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -428,7 +428,7 @@ function aCal(){
     r.points.forEach(function(p){h+='<option value="'+esc(p.id)+'">'+p.no+'. '+esc(p.name)+(p.cal?' [done]':' [not calibrated]')+'</option>';});
     h+='</select><label>Radius (m) for this point</label><input id="cR" type="number" min="5" max="200" inputmode="numeric"><button class="btn" id="cGo" type="button">Start reading (GPS + radius)</button><button class="btn" id="cRo" type="button">Save radius only</button><div id="cOut" class="card hidden"></div><hr><p class="note">After calibrating the points, build the walking order from the real positions. Sticker numbers do not change.</p><button class="btn" id="cRoute" type="button">Auto-sequence walking route</button>';
     $('aBody').innerHTML=h;
-    function curR(){var v=$('cP').value,r=25;A.pts.forEach(function(p){if(p.id===v)r=p.radius;});return r;}
+    function curR(){var v=$('cP').value,r=10;A.pts.forEach(function(p){if(p.id===v)r=p.radius;});return r;}
     $('cP').addEventListener('change',function(){$('cR').value=curR();});
     $('cRo').addEventListener('click',function(){var pid=$('cP').value;if(!pid)return;var out=$('cOut');out.classList.remove('hidden');aApi({action:'a_radius',pid:pid,radius:$('cR').value}).then(function(x){out.innerHTML=x.ok?'<p class="okc">Radius saved.</p>':'<p class="err">'+esc(x.err)+'</p>';if(x.ok)aCal();});});
     $('cRoute').addEventListener('click',function(){var out=$('cOut');out.classList.remove('hidden');out.innerHTML='<span class="sp"></span>';aApi({action:'a_route'}).then(function(x){out.innerHTML=x.ok?'<p class="okc">Route set for '+x.n+' points ('+x.uncal+' not calibrated, placed last).</p>':'<p class="err">'+esc(x.err==='calibrate_first'?'Calibrate at least 2 points first.':x.err)+'</p>';});});
