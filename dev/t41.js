@@ -29,6 +29,7 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  await pg.click('#tsBClock');
  const withC=await rows.evaluateAll(r=>r.filter(x=>x.getAttribute('data-cin')).map(x=>[x.getAttribute('data-cin'),x.querySelector('.tsS').value]));
  ok(withC.every(x=>x[0]===x[1]),'Start = actual clock-in time works');
+ ok((await pg.locator('#tsNotes option').count())>=12,'many note choices offered (free text still allowed)');
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
 })();

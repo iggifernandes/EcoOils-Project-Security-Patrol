@@ -1,0 +1,43 @@
+const {chromium}=require('playwright-core');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action:'d_clock',gp:dp['Rendi Irawan'],name:'Sheet Guard'});
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
+ const ctx=await b.newContext({viewport:{width:390,height:800},permissions:['geolocation','camera','microphone']});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:m.ctx.doPost({postData:{contents:body}}).s});});
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:')||u.startsWith('blob:'))return r.fallback();r.abort();});
+ await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');let n=0;setInterval(()=>{x.fillStyle='hsl('+(n++*9%360)+',70%,50%)';x.fillRect(0,0,480,270);},60);return c.captureStream(15);};});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+
+ await pg.evaluate(()=>{window.__printed=0;window.__title=[];window.print=function(){window.__printed++;window.__title.push(document.title);};});
+ await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
+ await pg.click('#aTs');await pg.waitForSelector('#tsAllLoad');
+ ok(await pg.locator('#tsAllPrint').count()===0,'no print-all buttons before loading');
+ await pg.click('#tsAllLoad');await pg.waitForSelector('#tsAllBox .tst');
+ const nG=await pg.locator('#tsAllBox .tsAN').count();ok(nG>=2,'all guards listed ('+nG+')');
+ ok(await pg.locator('#tsAllPrint').isDisabled()&&await pg.locator('#tsAllPdf').isDisabled(),'print/PDF locked until Save all');
+ await pg.locator('#tsAllBox .tsAN').first().fill('NPK-A1');
+ await pg.click('#tsAllSave');await pg.waitForFunction(()=>/Saved \d+ guards/.test(document.querySelector('#tsAllMsg').textContent),null,{timeout:15000});
+ ok(m.sheets.Staff&&m.sheets.Staff.rows.some(x=>x[1]==='NPK-A1'),'NPK saved for the first guard');
+ ok(m.sheets.Timesheet.rows.length>=nG*30,'every guard\'s days saved ('+m.sheets.Timesheet.rows.length+' rows)');
+ ok(!(await pg.locator('#tsAllPrint').isDisabled()),'print unlocked after Save all');
+ ok(await pg.locator('#tsAllSkip').isChecked(),'skip-empty guards is on by default');
+ const filled=await pg.evaluate(()=>[...document.querySelectorAll('#tsAllBox .tst tr')].slice(1).filter(r=>r.children[2].textContent.trim()!=='0').length);
+ await pg.click('#tsAllPrint');await pg.waitForTimeout(500);
+ if(filled===0){ok(await pg.evaluate(()=>window.__printed)===0&&/No guard has days/.test(await pg.locator('#tsAllMsg').innerText()),'nothing to print: told so, no blank pages');}else{ok(await pg.locator('#tsPrint .tsPg').count()===filled,'only guards with days filled are printed');}
+ await pg.uncheck('#tsAllSkip');
+ await pg.click('#tsAllPrint');await pg.waitForFunction(()=>window.__printed>=1,null,{timeout:8000});
+ const pages=await pg.locator('#tsPrint .tsPg').count();ok(pages===nG,'one page per guard ('+pages+')');
+ const ft=await pg.evaluate(()=>[...document.querySelectorAll('#tsPrint .tsFt')].map(x=>x.textContent));
+ ok(/^Dicetak: \d{1,2} \w+ 20\d\d \d\d:\d\d WIBHalaman 1 dari /.test(ft[0])&&new RegExp('Halaman '+nG+' dari '+nG+'$').test(ft[nG-1]),'footer: printing date/time and page number only: '+ft[0]+' | '+ft[nG-1]);
+ ok(/NPK-A1/.test(await pg.locator('#tsPrint').innerHTML()),'edited NPK printed');
+ const mg=await pg.evaluate(()=>{const st=[...document.styleSheets].flatMap(x=>[...x.cssRules]);const pr=st.filter(r=>r.type===4||r.media).flatMap(r=>[...r.cssRules]).find(r=>r.type===6);return pr?pr.style.margin||pr.cssText:'';});
+ ok(/^0(px)?$/.test(mg),'page margin 0 so the browser prints no header/footer: '+mg);
+ await pg.click('#tsAllPdf');await pg.waitForFunction(()=>window.__printed>=2,null,{timeout:8000});
+ ok(/Save as PDF/.test(await pg.locator('#tsAllMsg').innerText())&&/^Timesheet semua anggota/.test(await pg.evaluate(()=>window.__title[window.__title.length-1])),'PDF button: hint shown, file name set from the title');
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
+})();

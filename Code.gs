@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.17';
+var VERSION = 'v1.19';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -669,11 +669,12 @@ function setNpk_(name, npk) {
   if (n >= 2) { var v = sh.getRange(2, 1, n - 1, 1).getValues(); for (var i = 0; i < v.length; i++) if (String(v[i][0]).toLowerCase() === k) { sh.getRange(i + 2, 2).setValue(npk); return; } }
   sh.appendRow([name, npk]);
 }
+function tsNotes_() { return String(cfg_('TS_NOTES', 'OFF,HARI LIBUR NASIONAL,CUTI,CUTI TAHUNAN,CUTI BERSAMA,SAKIT,IZIN,ALPHA,LIBUR PENGGANTI,LEMBUR,TUKAR SHIFT,PENGGANTI,TERLAMBAT,PULANG CEPAT,TRAINING,DINAS LUAR')).split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }).slice(0, 40); }
 function timesheet_(a, b, by) {
   var all = guards_().sort(function (x, y) { return x.name.localeCompare(y.name); });
   if (a === 'a_ts_get') {
     var per = tsPeriod_(b.ym);
-    if (!b.guard) return {ok: true, guards: all.map(function (g) { return g.name; }), period: per, danruOn: cfg_('TS_DANRU', 'no') === 'yes'};
+    if (!b.guard) return {ok: true, guards: all.map(function (g) { return g.name; }), period: per, danruOn: cfg_('TS_DANRU', 'no') === 'yes', notes: tsNotes_()};
     var g = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard).toLowerCase()) g = x; });
     if (!g) return {ok: false, err: 'bad_guard'};
     var key = g.name.toLowerCase(), saved = {}, sh = sh_('Timesheet');
@@ -691,32 +692,48 @@ function timesheet_(a, b, by) {
       row.hours = tsHours_(row.start, row.end);
       days.push(row);
     }
-    return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, danruOn: cfg_('TS_DANRU', 'no') === 'yes', guards: all.map(function (x) { return x.name; })};
+    return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, danruOn: cfg_('TS_DANRU', 'no') === 'yes', notes: tsNotes_(), guards: all.map(function (x) { return x.name; })};
   }
-  /* a_ts_save */
-  var gg = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard || '').toLowerCase()) gg = x; });
-  if (!gg) return {ok: false, err: 'bad_guard'};
-  var rows = b.rows instanceof Array ? b.rows : [];
-  if (rows.length > 40) return {ok: false, err: 'too_many'};
-  var clean = [];
-  for (var i = 0; i < rows.length; i++) {
-    var r = rows[i] || {}, dt = String(r.date || ''), st = String(r.start || '').trim(), en = String(r.end || '').trim(), nt = String(r.note || '').trim().slice(0, 60);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(Date.parse(dt + 'T00:00:00Z'))) return {ok: false, err: 'bad_date'};
-    if ((st && tsMin_(st) == null) || (en && tsMin_(en) == null)) return {ok: false, err: 'bad_time'};
-    clean.push({date: dt, start: st, end: en, note: nt});
+  if (a === 'a_ts_all') {
+    var outAll = [];
+    all.forEach(function (g0) { var r0 = timesheet_('a_ts_get', {guard: g0.name, ym: b.ym}, by); if (r0.ok) { delete r0.guards; delete r0.notes; outAll.push(r0); } });
+    return {ok: true, period: tsPeriod_(b.ym), items: outAll, notes: tsNotes_(), danruOn: cfg_('TS_DANRU', 'no') === 'yes'};
+  }
+  /* a_ts_save (one guard) and a_ts_saveall (every guard in one go): validate everything first, then write under one lock */
+  var items = a === 'a_ts_saveall' ? (b.items instanceof Array ? b.items : []) : [{guard: b.guard, npk: b.npk, rows: b.rows}];
+  if (items.length > 80) return {ok: false, err: 'too_many'};
+  var jobs = [], total = 0;
+  for (var q = 0; q < items.length; q++) {
+    var it = items[q] || {}, gg = null;
+    all.forEach(function (x) { if (x.name.toLowerCase() === String(it.guard || '').toLowerCase()) gg = x; });
+    if (!gg) return {ok: false, err: 'bad_guard'};
+    var rows = it.rows instanceof Array ? it.rows : [];
+    if (rows.length > 40) return {ok: false, err: 'too_many'};
+    var clean = [];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i] || {}, dt = String(r.date || ''), st = String(r.start || '').trim(), en = String(r.end || '').trim(), nt = String(r.note || '').trim().slice(0, 60);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(Date.parse(dt + 'T00:00:00Z'))) return {ok: false, err: 'bad_date'};
+      if ((st && tsMin_(st) == null) || (en && tsMin_(en) == null)) return {ok: false, err: 'bad_time'};
+      clean.push({date: dt, start: st, end: en, note: nt});
+    }
+    jobs.push({gg: gg, clean: clean, npk: it.npk});
+    total += clean.length;
   }
   var lk = LockService.getScriptLock();
   lk.waitLock(20000);
   try {
-    var sh2 = tsSheet_('Timesheet'), n = sh2.getLastRow(), idx = {}, now = Date.now(), k2 = gg.name.toLowerCase();
+    var sh2 = tsSheet_('Timesheet'), n = sh2.getLastRow(), idx = {}, now = Date.now();
     if (n >= 2) sh2.getRange(2, 1, n - 1, 1).getValues().forEach(function (x, j) { idx[String(x[0])] = j + 2; });
-    clean.forEach(function (c) {
-      var key2 = c.date + '|' + k2, vals = [key2, c.date, gg.name, c.start, c.end, tsHours_(c.start, c.end), c.note, by || 'Admin', now];
-      if (idx[key2]) sh2.getRange(idx[key2], 1, 1, 9).setValues([vals]); else { sh2.appendRow(vals); idx[key2] = sh2.getLastRow(); }
+    jobs.forEach(function (jb) {
+      var k2 = jb.gg.name.toLowerCase();
+      jb.clean.forEach(function (c) {
+        var key2 = c.date + '|' + k2, vals = [key2, c.date, jb.gg.name, c.start, c.end, tsHours_(c.start, c.end), c.note, by || 'Admin', now];
+        if (idx[key2]) sh2.getRange(idx[key2], 1, 1, 9).setValues([vals]); else { sh2.appendRow(vals); idx[key2] = sh2.getLastRow(); }
+      });
+      if (jb.npk != null) setNpk_(jb.gg.name, String(jb.npk).trim().slice(0, 30));
     });
-    if (b.npk != null) setNpk_(gg.name, String(b.npk).trim().slice(0, 30));
   } finally { lk.releaseLock(); }
-  return {ok: true, saved: clean.length};
+  return {ok: true, saved: total, guards: jobs.length};
 }
 
 /* ---------- weather hold (Danru / Shift Supervisor / Admin) ----------
@@ -818,9 +835,9 @@ function team_(a, b) {
     sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
     return pin;
   }
-  if (a === 'd_ts_get' || a === 'd_ts_save') {
+  if (a === 'd_ts_get' || a === 'd_ts_save' || a === 'd_ts_all' || a === 'd_ts_saveall') {
     if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
-    return timesheet_(a === 'd_ts_get' ? 'a_ts_get' : 'a_ts_save', b, adm ? 'Admin' : me.name);
+    return timesheet_('a_' + a.slice(2), b, adm ? 'Admin' : me.name);
   }
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
   if (a === 'd_clock') {
@@ -962,7 +979,7 @@ function admin_(a, b) {
     return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
-  if (a === 'a_ts_get' || a === 'a_ts_save') return timesheet_(a, b, 'Admin');
+  if (a === 'a_ts_get' || a === 'a_ts_save' || a === 'a_ts_all' || a === 'a_ts_saveall') return timesheet_(a, b, 'Admin');
   if (a === 'a_ts_danru') { setCfg_('TS_DANRU', b.on === true ? 'yes' : 'no'); return {ok: true, danruOn: b.on === true}; }
   if (a === 'a_points') {
     return {ok: true, points: points_(false).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, cal: p.cal, radius: p.radius, active: p.active}; })};

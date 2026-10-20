@@ -37,11 +37,12 @@ const buf=PNG.sync.write(png);
  let pen=await pg.evaluate(()=>[...document.querySelectorAll('#tsPrint .tss td')].map(x=>x.textContent.trim()));
  ok(pen.filter(x=>x==='Nama :').length===3&&(await pg.locator('#tsPrint .sgi').count())===0,'manual print: boxes blank, no signature image');
  // needs signature
- await pg.click('#tsPrintSig');ok(/Upload your signature/.test(await pg.locator('#tsMsg').innerText()),'asks for a signature first');
+ ok(await pg.locator('#tsUseSig').isDisabled(),'signature checkbox disabled until a signature is uploaded');
  await pg.setInputFiles('#tsSigF',{name:'sig.png',mimeType:'image/png',buffer:buf});
  await pg.waitForSelector('#tsSigBox img',{timeout:8000});
  ok(/^data:image\/png/.test(await pg.evaluate(()=>localStorage.getItem('sp_sig')||'')),'signature saved on the phone as PNG');
- await pg.click('#tsPrintSig');await pg.waitForFunction(()=>window.__printed===2,null,{timeout:8000});
+ ok(await pg.locator('#tsUseSig').isChecked(),'checkbox ticks itself after upload');
+ await pg.click('#tsPrintBtn');await pg.waitForFunction(()=>window.__printed===2,null,{timeout:8000});
  const ph=await pg.locator('#tsPrint').innerHTML();
  ok(/class="sgi" src="data:image\/png/.test(ph),'signature image placed in Kolom Pengesahan');
  pen=await pg.evaluate(()=>[...document.querySelectorAll('#tsPrint .tss td')].map(x=>x.textContent.trim()));
