@@ -570,7 +570,7 @@ function clockMissing_(fromD, to) {
 
 /* ---------- weather hold (Danru / Shift Supervisor / Admin) ----------
    While a hold is on, rounds are paused for safety: a round that overlaps a hold is EXCUSED (no missed-round email, not counted in coverage).
-   Scans still count if guards do them. A hold ends by itself after HOLD_MAX_HOURS (Config, default 6) so it can never be left on by mistake.
+   Scans still count if guards do them. A hold ends by itself after HOLD_MAX_HOURS (Config, default 2) so it can never be left on by mistake.
    Sheet Hold is an append-only log of START / END events. */
 function holdSheet_() {
   var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Hold');
@@ -583,7 +583,7 @@ function holdSheet_() {
   return sh;
 }
 function holdIntervals_() {
-  var sh = holdSheet_(), n = sh.getLastRow(), out = [], open = null, maxMs = Math.max(1, Number(cfg_('HOLD_MAX_HOURS', '6')) || 6) * 3600000, now = Date.now();
+  var sh = holdSheet_(), n = sh.getLastRow(), out = [], open = null, maxMs = Math.max(1, Number(cfg_('HOLD_MAX_HOURS', '2')) || 2) * 3600000, now = Date.now();
   if (n >= 2) sh.getRange(2, 1, n - 1, 5).getValues().forEach(function (r) {
     var act = String(r[1]), ms = Number(r[4]) || 0;
     if (act === 'START' && !open) open = {start: ms, end: null, by: String(r[2]), reason: String(r[3]), auto: false};

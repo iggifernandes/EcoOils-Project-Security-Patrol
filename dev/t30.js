@@ -24,11 +24,11 @@ r=call({action:'a_stats',pin:AP,from:'2026-10-19',to:'2026-10-19'});
 ok(r.heldRounds===1,'stats: 1 held round excluded from coverage: '+r.heldRounds);
 // live
 T(at(9,0));r=call({action:'a_live',pin:AP,date:'2026-10-19',idx:4});ok(r.held===true,'Admin Live flags the held round');
-// auto expiry after 6 h
+// auto expiry after 2 h
 T(at(10,0));call({action:'d_hold',gp:D,on:true});
-T(at(15,30));ok(call({action:'state',gp:g.pin}).hold.on===true,'still on after 5.5 h');
-T(at(16,30));ok(call({action:'state',gp:g.pin}).hold.on===false,'switches itself off after 6 h');
-T(at(16,31));ok(m.ctx.roundHeld_(m.ctx.roundAt_(at(12,5)))===true&&m.ctx.roundHeld_(m.ctx.roundAt_(at(18,5)))===false,'rounds after the auto end are not held');
+T(at(11,30));ok(call({action:'state',gp:g.pin}).hold.on===true,'still on after 1.5 h');
+T(at(12,30));ok(call({action:'state',gp:g.pin}).hold.on===false,'switches itself off after 2 h');
+T(at(12,31));ok(m.ctx.roundHeld_(m.ctx.roundAt_(at(10,5)))===true&&m.ctx.roundHeld_(m.ctx.roundAt_(at(12,5)))===false,'rounds after the auto end are not held');
 // video
 Date.now=realNow;
 const big='A'.repeat(2000);
