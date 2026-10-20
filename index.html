@@ -453,7 +453,8 @@ function aCal(){
   $('aBody').innerHTML='<p><span class="sp"></span></p>';
   aApi({action:'a_points'}).then(function(r){
     if(!r.ok)return aErr(r);A.pts=r.points;
-    var h='<p class="note">Stand at the QR, outdoors if possible. The phone takes up to 10 readings and averages them.</p><label>Point</label><select id="cP"><option value="">Select...</option>';
+    var nd=0,left=[];r.points.forEach(function(p){if(p.active===false)return;if(p.cal)nd++;else left.push(p.no);});
+    var h='<div class="counts"><div class="cnt d"><b>'+nd+'</b><span>Calibrated</span></div><div class="cnt r"><b>'+left.length+'</b><span>Remaining</span></div></div>'+(left.length?'<p class="note">Still to do: '+left.join(', ')+'</p>':'<p class="okc">All points calibrated.</p>')+'<p class="note">Stand at the QR, outdoors if possible. The phone takes up to 10 readings and averages them.</p><label>Point</label><select id="cP"><option value="">Select...</option>';
     r.points.forEach(function(p){h+='<option value="'+esc(p.id)+'">'+p.no+'. '+esc(p.name)+(p.cal?' [done]':' [not calibrated]')+'</option>';});
     h+='</select><label>Radius (m) for this point</label><input id="cR" type="number" min="5" max="200" inputmode="numeric"><button class="btn" id="cGo" type="button">Start reading (GPS + radius)</button><button class="btn" id="cRo" type="button">Save radius only</button><div id="cOut" class="card hidden"></div><hr><p class="note">After calibrating the points, build the walking order from the real positions. Sticker numbers do not change.</p><button class="btn" id="cRoute" type="button">Auto-sequence walking route</button>';
     $('aBody').innerHTML=h;
