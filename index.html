@@ -395,6 +395,7 @@ function submit(pt,fix,photo){
       if(r.err==='pin'){hideRes();dropLogin(tr('badGuardPin'));return;}
       showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(errText(r.err))+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;
     }
+    if(S.state){S.state.done=S.state.done||{};if(!S.state.done[pt.id])S.state.done[pt.id]={t:nowMs(),by:S.guard};render();}
     return loadState(true).then(function(){if(r.needPhoto&&r.scanId)return photoStep(pt,r);result(pt,r);});
   });
 }
