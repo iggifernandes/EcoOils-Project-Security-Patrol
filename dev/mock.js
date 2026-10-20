@@ -4,6 +4,7 @@ const src=fs.readFileSync(require('path').join(__dirname,'..','Code.gs'),'utf8')
 function mkSheet(name){const rows=[];return {name,rows,
   getLastRow:()=>rows.length,
   appendRow:r=>{rows.push(r.slice())},
+  deleteRow:r=>{rows.splice(r-1,1)},
   setFrozenRows(){},
   insertSheet(){},
   getRange(r,c,nr,nc){nr=nr||1;nc=nc||1;const me=this;

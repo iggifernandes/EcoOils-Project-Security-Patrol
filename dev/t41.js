@@ -30,6 +30,12 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  const withC=await rows.evaluateAll(r=>r.filter(x=>x.getAttribute('data-cin')).map(x=>[x.getAttribute('data-cin'),x.querySelector('.tsS').value]));
  ok(withC.every(x=>x[0]===x[1]),'Start = actual clock-in time works');
  ok((await pg.locator('#tsNotes option').count())>=12,'many note choices offered (free text still allowed)');
+ await pg.click('#tsSave');await pg.waitForFunction(()=>/Saved/.test(document.querySelector('#tsMsg').textContent),null,{timeout:10000});
+ ok(m.sheets.Timesheet.rows.some(x=>x[2]==='Sheet Guard'),'saved before single reset');
+ await rows.nth(2).locator('.tsS').fill('09:09');await pg.click('#tsUndo');await pg.waitForTimeout(600);
+ ok((await pg.locator('#tsOut tr[data-d]').nth(2).locator('.tsS').inputValue())!=='09:09','Undo reloads the saved times');
+ await pg.click('#tsReset');await pg.waitForTimeout(900);
+ ok(!m.sheets.Timesheet.rows.slice(1).some(x=>x[2]==='Sheet Guard'),'Reset to automatic removes the guard\'s saved rows');
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
 })();

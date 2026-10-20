@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.19';
+var VERSION = 'v1.20';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -694,6 +694,24 @@ function timesheet_(a, b, by) {
     }
     return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, danruOn: cfg_('TS_DANRU', 'no') === 'yes', notes: tsNotes_(), guards: all.map(function (x) { return x.name; })};
   }
+  if (a === 'a_ts_reset') {
+    /* Forget the saved rows of one guard (or everyone when no guard is given) for the period, so the days go back to the automatic pre-fill. NPK numbers are kept. */
+    var per2 = tsPeriod_(b.ym), only = b.guard ? String(b.guard).toLowerCase() : '', removed = 0;
+    if (only) { var okg = false; all.forEach(function (x) { if (x.name.toLowerCase() === only) okg = true; }); if (!okg) return {ok: false, err: 'bad_guard'}; }
+    var lk0 = LockService.getScriptLock();
+    lk0.waitLock(20000);
+    try {
+      var sh0 = sh_('Timesheet');
+      if (sh0 && sh0.getLastRow() >= 2) {
+        var v0 = sh0.getRange(2, 1, sh0.getLastRow() - 1, 3).getValues();
+        for (var z = v0.length - 1; z >= 0; z--) {
+          var dd0 = String(v0[z][1]), who0 = String(v0[z][2]).toLowerCase();
+          if (dd0 >= per2.from && dd0 <= per2.to && (!only || who0 === only)) { sh0.deleteRow(z + 2); removed++; }
+        }
+      }
+    } finally { lk0.releaseLock(); }
+    return {ok: true, removed: removed};
+  }
   if (a === 'a_ts_all') {
     var outAll = [];
     all.forEach(function (g0) { var r0 = timesheet_('a_ts_get', {guard: g0.name, ym: b.ym}, by); if (r0.ok) { delete r0.guards; delete r0.notes; outAll.push(r0); } });
@@ -835,7 +853,7 @@ function team_(a, b) {
     sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
     return pin;
   }
-  if (a === 'd_ts_get' || a === 'd_ts_save' || a === 'd_ts_all' || a === 'd_ts_saveall') {
+  if (a === 'd_ts_get' || a === 'd_ts_save' || a === 'd_ts_all' || a === 'd_ts_saveall' || a === 'd_ts_reset') {
     if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
     return timesheet_('a_' + a.slice(2), b, adm ? 'Admin' : me.name);
   }
@@ -979,7 +997,7 @@ function admin_(a, b) {
     return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
-  if (a === 'a_ts_get' || a === 'a_ts_save' || a === 'a_ts_all' || a === 'a_ts_saveall') return timesheet_(a, b, 'Admin');
+  if (a === 'a_ts_get' || a === 'a_ts_save' || a === 'a_ts_all' || a === 'a_ts_saveall' || a === 'a_ts_reset') return timesheet_(a, b, 'Admin');
   if (a === 'a_ts_danru') { setCfg_('TS_DANRU', b.on === true ? 'yes' : 'no'); return {ok: true, danruOn: b.on === true}; }
   if (a === 'a_points') {
     return {ok: true, points: points_(false).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, cal: p.cal, radius: p.radius, active: p.active}; })};

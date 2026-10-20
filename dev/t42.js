@@ -38,6 +38,13 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  ok(/^0(px)?$/.test(mg),'page margin 0 so the browser prints no header/footer: '+mg);
  await pg.click('#tsAllPdf');await pg.waitForFunction(()=>window.__printed>=2,null,{timeout:8000});
  ok(/Save as PDF/.test(await pg.locator('#tsAllMsg').innerText())&&/^Timesheet semua anggota/.test(await pg.evaluate(()=>window.__title[window.__title.length-1])),'PDF button: hint shown, file name set from the title');
+ // close list, reset
+ await pg.click('#tsAllClose');ok((await pg.locator('#tsAllBox .tst').count())===0&&(await pg.locator('#tsAllLoad').isVisible()),'Load-all list can be closed');
+ const before=m.sheets.Timesheet.rows.length;ok(before>=30,'rows saved before reset');
+ await pg.click('#tsAllLoad');await pg.waitForSelector('#tsAllBox .tst');
+ await pg.click('#tsAllReset');await pg.waitForFunction(()=>true);await pg.waitForTimeout(800);
+ ok(m.sheets.Timesheet.rows.filter((x,i)=>i>0).length===0,'Reset everyone removes the saved rows for the period ('+m.sheets.Timesheet.rows.length+' left incl header)');
+ ok(m.sheets.Staff.rows.some(x=>x[1]==='NPK-A1'),'NPK numbers kept after reset');
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
 })();
