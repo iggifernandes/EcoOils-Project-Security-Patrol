@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.13';
+var VERSION = 'v1.14';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -54,7 +54,7 @@ function setup() {
   if (g.getLastRow() < 2) g.getRange(2, 1, SEED_GUARDS.length, 6).setValues(SEED_GUARDS.map(function (x) { return [x[0], x[1], 'Yes', '', isLead_(x[1]) ? 'Yes' : 'No', '']; }));
   upgrade_();
   var c = s.getSheetByName('Config');
-  if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_PER_ROUND', '5']]);
+  if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_PER_ROUND', '8']]);
   var p = PropertiesService.getScriptProperties();
   if (!p.getProperty('ADMIN_PIN')) p.setProperty('ADMIN_PIN', rand6_());
   folder_();
@@ -318,20 +318,24 @@ function onPlan_(plan, name) {
   plan.forEach(function (r) { if (r.guard.toLowerCase() === k || (r.buddy && r.buddy.toLowerCase() === k)) on = true; });
   return on;
 }
-function photoN_() { var n = parseInt(cfg_('PHOTO_PER_ROUND', '5'), 10); return isFinite(n) && n > 0 ? Math.min(n, 45) : 0; }
+function photoN_() { var n = parseInt(cfg_('PHOTO_PER_ROUND', '8'), 10); return isFinite(n) && n > 0 ? Math.min(n, 45) : 0; }
 function photoSecret_() {
   var p = props_(), s = p.getProperty('PHOTO_SECRET');
   if (!s) { s = Utilities.getUuid(); p.setProperty('PHOTO_SECRET', s); }
   return s;
 }
+/* Selfie checks per round (default 8). Points in Config PHOTO_PRIORITY (default 7,9,18,23: SE corner, WEN office, FFA, Extraction north - places a guard might avoid)
+   are picked for most rounds (PHOTO_PRIORITY_PCT, default 75 percent each); the rest of the places are filled at random. Still secret and stable for the whole round. */
 function photoSet_(r, pts) {
   var n = photoN_(), set = {};
   if (!n) return set;
-  var sec = photoSecret_();
-  pts.filter(function (p) { return p.active; }).map(function (p) {
+  var sec = photoSecret_(), pri = {}, pct = Math.min(100, Math.max(0, Number(cfg_('PHOTO_PRIORITY_PCT', '75')) || 0));
+  String(cfg_('PHOTO_PRIORITY', '7,9,18,23')).split(',').forEach(function (x) { x = x.trim(); if (x) pri[x] = 1; });
+  var all = pts.filter(function (p) { return p.active; }).map(function (p) {
     var h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sec + '|' + r.date + '|' + r.idx + '|' + p.id).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
-    return {id: p.id, h: h};
-  }).sort(function (a, b) { return a.h < b.h ? -1 : a.h > b.h ? 1 : 0; }).slice(0, n).forEach(function (x) { set[x.id] = true; });
+    return {id: p.id, h: h, first: !!pri[String(p.no)] && parseInt(h.slice(8, 16), 16) / 4294967296 < pct / 100};
+  }).sort(function (a, b) { return a.h < b.h ? -1 : a.h > b.h ? 1 : 0; });
+  all.filter(function (x) { return x.first; }).concat(all.filter(function (x) { return !x.first; })).slice(0, n).forEach(function (x) { set[x.id] = true; });
   return set;
 }
 function props_() { return PropertiesService.getScriptProperties(); }
