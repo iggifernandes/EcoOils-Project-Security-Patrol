@@ -1,7 +1,7 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.10
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.10';
+var VERSION = 'v1.11';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -12,6 +12,8 @@ var HEAD = {
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
+  Hold: ['Time (WIB)', 'Action', 'By', 'Reason', 'Time ms'],
+  Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Config: ['Key', 'Value']
@@ -358,13 +360,14 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
   if (a === 'state') return state_(me);
   if (a === 'photo') return photo_(b, me);
   if (a === 'clockin') return clockIn_(b, me);
+  if (a === 'video') return videoSave_(b, me);
   return scan_(b, me);
 }
 function state_(me) {
@@ -372,7 +375,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me)
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_()
   };
 }
 function planNow_() {
@@ -564,6 +567,89 @@ function clockMissing_(fromD, to) {
   return out.slice(0, 200);
 }
 
+
+/* ---------- weather hold (Danru / Shift Supervisor / Admin) ----------
+   While a hold is on, rounds are paused for safety: a round that overlaps a hold is EXCUSED (no missed-round email, not counted in coverage).
+   Scans still count if guards do them. A hold ends by itself after HOLD_MAX_HOURS (Config, default 6) so it can never be left on by mistake.
+   Sheet Hold is an append-only log of START / END events. */
+function holdSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Hold');
+  if (!sh) {
+    sh = s.insertSheet('Hold');
+    sh.appendRow(HEAD.Hold);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.Hold.length).setFontWeight('bold');
+  }
+  return sh;
+}
+function holdIntervals_() {
+  var sh = holdSheet_(), n = sh.getLastRow(), out = [], open = null, maxMs = Math.max(1, Number(cfg_('HOLD_MAX_HOURS', '6')) || 6) * 3600000, now = Date.now();
+  if (n >= 2) sh.getRange(2, 1, n - 1, 5).getValues().forEach(function (r) {
+    var act = String(r[1]), ms = Number(r[4]) || 0;
+    if (act === 'START' && !open) open = {start: ms, end: null, by: String(r[2]), reason: String(r[3]), auto: false};
+    else if (act === 'END' && open) { open.end = Math.min(ms, open.start + maxMs); out.push(open); open = null; }
+  });
+  if (open) { var lim = open.start + maxMs; open.end = now < lim ? null : lim; open.auto = now >= lim; out.push(open); }
+  return out;
+}
+function holdActive_() {
+  var cur = null;
+  holdIntervals_().forEach(function (i) { if (i.end == null) cur = i; });
+  return cur;
+}
+function holdPublic_() {
+  try { var h = holdActive_(); return h ? {on: true, since: h.start, by: h.by, reason: h.reason} : {on: false}; } catch (e) { return {on: false}; }
+}
+/* True when a hold was on at any moment during round r. */
+function roundHeld_(r) {
+  var held = false, now = Date.now();
+  holdIntervals_().forEach(function (i) { var end = i.end == null ? now : i.end; if (i.start < r.end && end > r.start) held = true; });
+  return held;
+}
+function holdSet_(on, by, reason) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var cur = holdActive_(), now = Date.now();
+    if (on && cur) return {ok: true, already: true, hold: holdPublic_()};
+    if (!on && !cur) return {ok: true, already: true, hold: holdPublic_()};
+    holdSheet_().appendRow([ymdhms_(now), on ? 'START' : 'END', by, String(reason || 'Weather').slice(0, 80), now]);
+    return {ok: true, hold: holdPublic_()};
+  } finally { lock.releaseLock(); }
+}
+
+/* ---------- short low-resolution video (weather / conditions), stored in Google Drive ---------- */
+function videoFolder_() {
+  var p = props_(), id = p.getProperty('VIDEO_FOLDER');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var f = DriveApp.createFolder('EcoOils Patrol Videos');
+  p.setProperty('VIDEO_FOLDER', f.getId());
+  return f;
+}
+function videoSave_(b, me) {
+  var v = String(b.video || ''), mime = String(b.mime || '').toLowerCase().indexOf('mp4') >= 0 ? 'video/mp4' : 'video/webm', secs = Math.round(Number(b.sec) || 0);
+  if (v.length < 100 || v.length > 12000000) return {ok: false, err: 'bad_video'};
+  var now = Date.now(), ymd = ymdhms_(now), note = String(b.note || 'Conditions').slice(0, 60), url;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    try { url = videoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(v), mime, ymd.slice(0, 10) + '_' + ymd.slice(11, 13) + 'h' + ymd.slice(14, 16) + '_' + me.name + (mime === 'video/mp4' ? '.mp4' : '.webm'))).getUrl(); }
+    catch (e) { return {ok: false, err: 'video_fail'}; }
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Videos');
+    if (!sh) { sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Videos'); sh.appendRow(HEAD.Videos); sh.setFrozenRows(1); sh.getRange(1, 1, 1, HEAD.Videos.length).setFontWeight('bold'); }
+    sh.appendRow([ymd, me.name, me.role, secs, note, url, now]);
+    return {ok: true};
+  } finally { lock.releaseLock(); }
+}
+function videoRows_(fromD, to) {
+  var sh = sh_('Videos');
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues().map(function (r) {
+    var ms = Number(r[6]) || 0;
+    return {t: ms ? ymdhms_(ms) : String(r[0]), guard: String(r[1]), sec: Number(r[3]) || 0, note: String(r[4]), link: String(r[5]), date: ms ? ymdhms_(ms).slice(0, 10) : String(r[0]).slice(0, 10)};
+  }).filter(function (x) { return x.date >= fromD && x.date <= to; }).reverse().slice(0, 100);
+}
+
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -581,6 +667,7 @@ function team_(a, b) {
     sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
     return pin;
   }
+  if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
   if (a === 'd_clock') {
     var tg = find(b.name);
     if (!tg || !tg.active) return {ok: false, err: 'bad_guard'};
@@ -664,7 +751,7 @@ function admin_(a, b) {
   if (a === 'a_live') {
     var r = b.date ? roundBy_(String(b.date), Number(b.idx)) : roundAt_(Date.now());
     var pts = points_(true), d = doneMap_(r), ps = photoSet_(r, pts);
-    return {ok: true, round: r, total: pts.length,
+    return {ok: true, held: roundHeld_(r), hold: holdPublic_(), round: r, total: pts.length,
       done: pts.filter(function (p) { return d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, t: d[p.id].t, by: d[p.id].by, flags: d[p.id].flags, gps: d[p.id].gps, photo: d[p.id].photo, pc: !!ps[p.id]}; }),
       missed: pts.filter(function (p) { return !d[p.id]; }).map(function (p) { return {no: p.no, name: p.name, zone: p.zone, hi: p.hi, pc: !!ps[p.id]}; })};
   }
@@ -679,10 +766,10 @@ function admin_(a, b) {
   if (a === 'a_stats') {
     var to = String(b.to || ymdhms_(Date.now()).slice(0, 10)), fromD = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fromD) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || fromD > to) return {ok: false, err: 'bad_date'};
-    var nowMs = Date.now(), rs = [], dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), cnt = 0;
+    var nowMs = Date.now(), heldN = 0, rs = [], dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), cnt = 0;
     for (; dd <= end && cnt < 92; dd += 86400000, cnt++) {
       var ds = new Date(dd).toISOString().slice(0, 10);
-      for (var ri = 0; ri < 12; ri++) if (roundBy_(ds, ri).start <= nowMs) rs.push(ds + '|' + ri);
+      for (var ri = 0; ri < 12; ri++) { var rr = roundBy_(ds, ri); if (rr.start <= nowMs) { if (roundHeld_(rr)) heldN++; else rs.push(ds + '|' + ri); } }
     }
     var pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
     pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
@@ -710,7 +797,7 @@ function admin_(a, b) {
     var clk = clockRows_().filter(function (x) { return x.date >= fromD && x.date <= to; }).sort(function (x, y) { return y.ms - x.ms; }).slice(0, 300).map(function (x) { return {date: x.date, shift: x.shift, guard: x.guard, at: x.at.slice(11, 16), status: x.status, late: x.late, by: x.by}; });
     var cmiss = clockMissing_(fromD, to);
     var coveredSum = rows.reduce(function (t, x) { return t + x.covered; }, 0);
-    return {ok: true, clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
+    return {ok: true, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
   if (a === 'a_points') {
@@ -968,6 +1055,7 @@ function roundHtml_(L, r, pts, missed, hi, flagged, photos) {
 }
 function roundCheck() {
   var boundary = Math.floor((Date.now() + OFF) / RMS) * RMS - OFF, r = roundAt_(boundary - 1);
+  if (roundHeld_(r)) return;
   var pts = points_(true), d = doneMap_(r);
   var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r), photos = photoChecks_(r, pts);
   if (!missed.length && !flagged.length) return;
@@ -990,12 +1078,12 @@ function dailySummary() {
   for (var i = 0; i < 12; i++) {
     var r = roundBy_(y, i), seen = {};
     rows.forEach(function (row) { var ms = Number(row[17]); if (ms >= r.start && ms < r.end) seen[row[6]] = 1; });
-    var miss = pts.filter(function (p) { return !seen[p.id]; });
+    var held = roundHeld_(r), miss = held ? [] : pts.filter(function (p) { return !seen[p.id]; });
     totalMissed += miss.length;
     miss.forEach(function (p) { missCount[p.id] = (missCount[p.id] || 0) + 1; });
     var pc = photoChecks_(r, pts, rows), pt2 = pc.filter(function (x) { return x.status === 'taken'; }).length;
     phTaken += pt2; phReq += pc.length;
-    tr += '<tr><td>' + r.label + '</td><td align="right">' + (pts.length - miss.length) + '</td><td align="right">' + miss.length + '</td><td align="right">' + (pc.length ? pt2 + '/' + pc.length : '-') + '</td></tr>';
+    tr += '<tr><td>' + r.label + (held ? ' (weather hold / jeda cuaca)' : '') + '</td><td align="right">' + (held ? Object.keys(seen).length : pts.length - miss.length) + '</td><td align="right">' + miss.length + '</td><td align="right">' + (pc.length ? pt2 + '/' + pc.length : '-') + '</td></tr>';
     flagList = flagList.concat(flagged_(r));
   }
   var top = pts.filter(function (p) { return missCount[p.id]; }).sort(function (a, b) { return missCount[b.id] - missCount[a.id]; }).slice(0, 10);
