@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.15';
+var VERSION = 'v1.16';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -409,7 +409,7 @@ function route_(b) {
 function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
-    ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
+    ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
     done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_()
   };
@@ -624,7 +624,7 @@ function clockMissing_(fromD, to) {
 }
 
 
-/* ---------- Timesheet (Form Kehadiran Reguler), Admin only for now ----------
+/* ---------- Timesheet (Form Kehadiran Reguler): Admin always; Danru only while Config TS_DANRU = yes (Admin > Timesheet switch) ----------
    One row per guard per day (sheet Timesheet, upserted by Key = date|guard). Days with no saved row are pre-filled from the real clock-in (sheet Clock) or, failing that, from the shift plan (Roster),
    using the shift hours in Config TS_P / TS_S / TS_M (default 07:00-15:00, 15:00-23:00, 23:00-07:00). The period runs from the 16th of the previous month to the 15th. */
 function tsSheet_(name) {
@@ -669,11 +669,11 @@ function setNpk_(name, npk) {
   if (n >= 2) { var v = sh.getRange(2, 1, n - 1, 1).getValues(); for (var i = 0; i < v.length; i++) if (String(v[i][0]).toLowerCase() === k) { sh.getRange(i + 2, 2).setValue(npk); return; } }
   sh.appendRow([name, npk]);
 }
-function timesheet_(a, b) {
+function timesheet_(a, b, by) {
   var all = guards_().sort(function (x, y) { return x.name.localeCompare(y.name); });
   if (a === 'a_ts_get') {
     var per = tsPeriod_(b.ym);
-    if (!b.guard) return {ok: true, guards: all.map(function (g) { return g.name; }), period: per};
+    if (!b.guard) return {ok: true, guards: all.map(function (g) { return g.name; }), period: per, danruOn: cfg_('TS_DANRU', 'no') === 'yes'};
     var g = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard).toLowerCase()) g = x; });
     if (!g) return {ok: false, err: 'bad_guard'};
     var key = g.name.toLowerCase(), saved = {}, sh = sh_('Timesheet');
@@ -691,7 +691,7 @@ function timesheet_(a, b) {
       row.hours = tsHours_(row.start, row.end);
       days.push(row);
     }
-    return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, guards: all.map(function (x) { return x.name; })};
+    return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, danruOn: cfg_('TS_DANRU', 'no') === 'yes', guards: all.map(function (x) { return x.name; })};
   }
   /* a_ts_save */
   var gg = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard || '').toLowerCase()) gg = x; });
@@ -711,7 +711,7 @@ function timesheet_(a, b) {
     var sh2 = tsSheet_('Timesheet'), n = sh2.getLastRow(), idx = {}, now = Date.now(), k2 = gg.name.toLowerCase();
     if (n >= 2) sh2.getRange(2, 1, n - 1, 1).getValues().forEach(function (x, j) { idx[String(x[0])] = j + 2; });
     clean.forEach(function (c) {
-      var key2 = c.date + '|' + k2, vals = [key2, c.date, gg.name, c.start, c.end, tsHours_(c.start, c.end), c.note, 'Admin', now];
+      var key2 = c.date + '|' + k2, vals = [key2, c.date, gg.name, c.start, c.end, tsHours_(c.start, c.end), c.note, by || 'Admin', now];
       if (idx[key2]) sh2.getRange(idx[key2], 1, 1, 9).setValues([vals]); else { sh2.appendRow(vals); idx[key2] = sh2.getLastRow(); }
     });
     if (b.npk != null) setNpk_(gg.name, String(b.npk).trim().slice(0, 30));
@@ -817,6 +817,10 @@ function team_(a, b) {
     sh.getRange(g.row, 4).setValue(hash_(pin));
     sh.getRange(g.row, 6).setValue(ymdhms_(Date.now()));
     return pin;
+  }
+  if (a === 'd_ts_get' || a === 'd_ts_save') {
+    if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
+    return timesheet_(a === 'd_ts_get' ? 'a_ts_get' : 'a_ts_save', b, adm ? 'Admin' : me.name);
   }
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
   if (a === 'd_clock') {
@@ -958,7 +962,8 @@ function admin_(a, b) {
     return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
-  if (a === 'a_ts_get' || a === 'a_ts_save') return timesheet_(a, b);
+  if (a === 'a_ts_get' || a === 'a_ts_save') return timesheet_(a, b, 'Admin');
+  if (a === 'a_ts_danru') { setCfg_('TS_DANRU', b.on === true ? 'yes' : 'no'); return {ok: true, danruOn: b.on === true}; }
   if (a === 'a_points') {
     return {ok: true, points: points_(false).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, cal: p.cal, radius: p.radius, active: p.active}; })};
   }

@@ -26,16 +26,23 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  await row.locator('.tsT').fill('HARI LIBUR NASIONAL');
  await pg.click('#tsSave');await pg.waitForFunction(()=>/Saved/.test(document.querySelector('#tsMsg').textContent),null,{timeout:10000});
  ok(m.sheets.Timesheet.rows.some(x=>x[2]==='Sheet Guard'&&x[3]==='07:00'&&x[4]==='16:00'&&x[6]==='HARI LIBUR NASIONAL'),'saved to the Timesheet sheet');
- await pg.click('#tsPrintBtn');
+ await pg.click('#tsPrintBtn');await pg.waitForFunction(()=>window.__printed===1,null,{timeout:8000});
  const ph=await pg.locator('#tsPrint').innerHTML();
  ok((await pg.evaluate(()=>window.__printed))===1,'print dialog opened');
  ok(/FORM KEHADIRAN REGULER/.test(ph)&&/Sheet Guard/.test(ph)&&/NPK-77/.test(ph)&&/PERIODE ABSENSI/.test(ph)&&/OKTOBER/.test(ph)&&/NOVEMBER/.test(ph)&&/Kolom Pengesahan/.test(ph)&&/Area Manager/.test(ph)&&/Pihak Client/.test(ph),'printable form has header, period, signature blocks');
  ok(/HARI LIBUR NASIONAL/.test(ph)&&/ANGGOTA/.test(ph),'note and Indonesian job title (ANGGOTA) on the form');
+ ok(/src="sos-logo\.png"/.test(ph)&&/src="alsok-logo\.png"/.test(ph)&&/The member of ALSOK Group/.test(ph),'SOS logo left, ALSOK logo right with "The member of ALSOK Group"');
+ const pen=await pg.evaluate(()=>{const t=[...document.querySelectorAll('#tsPrint .tss td')].map(x=>x.textContent.trim());return t;});
+ ok(!pen.some(x=>/Sheet Guard/.test(x)),'Kolom Pengesahan does not carry the guard name');
+ ok(pen.filter(x=>x==='Nama :').length===3&&pen.filter(x=>x==='Tanggal :').length===3,'Paraf / Nama / Tanggal lines blank in all three boxes');
+ const hdr=await pg.evaluate(()=>getComputedStyle(document.querySelector('#tsPrint .tsg th')).whiteSpace);
+ ok(hdr==='nowrap','column titles are set to stay on one line');
  // Danru sees the link but no timesheet
  await pg.click('#aOut');await pg.waitForSelector('#vSetup:not(.hidden)');
  await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
  ok(await pg.locator('#lSecApp').isVisible(),'Danru sees the Security app link');
- ok((await pg.locator('#aTs').isVisible())===false,'Danru does not see the Timesheet (Admin only)');
+ ok((await pg.locator('#aTs').isVisible())===false&&(await pg.locator('#bTsOpen').isVisible())===false,'Danru does not see the Timesheet until Admin switches it on');
+ const dr=m.call({action:'d_ts_get',gp:dp['Rendi Irawan']});ok(dr.ok===false&&dr.err==='ts_off','server refuses Danru timesheet while off');
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
 })();

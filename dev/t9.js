@@ -25,6 +25,8 @@ const ctx={console,Date,Math,JSON,String,Number,Object,Array,isFinite,parseInt,
  ScriptApp:{getProjectTriggers:()=>[]},Logger:{log:m=>ctx.logs.push(m)},logs:[]};
 vm.createContext(ctx);vm.runInContext(src,ctx);
 ctx.setup();
+/* Same as mock.js: if the real clock is in a gap between rounds, jump into the next round so the test does not depend on the time of day. */
+{const real=Date.now.bind(Date),r0=ctx.roundAt_(real());if(r0.upcoming){const off=r0.start+60000-real();Date.now=()=>real()+off;}}
 const call=b=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++};
 const ADMIN=props.ADMIN_PIN;

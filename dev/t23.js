@@ -14,7 +14,7 @@ r=m.call({action:'scan',gp:D,pid:pts[1].id});ok(r.gps==='NO_GPS'&&r.flags.includ
 m.ctx.setCfg_('GPS_QUIET','yes');
 // emails: owner gets full, second address gets no GPS flags
 m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com,irsan@example.com');
-const prev=m.ctx.roundAt_(Date.now()-2*3600000);
+const prev=m.ctx.lastEnded_(Date.now()); // the round roundCheck will report on (works in a gap too)
 m.call({action:'scan',gp:D,pid:pts[2].id,queued:true,clientTs:prev.start+120000});                       // NO_GPS (no coords)
 m.call({action:'scan',gp:D,pid:pts[3].id,queued:true,clientTs:prev.start+130000,lat:2.9,lng:99.1,acc:10,photo:''}); // other flags only
 m.ctx.mails.length=0;(delete m.props.LAST_RC,m.ctx.roundCheck());
@@ -33,5 +33,5 @@ m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com');m.ctx.mails.length=0;(delete m
 ok(m.ctx.mails.length===1&&/no GPS/.test(m.ctx.mails[0].htmlBody),'single address: one full email');
 m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com,irsan@example.com');m.ctx.setCfg_('GPS_QUIET','no');m.ctx.mails.length=0;(delete m.props.LAST_RC,m.ctx.roundCheck());
 ok(m.ctx.mails.length===1&&m.ctx.mails[0].to==='owner@example.com,irsan@example.com'&&/no GPS/.test(m.ctx.mails[0].htmlBody),'GPS_QUIET=no: everyone gets the full email');
-ok(m.ctx.VERSION==='v1.15','version v1.9');
+ok(m.ctx.VERSION==='v1.16','version v1.9');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
