@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.11';
+var VERSION = 'v1.12';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var TZ = 'Asia/Jakarta';
@@ -187,14 +187,18 @@ function roundBy_(date, idx) {
   var day = Date.parse(date + 'T00:00:00Z'), st = day + idx * RMS - OFF;
   return {date: date, idx: idx, start: st, end: st + RMS, label: p2_(idx * 2) + ':00-' + p2_(idx * 2 + 2) + ':00'};
 }
+/* Config is read once per request (CFGM_), not once per setting: a request used to re-read the sheet hundreds of times. */
+var CFGM_ = null;
 function cfg_(k, def) {
-  var sh = sh_('Config'), n = sh.getLastRow();
-  if (n < 2) return def;
-  var v = sh.getRange(2, 1, n - 1, 2).getValues();
-  for (var i = 0; i < v.length; i++) if (String(v[i][0]) === k) return String(v[i][1]);
-  return def;
+  if (!CFGM_) {
+    CFGM_ = {};
+    var sh = sh_('Config'), n = sh.getLastRow();
+    if (n > 1) sh.getRange(2, 1, n - 1, 2).getValues().forEach(function (r) { var key = String(r[0]); if (!Object.prototype.hasOwnProperty.call(CFGM_, key)) CFGM_[key] = String(r[1]); });
+  }
+  return Object.prototype.hasOwnProperty.call(CFGM_, k) ? CFGM_[k] : def;
 }
 function setCfg_(k, val) {
+  CFGM_ = null;
   var sh = sh_('Config'), n = sh.getLastRow();
   var v = n > 1 ? sh.getRange(2, 1, n - 1, 2).getValues() : [];
   for (var i = 0; i < v.length; i++) if (String(v[i][0]) === k) { sh.getRange(i + 2, 2).setValue(val); return; }
@@ -265,8 +269,9 @@ function scans_(n) {
   return sh.getRange(st, 1, last - st + 1, 18).getValues();
 }
 function doneMap_(r) {
-  var d = {};
-  scans_(1500).forEach(function (row) {
+  var d = {}, rows = scans_(300);
+  if (rows.length >= 300 && Number(rows[0][17]) >= r.start) rows = scans_(1500);
+  rows.forEach(function (row) {
     var ms = Number(row[17]);
     if (ms >= r.start && ms < r.end && !d[row[6]]) d[row[6]] = {t: ms, by: String(row[4]), flags: String(row[15]), gps: String(row[14]), photo: String(row[16] || '')};
   });
@@ -292,11 +297,11 @@ function rosterSheet_() {
   }
   return sh;
 }
+var ROSM_ = null;
 function roster_(date, code) {
-  var sh = rosterSheet_(), n = sh.getLastRow();
-  if (n < 2) return [];
+  if (!ROSM_) { var rsh = rosterSheet_(), rn = rsh.getLastRow(); ROSM_ = rn < 2 ? [] : rsh.getRange(2, 1, rn - 1, 8).getValues(); }
   var best = 0, rows = [];
-  sh.getRange(2, 1, n - 1, 8).getValues().forEach(function (r) {
+  ROSM_.forEach(function (r) {
     var dv = r[0] instanceof Date ? Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd') : String(r[0]);
     if (dv !== date || String(r[1]) !== code) return;
     var b = Number(r[7]) || 0;
@@ -353,6 +358,7 @@ function doPost(e) {
   return out_(res);
 }
 function route_(b) {
+  CFGM_ = null; ROSM_ = null;
   var a = String(b.action || '');
   if (a === 'ping') return {ok: true, version: VERSION};
   if (a.indexOf('a_') === 0) {
@@ -412,6 +418,15 @@ function scan_(b, g) {
     needPhoto = !!photoSet_(r, pts)[pt.id];
     if (prev[pt.id]) flags.push('REPEAT');
     var recent = scans_(200);
+    /* A scan that timed out on the phone may already have arrived. When the phone re-sends it, do not write it twice. */
+    if (b.queued && Number(b.clientTs)) {
+      var cts = Number(b.clientTs);
+      for (i = recent.length - 1; i >= 0; i--) {
+        var rw = recent[i], rms = Number(rw[17]);
+        if (rms < cts - 10000) break;
+        if (String(rw[4]) === g.name && String(rw[6]) === pt.id && rms <= cts + 180000) return {ok: true, gps: 'UNCALIBRATED', dist: '', flags: [], done: Object.keys(prev).length, total: pts.filter(function (q) { return q.active; }).length, round: roundAt_(Date.now()), needPhoto: false, scanId: String(rw[0]), dup: true};
+      }
+    }
     for (i = recent.length - 1; i >= 0; i--) {
       var row = recent[i], pms = Number(row[17]);
       if (ts - pms > 3600000) break;
@@ -436,7 +451,7 @@ function scan_(b, g) {
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
   var quiet = quiet_();
-  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: points_(true).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
+  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
 function photo_(b, me) {
@@ -484,8 +499,8 @@ function clockSheet_() {
   return sh;
 }
 /* The shift whose clock-in window is open at ms (or null): {date, shift, label, start, opens, closes}. */
-function clockWin_(ms) {
-  var c = clockCfg_(), hours = {P: 7, S: 15, M: 23}, best = null;
+function clockWin_(ms, cfg) {
+  var c = cfg || clockCfg_(), hours = {P: 7, S: 15, M: 23}, best = null;
   var base = new Date(ms + OFF), y = base.getUTCFullYear(), mo = base.getUTCMonth(), d = base.getUTCDate();
   for (var off = -1; off <= 1; off++) {
     Object.keys(hours).forEach(function (code) {
@@ -505,16 +520,21 @@ function clockRows_() {
   });
 }
 function clockMine_(date, shift, name) {
-  var key = clockKey_(date, shift, name), hit = null;
+  var key = clockKey_(date, shift, name), hit = null, sh = clockSheet_(), n = sh.getLastRow();
+  if (n < 2) return null;
+  var st = Math.max(2, n - 150 + 1);
+  sh.getRange(st, 14, n - st + 1, 1).getValues().forEach(function (r) { if (String(r[0]) === key) hit = true; });
+  if (!hit) return null;
+  hit = null;
   clockRows_().forEach(function (r) { if (r.key === key) hit = r; });
   return hit;
 }
 function clockState_(me) {
   try {
-    var now = Date.now(), c = clockCfg_(), w = clockWin_(now), cur = shiftAt_(now), tgt = w ? {date: w.date, shift: w.shift} : {date: cur.date, shift: cur.code};
+    var now = Date.now(), c = clockCfg_(), w = clockWin_(now, c), cur = shiftAt_(now), tgt = w ? {date: w.date, shift: w.shift} : {date: cur.date, shift: cur.code};
     var mine = clockMine_(tgt.date, tgt.shift, me.name);
     var nx = null;
-    if (!w) for (var k = 1; k <= 540 && !nx; k += 5) { var w2 = clockWin_(now + k * 60000); if (w2) nx = w2.opens; }
+    if (!w) { [7, 15, 23].forEach(function (hh) { for (var off = -1; off <= 2; off++) { var op = Date.UTC(new Date(now + OFF).getUTCFullYear(), new Date(now + OFF).getUTCMonth(), new Date(now + OFF).getUTCDate() + off, hh - 7, 0, 0) - c.early * 60000; if (op > now && (nx === null || op < nx)) nx = op; } }); }
     return {open: !!w && !mine, nextOpens: nx, win: w ? {date: w.date, shift: w.shift, label: w.label, opens: w.opens, closes: w.closes} : null, shift: tgt.shift, date: tgt.date, label: SHIFTS[tgt.shift],
       mine: mine ? {at: mine.at.slice(11, 16), status: mine.status, late: mine.late} : null, gate: {lat: c.lat, lng: c.lng, r: c.r}};
   } catch (e) { return {open: false, win: null, mine: null}; }
@@ -711,6 +731,7 @@ function team_(a, b) {
       rs.getRange('A:B').setNumberFormat('@');
       if (!clean.length) rs.appendRow([dt, sc, '', '', '', by, ymdhms_(stamp), stamp]);
       clean.forEach(function (c) { rs.appendRow(c.concat([by, ymdhms_(stamp), stamp])); });
+      ROSM_ = null;
     } finally { lk.releaseLock(); }
     return {ok: true, saved: clean.length, warn: warn};
   }

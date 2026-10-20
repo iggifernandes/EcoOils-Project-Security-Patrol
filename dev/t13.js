@@ -43,6 +43,7 @@ r=call({action:'photo',gp:n1.by,scanId:n1.sid,photo:'A'.repeat(500)});ok(r.err==
 // skipped stays flagged; repeat scan of same point does not re-ask? (REPEAT)
 // queued scans: flagged, not asked
 const q=need[2];
+rows.forEach(x=>{if(x[6]===q.id)x[17]=Number(x[17])-600000;});
 const rq=call({action:'scan',gp:A,pid:q.id,lat:2.9,lng:99.1,acc:10,queued:true,clientTs:Date.now()-1000});
 ok(rq.ok&&rq.needPhoto===false&&/QUEUED/.test(rq.flags.join(' '))&&/NO_PHOTO/.test(rq.flags.join(' ')),'queued scan not prompted, flagged NO_PHOTO+QUEUED');
 // setting

@@ -33,5 +33,5 @@ m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com');m.ctx.mails.length=0;m.ctx.rou
 ok(m.ctx.mails.length===1&&/no GPS/.test(m.ctx.mails[0].htmlBody),'single address: one full email');
 m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com,irsan@example.com');m.ctx.setCfg_('GPS_QUIET','no');m.ctx.mails.length=0;m.ctx.roundCheck();
 ok(m.ctx.mails.length===1&&m.ctx.mails[0].to==='owner@example.com,irsan@example.com'&&/no GPS/.test(m.ctx.mails[0].htmlBody),'GPS_QUIET=no: everyone gets the full email');
-ok(m.ctx.VERSION==='v1.11','version v1.9');
+ok(m.ctx.VERSION==='v1.12','version v1.9');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

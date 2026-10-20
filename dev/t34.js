@@ -1,0 +1,26 @@
+const {chromium}=require('playwright-core');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Pend Guard'});
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
+ const ctx=await b.newContext({viewport:{width:390,height:800},permissions:['geolocation','camera','microphone']});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();if(global.BLOCK&&/"action":"scan"/.test(body))return r.abort();await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:m.ctx.doPost({postData:{contents:body}}).s});});
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:')||u.startsWith('blob:'))return r.fallback();r.abort();});
+ await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');let n=0;setInterval(()=>{x.fillStyle='hsl('+(n++*9%360)+',70%,50%)';x.fillRect(0,0,480,270);},60);return c.captureStream(15);};});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(600);
+ const st=await pg.evaluate(()=>JSON.parse(localStorage.getItem('sp_state')));
+ const p0=st.points[0];global.BLOCK=true;
+ await pg.evaluate(([pid,ts,pin])=>{localStorage.setItem('sp_q',JSON.stringify([{pid:pid,guard:'Pend Guard',pin:pin,lat:null,lng:null,acc:null,ts:ts,photo:''}]));},[p0.id,st.round.start+1000,g.pin]);
+ await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(800);
+ ok((await pg.locator('#nDone').innerText())==='0','phone-only (unsent) scan is NOT counted as done');
+ ok(/waiting to send/.test(await pg.locator('#pend').innerText()),'pending count shown: '+(await pg.locator('#pend').innerText()));
+ ok(/not sent yet/.test(await pg.locator('#list').innerText()),'row is marked saved on phone, not sent yet');
+ global.BLOCK=false;await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForFunction(()=>document.querySelector('#nDone').textContent==='1',null,{timeout:20000});
+ ok(m.sheets.Scans.rows.some(x=>x[4]==='Pend Guard'),'after signal returns the scan is sent and recorded');
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
+})();
