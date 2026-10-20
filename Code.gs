@@ -1,9 +1,10 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.12';
+var VERSION = 'v1.13';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
+var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
 var TZ = 'Asia/Jakarta';
 var ZORDER = ['GT', 'FN', 'PL', 'UT', 'LD', 'BL', 'MP'];
 var ZNAME = {GT: 'Gate / entry', FN: 'Perimeter fence', PL: 'Process plant', UT: 'Utilities / tanks', LD: 'Laydown', BL: 'Buildings', MP: 'Muster point'};
@@ -162,9 +163,9 @@ function setupTriggers() {
     var h = t.getHandlerFunction();
     if (h === 'roundCheck' || h === 'dailySummary') ScriptApp.deleteTrigger(t);
   });
-  for (var h = 0; h < 24; h += 2) ScriptApp.newTrigger('roundCheck').timeBased().atHour(h).nearMinute(5).everyDays(1).inTimezone(TZ).create();
+  for (var h = 1; h < 24; h += 2) ScriptApp.newTrigger('roundCheck').timeBased().atHour(h).nearMinute(5).everyDays(1).inTimezone(TZ).create();
   ScriptApp.newTrigger('dailySummary').timeBased().atHour(7).nearMinute(10).everyDays(1).inTimezone(TZ).create();
-  Logger.log('Triggers created: 12 round checks (every 2 hours) and 1 daily summary at about 07:10 Jakarta time.');
+  Logger.log('Triggers created: 12 round checks (every 2 hours, at 01:05, 03:05 ... 23:05, just after each round that ends at 01:00, 03:00 ... 07:00) and 1 daily summary at about 07:10 Jakarta time.');
 }
 function testEmail() { send_('Patrol app test email / Email uji coba', '<p>This is a test from the EcoOils Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p><hr><p>Ini adalah email uji coba dari aplikasi Patroli Keamanan EcoOils Mentari ' + VERSION + '. Jika Anda dapat membaca ini, ringkasan titik yang terlewat akan sampai kepada Anda.</p>'); }
 
@@ -180,12 +181,13 @@ function hav_(a, b, c, d) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 function roundAt_(ms) {
-  var l = ms + OFF, day = Math.floor(l / 86400000) * 86400000, i = Math.floor((l - day) / RMS), st = day + i * RMS - OFF;
-  return {date: new Date(day).toISOString().slice(0, 10), idx: i, start: st, end: st + RMS, label: p2_(i * 2) + ':00-' + p2_(i * 2 + 2) + ':00'};
+  var l = ms + OFF - RSHIFT, day = Math.floor(l / 86400000) * 86400000, i = Math.floor((l - day) / RMS), st = day + i * RMS + RSHIFT - OFF;
+  return {date: new Date(day).toISOString().slice(0, 10), idx: i, start: st, end: st + RMS, label: rlabel_(i)};
 }
+function rlabel_(i) { return p2_((7 + i * 2) % 24) + ':00-' + p2_((9 + i * 2) % 24) + ':00'; }
 function roundBy_(date, idx) {
-  var day = Date.parse(date + 'T00:00:00Z'), st = day + idx * RMS - OFF;
-  return {date: date, idx: idx, start: st, end: st + RMS, label: p2_(idx * 2) + ':00-' + p2_(idx * 2 + 2) + ':00'};
+  var day = Date.parse(date + 'T00:00:00Z'), st = day + idx * RMS + RSHIFT - OFF;
+  return {date: date, idx: idx, start: st, end: st + RMS, label: rlabel_(idx)};
 }
 /* Config is read once per request (CFGM_), not once per setting: a request used to re-read the sheet hundreds of times. */
 var CFGM_ = null;
@@ -260,7 +262,7 @@ function rowWhen_(r) {
   var ms = Number(r[17]);
   if (ms > 0) { var ra = roundAt_(ms); return {date: ra.date, idx: ra.idx}; }
   var d = r[2] instanceof Date ? Utilities.formatDate(r[2], TZ, 'yyyy-MM-dd') : String(r[2]);
-  return {date: d, idx: Number(String(r[3]).slice(0, 2)) / 2};
+  return {date: d, idx: (((Number(String(r[3]).slice(0, 2)) - 7 + 24) % 24) / 2)};
 }
 function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
@@ -388,6 +390,10 @@ function planNow_() {
   try { var sf = shiftAt_(Date.now()); return {date: sf.date, shift: sf.code, label: sf.label, rows: roster_(sf.date, sf.code), day: dayPlan_(sf.date)}; }
   catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
+/* Points where GPS is not reliable (indoors, on upper floors, under tank shadow): the scan is recorded as normal but never flagged OUTSIDE, NO_GPS or LOW_ACCURACY. Config GPS_SKIP = point numbers, comma separated. */
+function gpsSkip_(no) {
+  return String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).indexOf(String(no)) >= 0;
+}
 function scan_(b, g) {
   var pts = points_(false), pt = null, i;
   for (i = 0; i < pts.length; i++) if (pts[i].id === String(b.pid)) pt = pts[i];
@@ -398,8 +404,9 @@ function scan_(b, g) {
     if (c && c <= now + 60000 && now - c < 36 * 3600000) ts = c;
     flags.push('QUEUED');
   }
-  var lat = num_(b.lat), lng = num_(b.lng), acc = num_(b.acc), dist = '', gps;
-  if (lat == null || lng == null) { gps = 'NO_GPS'; flags.push('NO_GPS'); }
+  var lat = num_(b.lat), lng = num_(b.lng), acc = num_(b.acc), dist = '', gps, skipG = gpsSkip_(pt.no);
+  if (skipG) { gps = 'NOT_CHECKED'; }
+  else if (lat == null || lng == null) { gps = 'NO_GPS'; flags.push('NO_GPS'); }
   else if (pt.lat == null || pt.lng == null) { gps = 'UNCALIBRATED'; }
   else {
     dist = Math.round(hav_(lat, lng, pt.lat, pt.lng));
@@ -410,7 +417,7 @@ function scan_(b, g) {
     if (pl.length && !g.danru && !onPlan_(pl, g.name)) flags.push('NOT_ON_PLAN');
   } catch (e0) {}
   if (acc != null && acc === 0) flags.push('SUSPECT_GPS');
-  if (acc != null && acc > 50) flags.push('LOW_ACCURACY');
+  if (acc != null && acc > 50 && !skipG) flags.push('LOW_ACCURACY');
   var lock = LockService.getScriptLock(), sid = Utilities.getUuid().slice(0, 8), needPhoto = false;
   lock.waitLock(20000);
   try {
@@ -433,7 +440,7 @@ function scan_(b, g) {
       if (String(row[4]) === g.name && ts > pms) {
         var pp = null;
         pts.forEach(function (q) { if (q.id === String(row[6])) pp = q; });
-        if (pp && pp.lat != null && pt.lat != null && pp.id !== pt.id) {
+        if (pp && pp.lat != null && pt.lat != null && pp.id !== pt.id && !skipG && !gpsSkip_(pp.no)) {
           var d2 = hav_(pp.lat, pp.lng, pt.lat, pt.lng), sec = (ts - pms) / 1000;
           if (d2 > 100 && d2 / sec > 5) flags.push('TOO_FAST');
         }
@@ -792,7 +799,7 @@ function admin_(a, b) {
       var ds = new Date(dd).toISOString().slice(0, 10);
       for (var ri = 0; ri < 12; ri++) { var rr = roundBy_(ds, ri); if (rr.start <= nowMs) { if (roundHeld_(rr)) heldN++; else rs.push(ds + '|' + ri); } }
     }
-    var pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
+    var OG = {}, OP = {}, pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
     pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
     if (last2 >= 2) sh2.getRange(2, 1, last2 - 1, 18).getValues().forEach(function (r3) {
       var wh = rowWhen_(r3), dt = wh.date;
@@ -810,6 +817,10 @@ function admin_(a, b) {
       gg.scans++;
       if (fl.some(function (f) { return f !== 'REPEAT' && f !== 'QUEUED'; })) gg.issues++;
       if (fl.indexOf('NO_GPS') >= 0) gg.noGps++;
+      if (String(r3[14]) === 'OUTSIDE') {
+        var og = OG[String(r3[4])] || (OG[String(r3[4])] = {guard: String(r3[4]), n: 0, dist: 0, acc: 0}), op = OP[o.no] || (OP[o.no] = {no: o.no, name: o.name, n: 0, dist: 0, who: {}});
+        og.n++; og.dist += Number(r3[13]) || 0; og.acc += Number(r3[12]) || 0; op.n++; op.dist += Number(r3[13]) || 0; op.who[String(r3[4])] = 1;
+      }
     });
     var n = rs.length, rows = Object.keys(P).map(function (k) {
       var o = P[k], c = rs.filter(function (x) { return o.rounds[x]; }).length;
@@ -818,7 +829,9 @@ function admin_(a, b) {
     var clk = clockRows_().filter(function (x) { return x.date >= fromD && x.date <= to; }).sort(function (x, y) { return y.ms - x.ms; }).slice(0, 300).map(function (x) { return {date: x.date, shift: x.shift, guard: x.guard, at: x.at.slice(11, 16), status: x.status, late: x.late, by: x.by}; });
     var cmiss = clockMissing_(fromD, to);
     var coveredSum = rows.reduce(function (t, x) { return t + x.covered; }, 0);
-    return {ok: true, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
+    var outG = Object.keys(OG).map(function (k) { var x = OG[k]; return {guard: x.guard, n: x.n, avgDist: Math.round(x.dist / x.n), avgAcc: Math.round(x.acc / x.n)}; }).sort(function (x, y) { return y.n - x.n; }).slice(0, 10);
+    var outP = Object.keys(OP).map(function (k) { var x = OP[k]; return {no: x.no, name: x.name, n: x.n, guards: Object.keys(x.who).length, avgDist: Math.round(x.dist / x.n)}; }).sort(function (x, y) { return y.n - x.n; }).slice(0, 10);
+    return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
   if (a === 'a_points') {
@@ -1075,7 +1088,10 @@ function roundHtml_(L, r, pts, missed, hi, flagged, photos) {
   return h;
 }
 function roundCheck() {
-  var boundary = Math.floor((Date.now() + OFF) / RMS) * RMS - OFF, r = roundAt_(boundary - 1);
+  var boundary = Math.floor((Date.now() + OFF - RSHIFT) / RMS) * RMS + RSHIFT - OFF, r = roundAt_(boundary - 1);
+  var lastKey = r.date + '|' + r.idx;
+  if (props_().getProperty('LAST_RC') === lastKey) return;
+  props_().setProperty('LAST_RC', lastKey);
   if (roundHeld_(r)) return;
   var pts = points_(true), d = doneMap_(r);
   var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r), photos = photoChecks_(r, pts);
@@ -1094,7 +1110,7 @@ function dailyHtml_(L, y, tr, top, missCount, flagList, phTaken, phReq) {
   return h + flagHtml_(flagList, L);
 }
 function dailySummary() {
-  var y = new Date(Date.now() + OFF - 86400000).toISOString().slice(0, 10);
+  var y = new Date(Date.parse(roundAt_(Date.now()).date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10); /* the last finished 07:00-07:00 day */
   var pts = points_(true), rows = scans_(3000), tr = '', missCount = {}, flagList = [], totalMissed = 0, phTaken = 0, phReq = 0;
   for (var i = 0; i < 12; i++) {
     var r = roundBy_(y, i), seen = {};

@@ -150,7 +150,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.12';
+var VERSION='v1.13';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -215,8 +215,8 @@ function loadState(quiet){
   });
 }
 function flush(){
-  if(!S.queue.length||!API_URL||S.flushing)return Promise.resolve();
-  S.flushing=true;
+  if(!S.queue.length||!API_URL||(S.flushing&&Date.now()-S.flushAt<90000))return Promise.resolve();
+  S.flushing=true;S.flushAt=Date.now();
   var lim=Date.now()-36*3600000;S.queue=S.queue.filter(function(x){return x.ts>lim;});saveQ();
   var q=S.queue.slice(),p=Promise.resolve(),stop=false;
   q.forEach(function(it){p=p.then(function(){
@@ -439,7 +439,7 @@ function aLive(idx){
   $('aBody').innerHTML='<p><span class="sp"></span></p>';
   aApi(b).then(function(r){
     if(!r.ok){return aErr(r);}
-    var sel='<select id="rSel">';for(var k=0;k<12;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+pad(k*2)+':00-'+pad(k*2+2)+':00</option>';}sel+='</select>';
+    var sel='<select id="rSel">';for(var k=0;k<12;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+pad((7+k*2)%24)+':00-'+pad((9+k*2)%24)+':00</option>';}sel+='</select>';
     var h='<label>Round ('+esc(r.round.date)+')</label>'+sel+'<div class="counts"><div class="cnt d"><b>'+r.done.length+'</b><span>Done</span></div><div class="cnt r"><b>'+r.missed.length+'</b><span>Missed / remaining</span></div></div>';
     h+='<div class="zh">Not scanned</div>';
     r.missed.forEach(function(p){h+='<div class="pt'+(p.hi?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+(p.pc?' &#128247;':'')+'</b></div>';});
@@ -526,6 +526,11 @@ function aStats(){
     h+='<div class="zh">Guards</div>';
     r.guards.forEach(function(g){h+='<div class="pt"><b>'+esc(g.guard)+'</b><small>'+g.scans+' scans, '+g.issues+' flagged, '+g.noGps+' without GPS</small></div>';});
     if(!r.guards.length)h+='<p class="note">No scans in this period.</p>';
+    var ou=r.outside||{guards:[],points:[]};
+    h+='<div class="zh">GPS OUTSIDE ranking (owner only)</div>';
+    ou.guards.forEach(function(x){h+='<div class="pt"><b>'+esc(x.guard)+' &middot; '+x.n+' x OUTSIDE</b><small>average '+x.avgDist+' m away, GPS accuracy about '+x.avgAcc+' m</small></div>';});
+    ou.points.forEach(function(x){h+='<div class="pt"><b>'+x.no+'. '+esc(x.name)+' &middot; '+x.n+' x OUTSIDE</b><small>'+x.guards+' guard(s), average '+x.avgDist+' m away</small></div>';});
+    if(!ou.guards.length)h+='<p class="note">No OUTSIDE scans in this period.</p>';
     var SN={P:'Morning',S:'Afternoon',M:'Night'};
     h+='<div class="zh">Clock-ins</div>';
     (r.clockMissing||[]).forEach(function(x){h+='<div class="pt hi"><b>'+esc(x.guard)+' <span class="fl">no clock-in</span></b><small>'+esc(x.date)+' '+esc(SN[x.shift]||x.shift)+(x.duty?' &middot; '+esc(x.duty):'')+'</small></div>';});
@@ -883,9 +888,20 @@ $('pinForm').addEventListener('submit',function(e){
 $('aStats').addEventListener('click',function(){aTab('stats');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
 $('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
-window.addEventListener('online',function(){S.online=true;flush();});
+window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});
 window.addEventListener('offline',function(){S.online=false;render();});
-document.addEventListener('visibilitychange',function(){if(!document.hidden&&!$('vPatrol').classList.contains('hidden')){loadState(true);flush();}});
+var lastResume=0;
+function resume(){
+  if(document.hidden||$('vPatrol').classList.contains('hidden'))return;
+  var t=Date.now();if(t-lastResume<2000)return;lastResume=t;
+  S.loading=false;S.flushing=false;
+  try{tick();render();}catch(e){}
+  if(scanning&&!$('scanModal').classList.contains('hidden')){var cb=onCode;closeScan();openScan(cb);}
+  loadState(true).then(function(){flush();});
+}
+document.addEventListener('visibilitychange',resume);
+window.addEventListener('pageshow',resume);
+window.addEventListener('focus',resume);
 setInterval(function(){if(!document.hidden)tick();},1000);
 setInterval(function(){if(!$('vPatrol').classList.contains('hidden')&&!document.hidden){if(S.queue.length)flush();else loadState(true);}},45000);
 setInterval(function(){if(S.queue.length&&!document.hidden&&!S.flushing&&!$('vPatrol').classList.contains('hidden'))flush();},12000);
