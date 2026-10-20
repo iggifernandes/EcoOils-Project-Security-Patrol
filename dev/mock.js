@@ -26,4 +26,6 @@ const ctx={console,Date,Math,JSON,String,Number,Object,Array,isFinite,parseInt,
 vm.createContext(ctx);vm.runInContext(src,ctx);
 ctx.setup();
 
+/* The tests use the real clock. When it is in a gap between patrol rounds (no round running), jump the clock to one minute into the next round so the tests do not depend on the time of day. */
+{const real=Date.now.bind(Date),r0=ctx.roundAt_(real());if(r0.upcoming){const off=r0.start+60000-real();Date.now=()=>real()+off;}}
 module.exports={ctx,sheets,props,call:b=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(b)}}).s)};

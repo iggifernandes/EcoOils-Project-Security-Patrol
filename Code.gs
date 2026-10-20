@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.14';
+var VERSION = 'v1.15';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -17,6 +17,8 @@ var HEAD = {
   Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
+  Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
+  Staff: ['Guard', 'NPK'],
   Config: ['Key', 'Value']
 };
 var SEED_POINTS = [["MEN-SEC-GT-01",1,"Main gate / security building","SECURITY BUILDING","GT",10,"Yes","Entry and exit control"],["MEN-SEC-GT-02",2,"West gate / security post","SECURITY POST","GT",10,"Yes","Confirm actual gate position"],["MEN-SEC-GT-03",3,"Weighbridge","WEIGHT BRIDGE","GT",10,"No","Confirm position"],["MEN-SEC-BL-02",4,"Administration building","ADMINISTRATION BUILDING","BL",10,"No","Confirm position"],["MEN-SEC-BL-03",5,"Warehouse Block B","WAREHOUSE BLOCK B","BL",10,"No","Confirm position"],["MEN-SEC-BL-04",6,"Workshop area(In admin Building)","WORKSHOP AREA","BL",10,"No","Confirm position"],["MEN-SEC-LD-01",7,"Block 6 B South East Corner","BLOCK 6 B SOUTH EAST CORNER","LD",10,"No",""],["MEN-SEC-LD-02",8,"GSB Office","GSB OFFICE","LD",10,"No",""],["MEN-SEC-LD-03",9,"WEN Office","WEN OFFICE","LD",10,"No",""],["MEN-SEC-LD-04",10,"PBS Office","PBS OFFICE","LD",10,"No",""],["MEN-SEC-LD-05",11,"KKS Office","KKS OFFICE","LD",10,"No",""],["MEN-SEC-MP-01",12,"MCC Building","MCC BUILDING","MP",10,"No","Confirm position"],["MEN-SEC-PL-01",13,"DDE treatment plant (DTP)","DDE TREATMENT PLANT (DTP)","PL",10,"Yes",""],["MEN-SEC-PL-02",14,"Soil disposal gate","VAPOR ABSORPTION MACHINE (VAM) SHED","PL",10,"No",""],["MEN-SEC-PL-03",15,"Pipe rack - north","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-04",16,"Cooling tower","COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-05",17,"Dirty cooling tower","DIRTY COOLING TOWER","PL",10,"No","Confirm position"],["MEN-SEC-PL-06",18,"FFA plant","FA PLANT","PL",10,"Yes","Confirm position"],["MEN-SEC-PL-07",19,"Pipe rack - centre","PIPE RACK","PL",10,"No","Fix on a column; not on pipe"],["MEN-SEC-PL-08",20,"Pipe rack - tank farm","OIL POLISHING PLANT","PL",10,"No","Confirm position"],["MEN-SEC-PL-09",21,"Boiler / chimney area","BOILER / CHIMNEY AREA","PL",10,"Yes","High risk; hot surfaces; keep QR clear of heat"],["MEN-SEC-PL-10",22,"Electrical substation (PLN)","ELECTRICAL SUBSTATION (PLN)","PL",10,"Yes","Fix on outer fence or wall only"],["MEN-SEC-PL-11",23,"Extraction plant - north","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-PL-12",24,"Pre-treatment unit (PTU)","PRE TREATMENT UNIT (PTU)","PL",10,"No",""],["MEN-SEC-PL-13",25,"Control room / MCC room","CONTROL ROOM, MCC ROOM","PL",10,"No","Outer wall at entrance"],["MEN-SEC-PL-14",26,"Extraction plant - centre","EXTRACTION PLANT","PL",10,"Yes","High risk; hexane process"],["MEN-SEC-PL-15",27,"Silo","SILO","PL",10,"Yes",""],["MEN-SEC-PL-16",28,"Extraction plant - south","EXTRACTION PLANT","PL",10,"Yes",""],["MEN-SEC-UT-01",29,"Scheduled and domestic waste shed","SCHEDULED & DOMESTIC WASTE SHED","UT",10,"No",""],["MEN-SEC-UT-02",30,"Dry and liquid chemical storage","DRY AND LIQUID CHEMICAL STORAGE","UT",10,"Yes","Chemical storage"],["MEN-SEC-UT-03",31,"Raw water pit","RAW WATER PIT","UT",10,"No","Fix on fence; not at pit edge"],["MEN-SEC-UT-04",32,"SBE 1","HEXANE TANK","UT",10,"No","High risk; outside bund wall"],["MEN-SEC-UT-05",33,"Tank farm -21T03","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-06",34,"Tank farm - 21T01","TANK FARM","UT",10,"Yes","High risk; outside bund wall"],["MEN-SEC-UT-07",35,"Tank farm - 21T08","TANK FARM","UT",10,"No","Outside bund wall"],["MEN-SEC-UT-08",36,"Fire water tank","FIRE WATER TANK","UT",10,"No","Confirm position"],["MEN-SEC-UT-09",37,"Fire water pump house","FIRE WATER PUMP HOUSE","UT",10,"No","Confirm position"],["MEN-SEC-UT-10",38,"Hexane and diesel receiving bay","HEXANE AND DIESEL RECEIVING BAY","UT",10,"Yes","High risk; offloading area"],["MEN-SEC-UT-11",39,"Water treatment plant (WTP) and tanks","WATER TREATMENT PLANT (WTP) AND WATER TANKS","UT",10,"No",""],["MEN-SEC-UT-12",40,"SBE 2","LOADING/UNLOADING AREA (PUMP HOUSE)","UT",10,"No",""],["MEN-SEC-UT-13",41,"Diesel tank / generator area","DIESEL TANK","UT",10,"Yes","Fuel storage; outside bund wall"],["MEN-SEC-UT-14",42,"Effluent treatment plant (ETP)","EFFLUENT TREATMENT PLANT (ETP)","UT",10,"Yes","Confirm position"],["MEN-SEC-UT-15",43,"Waste water treatment plant (WWTP)","WASTE WATER TREATMENT PLANT (WWTP)","UT",10,"No","Confirm position"],["MEN-SEC-FN-01",44,"North-west corner Block 6a","NORTH-WEST CORNER BLOCK 6A","FN",10,"No",""],["MEN-SEC-FN-02",45,"EcoOils Ware House","ECOOILS WARE HOUSE","FN",10,"No",""]];
@@ -163,9 +165,9 @@ function setupTriggers() {
     var h = t.getHandlerFunction();
     if (h === 'roundCheck' || h === 'dailySummary') ScriptApp.deleteTrigger(t);
   });
-  for (var h = 1; h < 24; h += 2) ScriptApp.newTrigger('roundCheck').timeBased().atHour(h).nearMinute(5).everyDays(1).inTimezone(TZ).create();
+  ROUNDS.forEach(function (rd) { var h = rd[1] % 24; ScriptApp.newTrigger('roundCheck').timeBased().atHour(h).nearMinute(5).everyDays(1).inTimezone(TZ).create(); });
   ScriptApp.newTrigger('dailySummary').timeBased().atHour(7).nearMinute(10).everyDays(1).inTimezone(TZ).create();
-  Logger.log('Triggers created: 12 round checks (every 2 hours, at 01:05, 03:05 ... 23:05, just after each round that ends at 01:00, 03:00 ... 07:00) and 1 daily summary at about 07:10 Jakarta time.');
+  Logger.log('Triggers created: 9 round checks, 5 minutes after each round ends (10:05, 12:05, 14:05, 18:05, 20:05, 22:05, 02:05, 04:05, 06:05 Jakarta time) and 1 daily summary at about 07:10.');
 }
 function testEmail() { send_('Patrol app test email / Email uji coba', '<p>This is a test from the EcoOils Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p><hr><p>Ini adalah email uji coba dari aplikasi Patroli Keamanan EcoOils Mentari ' + VERSION + '. Jika Anda dapat membaca ini, ringkasan titik yang terlewat akan sampai kepada Anda.</p>'); }
 
@@ -180,14 +182,35 @@ function hav_(a, b, c, d) {
   var x = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(a * t) * Math.cos(c * t) * Math.sin(dn / 2) * Math.sin(dn / 2);
   return 2 * R * Math.asin(Math.sqrt(x));
 }
-function roundAt_(ms) {
-  var l = ms + OFF - RSHIFT, day = Math.floor(l / 86400000) * 86400000, i = Math.floor((l - day) / RMS), st = day + i * RMS + RSHIFT - OFF;
-  return {date: new Date(day).toISOString().slice(0, 10), idx: i, start: st, end: st + RMS, label: rlabel_(i)};
-}
-function rlabel_(i) { return p2_((7 + i * 2) % 24) + ':00-' + p2_((9 + i * 2) % 24) + ':00'; }
+/* Patrol rounds (owner schedule 20 Oct 2026). Hours counted from 00:00 of the round's date; 24 and up = the next morning, so a night round belongs to the date the shift started.
+   Morning 08-10, 10-12, 12-14; Afternoon 16-18, 18-20, 20-22; Night 00-02, 02-04, 04-06. Between rounds there is no patrol: a scan then is recorded (flag OFF_ROUND) but counts for no round. */
+var ROUNDS = [[8, 10], [10, 12], [12, 14], [16, 18], [18, 20], [20, 22], [24, 26], [26, 28], [28, 30]];
+function rlabel_(i) { var a = ROUNDS[i]; return p2_(a[0] % 24) + ':00-' + p2_(a[1] % 24) + ':00'; }
 function roundBy_(date, idx) {
-  var day = Date.parse(date + 'T00:00:00Z'), st = day + idx * RMS + RSHIFT - OFF;
-  return {date: date, idx: idx, start: st, end: st + RMS, label: rlabel_(idx)};
+  var day = Date.parse(date + 'T00:00:00Z'), a = ROUNDS[idx];
+  return {date: date, idx: idx, start: day + a[0] * 3600000 - OFF, end: day + a[1] * 3600000 - OFF, label: rlabel_(idx)};
+}
+/* The round that contains ms. In a gap it returns the NEXT round with upcoming:true. opDate = the 07:00-to-07:00 day that ms belongs to. */
+function roundAt_(ms) {
+  var l = ms + OFF - RSHIFT, day = Math.floor(l / 86400000) * 86400000, d = new Date(day).toISOString().slice(0, 10), up = null;
+  for (var i = 0; i < ROUNDS.length; i++) {
+    var r = roundBy_(d, i);
+    r.opDate = d;
+    if (ms >= r.start && ms < r.end) return r;
+    if (r.start > ms && !up) up = r;
+  }
+  if (!up) { up = roundBy_(new Date(day + 86400000).toISOString().slice(0, 10), 0); up.opDate = d; }
+  up.upcoming = true;
+  return up;
+}
+/* The most recent round that has finished at ms. */
+function lastEnded_(ms) {
+  var base = Date.parse(roundAt_(ms).opDate + 'T00:00:00Z'), best = null;
+  [0, -1, -2].forEach(function (k) {
+    var d = new Date(base + k * 86400000).toISOString().slice(0, 10);
+    for (var i = 0; i < ROUNDS.length; i++) { var r = roundBy_(d, i); if (r.end <= ms && (!best || r.end > best.end)) best = r; }
+  });
+  return best;
 }
 /* Config is read once per request (CFGM_), not once per setting: a request used to re-read the sheet hundreds of times. */
 var CFGM_ = null;
@@ -260,9 +283,10 @@ function guardByPin_(pin) {
 /* Date and round of a Scans row, taken from the Time ms column (col R) so it still works when Google Sheets has turned the Date or Round text cells into real dates/times. */
 function rowWhen_(r) {
   var ms = Number(r[17]);
-  if (ms > 0) { var ra = roundAt_(ms); return {date: ra.date, idx: ra.idx}; }
+  if (ms > 0) { var ra = roundAt_(ms); return ra.upcoming ? {date: ra.opDate, idx: -1} : {date: ra.date, idx: ra.idx}; }
   var d = r[2] instanceof Date ? Utilities.formatDate(r[2], TZ, 'yyyy-MM-dd') : String(r[2]);
-  return {date: d, idx: (((Number(String(r[3]).slice(0, 2)) - 7 + 24) % 24) / 2)};
+  var li = -1; for (var q = 0; q < ROUNDS.length; q++) if (rlabel_(q).slice(0, 2) === String(r[3]).slice(0, 2)) li = q;
+  return {date: d, idx: li};
 }
 function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
@@ -385,7 +409,7 @@ function route_(b) {
 function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
-    ok: true, version: VERSION, now: now, round: r, showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
+    ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru},
     points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
     done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_()
   };
@@ -426,8 +450,9 @@ function scan_(b, g) {
   lock.waitLock(20000);
   try {
     var r = roundAt_(ts), prev = doneMap_(r);
-    needPhoto = !!photoSet_(r, pts)[pt.id];
-    if (prev[pt.id]) flags.push('REPEAT');
+    if (r.upcoming) flags.push('OFF_ROUND');
+    needPhoto = !r.upcoming && !!photoSet_(r, pts)[pt.id];
+    if (!r.upcoming && prev[pt.id]) flags.push('REPEAT');
     var recent = scans_(200);
     /* A scan that timed out on the phone may already have arrived. When the phone re-sends it, do not write it twice. */
     if (b.queued && Number(b.clientTs)) {
@@ -462,7 +487,7 @@ function scan_(b, g) {
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
   var quiet = quiet_();
-  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid};
+  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid, off: !!r.upcoming};
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
 function photo_(b, me) {
@@ -598,6 +623,101 @@ function clockMissing_(fromD, to) {
   return out.slice(0, 200);
 }
 
+
+/* ---------- Timesheet (Form Kehadiran Reguler), Admin only for now ----------
+   One row per guard per day (sheet Timesheet, upserted by Key = date|guard). Days with no saved row are pre-filled from the real clock-in (sheet Clock) or, failing that, from the shift plan (Roster),
+   using the shift hours in Config TS_P / TS_S / TS_M (default 07:00-15:00, 15:00-23:00, 23:00-07:00). The period runs from the 16th of the previous month to the 15th. */
+function tsSheet_(name) {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName(name);
+  if (!sh) {
+    sh = s.insertSheet(name);
+    sh.appendRow(HEAD[name]);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD[name].length).setFontWeight('bold');
+    if (name === 'Timesheet') sh.getRange('A:E').setNumberFormat('@');
+    if (name === 'Staff') sh.getRange('A:B').setNumberFormat('@');
+  }
+  return sh;
+}
+function tsMin_(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); if (!m) return null; var h = Number(m[1]), mi = Number(m[2]); return h < 24 && mi < 60 ? h * 60 + mi : null; }
+function tsHours_(st, en) {
+  var a = tsMin_(st), b = tsMin_(en);
+  if (a == null || b == null) return '';
+  var d = b - a; if (d <= 0) d += 1440;
+  return Math.round(d / 6) / 10;
+}
+function tsShiftTimes_() {
+  var out = {};
+  [['P', '07:00-15:00'], ['S', '15:00-23:00'], ['M', '23:00-07:00']].forEach(function (x) { var v = String(cfg_('TS_' + x[0], x[1])).split('-'); out[x[0]] = {start: (v[0] || '').trim(), end: (v[1] || '').trim()}; });
+  return out;
+}
+function tsPeriod_(ym) {
+  var m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(ym || ''));
+  if (!m) { var now = new Date(Date.now() + OFF), y = now.getUTCFullYear(), mo = now.getUTCMonth() + 1; if (now.getUTCDate() > 15) { mo++; if (mo > 12) { mo = 1; y++; } } m = [0, String(y), p2_(mo)]; }
+  var y2 = Number(m[1]), mo2 = Number(m[2]), py = mo2 === 1 ? y2 - 1 : y2, pm = mo2 === 1 ? 12 : mo2 - 1;
+  return {ym: m[1] + '-' + m[2], from: py + '-' + p2_(pm) + '-16', to: m[1] + '-' + m[2] + '-15'};
+}
+function npkOf_(name) {
+  var sh = sh_('Staff'), k = String(name).toLowerCase();
+  if (!sh || sh.getLastRow() < 2) return '';
+  var hit = '';
+  sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(function (r) { if (String(r[0]).toLowerCase() === k) hit = String(r[1] || ''); });
+  return hit;
+}
+function setNpk_(name, npk) {
+  var sh = tsSheet_('Staff'), n = sh.getLastRow(), k = String(name).toLowerCase();
+  if (n >= 2) { var v = sh.getRange(2, 1, n - 1, 1).getValues(); for (var i = 0; i < v.length; i++) if (String(v[i][0]).toLowerCase() === k) { sh.getRange(i + 2, 2).setValue(npk); return; } }
+  sh.appendRow([name, npk]);
+}
+function timesheet_(a, b) {
+  var all = guards_().sort(function (x, y) { return x.name.localeCompare(y.name); });
+  if (a === 'a_ts_get') {
+    var per = tsPeriod_(b.ym);
+    if (!b.guard) return {ok: true, guards: all.map(function (g) { return g.name; }), period: per};
+    var g = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard).toLowerCase()) g = x; });
+    if (!g) return {ok: false, err: 'bad_guard'};
+    var key = g.name.toLowerCase(), saved = {}, sh = sh_('Timesheet');
+    if (sh && sh.getLastRow() >= 2) sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues().forEach(function (r) { var k = String(r[0]); if (k.slice(-key.length - 1) === '|' + key) saved[String(r[1])] = {start: String(r[3] || ''), end: String(r[4] || ''), note: String(r[6] || '')}; });
+    var clock = {}; clockRows_().forEach(function (r) { if (r.guard.toLowerCase() === key) clock[r.date] = r.shift; });
+    var tm = tsShiftTimes_(), days = [], d = Date.parse(per.from + 'T00:00:00Z'), end = Date.parse(per.to + 'T00:00:00Z');
+    for (; d <= end; d += 86400000) {
+      var ds = new Date(d).toISOString().slice(0, 10), row = {date: ds, start: '', end: '', hours: '', note: '', src: ''};
+      if (saved[ds]) { row.start = saved[ds].start; row.end = saved[ds].end; row.note = saved[ds].note; row.src = 'saved'; }
+      else {
+        var code = clock[ds] || null, src = 'clock';
+        if (!code) { src = 'plan'; ['P', 'S', 'M'].forEach(function (c) { if (!code && onPlan_(roster_(ds, c), g.name)) code = c; }); }
+        if (code && tm[code]) { row.start = tm[code].start; row.end = tm[code].end; row.src = src; }
+      }
+      row.hours = tsHours_(row.start, row.end);
+      days.push(row);
+    }
+    return {ok: true, guard: g.name, role: g.role, npk: npkOf_(g.name), project: cfg_('TS_PROJECT', 'ECOOILS'), period: per, days: days, guards: all.map(function (x) { return x.name; })};
+  }
+  /* a_ts_save */
+  var gg = null; all.forEach(function (x) { if (x.name.toLowerCase() === String(b.guard || '').toLowerCase()) gg = x; });
+  if (!gg) return {ok: false, err: 'bad_guard'};
+  var rows = b.rows instanceof Array ? b.rows : [];
+  if (rows.length > 40) return {ok: false, err: 'too_many'};
+  var clean = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i] || {}, dt = String(r.date || ''), st = String(r.start || '').trim(), en = String(r.end || '').trim(), nt = String(r.note || '').trim().slice(0, 60);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(Date.parse(dt + 'T00:00:00Z'))) return {ok: false, err: 'bad_date'};
+    if ((st && tsMin_(st) == null) || (en && tsMin_(en) == null)) return {ok: false, err: 'bad_time'};
+    clean.push({date: dt, start: st, end: en, note: nt});
+  }
+  var lk = LockService.getScriptLock();
+  lk.waitLock(20000);
+  try {
+    var sh2 = tsSheet_('Timesheet'), n = sh2.getLastRow(), idx = {}, now = Date.now(), k2 = gg.name.toLowerCase();
+    if (n >= 2) sh2.getRange(2, 1, n - 1, 1).getValues().forEach(function (x, j) { idx[String(x[0])] = j + 2; });
+    clean.forEach(function (c) {
+      var key2 = c.date + '|' + k2, vals = [key2, c.date, gg.name, c.start, c.end, tsHours_(c.start, c.end), c.note, 'Admin', now];
+      if (idx[key2]) sh2.getRange(idx[key2], 1, 1, 9).setValues([vals]); else { sh2.appendRow(vals); idx[key2] = sh2.getLastRow(); }
+    });
+    if (b.npk != null) setNpk_(gg.name, String(b.npk).trim().slice(0, 30));
+  } finally { lk.releaseLock(); }
+  return {ok: true, saved: clean.length};
+}
 
 /* ---------- weather hold (Danru / Shift Supervisor / Admin) ----------
    While a hold is on, rounds are paused for safety: a round that overlaps a hold is EXCUSED (no missed-round email, not counted in coverage).
@@ -801,7 +921,7 @@ function admin_(a, b) {
     var nowMs = Date.now(), heldN = 0, rs = [], dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), cnt = 0;
     for (; dd <= end && cnt < 92; dd += 86400000, cnt++) {
       var ds = new Date(dd).toISOString().slice(0, 10);
-      for (var ri = 0; ri < 12; ri++) { var rr = roundBy_(ds, ri); if (rr.start <= nowMs) { if (roundHeld_(rr)) heldN++; else rs.push(ds + '|' + ri); } }
+      for (var ri = 0; ri < ROUNDS.length; ri++) { var rr = roundBy_(ds, ri); if (rr.start <= nowMs) { if (roundHeld_(rr)) heldN++; else rs.push(ds + '|' + ri); } }
     }
     var OG = {}, OP = {}, pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
     pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
@@ -838,6 +958,7 @@ function admin_(a, b) {
     return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
+  if (a === 'a_ts_get' || a === 'a_ts_save') return timesheet_(a, b);
   if (a === 'a_points') {
     return {ok: true, points: points_(false).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, cal: p.cal, radius: p.radius, active: p.active}; })};
   }
@@ -1092,7 +1213,8 @@ function roundHtml_(L, r, pts, missed, hi, flagged, photos) {
   return h;
 }
 function roundCheck() {
-  var boundary = Math.floor((Date.now() + OFF - RSHIFT) / RMS) * RMS + RSHIFT - OFF, r = roundAt_(boundary - 1);
+  var r = lastEnded_(Date.now());
+  if (!r) return;
   var lastKey = r.date + '|' + r.idx;
   if (props_().getProperty('LAST_RC') === lastKey) return;
   props_().setProperty('LAST_RC', lastKey);
@@ -1114,9 +1236,9 @@ function dailyHtml_(L, y, tr, top, missCount, flagList, phTaken, phReq) {
   return h + flagHtml_(flagList, L);
 }
 function dailySummary() {
-  var y = new Date(Date.parse(roundAt_(Date.now()).date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10); /* the last finished 07:00-07:00 day */
+  var y = new Date(Date.parse(roundAt_(Date.now()).opDate + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10); /* the last finished 07:00-07:00 day */
   var pts = points_(true), rows = scans_(3000), tr = '', missCount = {}, flagList = [], totalMissed = 0, phTaken = 0, phReq = 0;
-  for (var i = 0; i < 12; i++) {
+  for (var i = 0; i < ROUNDS.length; i++) {
     var r = roundBy_(y, i), seen = {};
     rows.forEach(function (row) { var ms = Number(row[17]); if (ms >= r.start && ms < r.end) seen[row[6]] = 1; });
     var held = roundHeld_(r), miss = held ? [] : pts.filter(function (p) { return !seen[p.id]; });

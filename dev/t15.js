@@ -24,12 +24,12 @@ ok(id.includes('Pemeriksaan foto (selfie): 3 dari 5')&&id.includes('foto diambil
 ok(en.includes('href="https://drive'),'email links to the photo');
 // daily summary: real scans inside yesterday's round 3 (queued clientTs, photo sent inline)
 const y=new Date(Date.parse(m.ctx.roundAt_(Date.now()).date+'T00:00:00Z')-86400000).toISOString().slice(0,10);
-const r3=m.ctx.roundBy_(y,11),set3=m.ctx.photoSet_(r3,pts),pn=pts.filter(p=>set3[p.id]).map(p=>p.no);
+const r3=m.ctx.roundBy_(y,8),set3=m.ctx.photoSet_(r3,pts),pn=pts.filter(p=>set3[p.id]).map(p=>p.no);
 pts.forEach(p=>{if(p.no===pn[4])return;const withPhoto=set3[p.id]&&p.no!==pn[3];
   m.call({action:'scan',gp:A,pid:p.id,lat:2.9,lng:99.1,acc:10,queued:true,clientTs:r3.start+60000,photo:withPhoto?'A'.repeat(500):''});});
 m.ctx.mails.length=0;m.ctx.dailySummary();
 const mail=m.ctx.mails[0];
-ok(mail&&/photos \/ foto 3\/60/.test(mail.subject),'daily subject shows photos taken: '+(mail&&mail.subject));
-ok(mail.htmlBody.includes('Photo checks taken: 3 of 60')&&mail.htmlBody.includes('Pemeriksaan foto terambil: 3 dari 60')&&mail.htmlBody.includes('<th>Photo</th>')&&mail.htmlBody.includes('<th>Foto</th>'),'daily email has photo column and totals in both languages');
+ok(mail&&/photos \/ foto 3\/45/.test(mail.subject),'daily subject shows photos taken: '+(mail&&mail.subject));
+ok(mail.htmlBody.includes('Photo checks taken: 3 of 45')&&mail.htmlBody.includes('Pemeriksaan foto terambil: 3 dari 45')&&mail.htmlBody.includes('<th>Photo</th>')&&mail.htmlBody.includes('<th>Foto</th>'),'daily email has photo column and totals in both languages');
 ok(mail.htmlBody.includes(r3.label+'</td><td align="right">44</td><td align="right">1</td><td align="right">3/5</td>'),'round row shows 3/5 photos');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

@@ -21,9 +21,9 @@ const body=m.ctx.mails[0]&&m.ctx.mails[0].htmlBody||'';
 ok(/weather hold/.test(body)&&/jeda cuaca/.test(body),'daily summary marks the held round (EN+ID)');
 // stats
 r=call({action:'a_stats',pin:AP,from:'2026-10-19',to:'2026-10-19'});
-ok(r.heldRounds===2,'stats: 2 held rounds excluded from coverage: '+r.heldRounds);
+ok(r.heldRounds===1,'stats: 1 held round excluded from coverage: '+r.heldRounds);
 // live
-T(at(9,0));r=call({action:'a_live',pin:AP,date:'2026-10-19',idx:1});ok(r.held===true,'Admin Live flags the held round');
+T(at(9,0));r=call({action:'a_live',pin:AP,date:'2026-10-19',idx:0});ok(r.held===true,'Admin Live flags the held round');
 // auto expiry after 2 h
 T(at(10,0));call({action:'d_hold',gp:D,on:true});
 T(at(11,30));ok(call({action:'state',gp:g.pin}).hold.on===true,'still on after 1.5 h');
@@ -38,5 +38,5 @@ ok(m.sheets.Videos.rows.length===2&&m.sheets.Videos.rows[1][1]==='Hold Guard'&&m
 ok(call({action:'video',gp:'111111',video:big,mime:'video/webm',sec:5}).err==='pin','video needs a valid PIN');
 const td=new Date(Date.now()+7*3600000).toISOString().slice(0,10);
 r=call({action:'a_stats',pin:AP,from:td,to:td});ok(r.videos.length===1&&r.videos[0].guard==='Hold Guard','Admin stats lists the video');
-ok(m.ctx.VERSION==='v1.14','version v1.11');
+ok(m.ctx.VERSION==='v1.15','version v1.11');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

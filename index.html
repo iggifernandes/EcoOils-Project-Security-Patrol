@@ -46,6 +46,12 @@ input,select{width:100%;background:var(--panel);color:var(--text);border:1px sol
 .bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .4s}
 .tabs{display:flex;gap:6px;margin:14px 0 6px}
 .tabs button{flex:1;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.tst{width:100%;border-collapse:collapse;font-size:13px}.tst td,.tst th{padding:2px 3px;border-bottom:1px solid var(--line)}.tst input{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:3px}.tst tr.auto td{background:rgba(255,193,7,.10)}
+#tsPrint{display:none}
+@media print{@page{size:A4;margin:9mm}body>*:not(#tsPrint){display:none!important}#tsPrint{display:block!important;color:#000;background:#fff}#tsPrint *{color:#000!important;background:#fff!important}}
+#tsPrint .tsf{font-family:Arial,Helvetica,sans-serif;font-size:11px}#tsPrint .tsft{text-align:center;font-weight:bold;font-size:17px;margin-bottom:8px}
+#tsPrint table{border-collapse:collapse;width:100%}#tsPrint .tsh td{padding:2px 4px;font-size:12px;font-weight:bold}#tsPrint .tsg th,#tsPrint .tsg td{border:1px solid #000;padding:1px 3px;text-align:center;height:17px}#tsPrint .tsg td.l{text-align:left}
+#tsPrint .tsn{font-size:10px;margin:6px 0}#tsPrint .tss td{border:1px solid #000;vertical-align:top;padding:3px 5px;height:70px;font-size:11px}
 .tabs button.on{background:var(--amber);color:#1a1200;border-color:var(--amber)}
 .zh{font-weight:700;font-size:13px;color:var(--amber2);margin:10px 0 3px}
 .pt{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:4px 0;font-size:15px}
@@ -98,6 +104,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <div class="note" id="pend"></div>
   <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
   <button class="btn ghost hidden" id="bPlanOpen" type="button"></button>
+  <a class="btn ghost hidden" id="lSecApp" href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">Security app</a>
   <button class="btn ghost hidden" id="bHold" type="button"></button>
   <button class="btn ghost" id="bVid" type="button"></button>
   <div id="planCard"></div>
@@ -127,7 +134,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vAdmin" class="hidden">
-  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTeam" type="button">Team</button></div>
+  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:1;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px;font-size:14px;text-align:center;text-decoration:none">Security app</a><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -150,7 +157,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.14';
+var VERSION='v1.15';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -161,7 +168,7 @@ var T={en:{
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
  notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
- scanNext:'Scan next',close:'Close',queued:'NOT SENT YET. Saved on this phone. It will send by itself when the signal is back. Keep the app open.',pendRow:'saved on phone, not sent yet',badGuardPin:'PIN is wrong. Check it with your Danru.',locked:'Too many wrong tries. Wait 10 minutes and try again.',logout:'Log out',admin:'Admin',
+ scanNext:'Scan next',close:'Close',startsIn:'Starts in',noRound:'No patrol round now. Next round:',offRound:'Outside patrol time: recorded, but not counted in a round.',queued:'NOT SENT YET. Saved on this phone. It will send by itself when the signal is back. Keep the app open.',pendRow:'saved on phone, not sent yet',badGuardPin:'PIN is wrong. Check it with your Danru.',locked:'Too many wrong tries. Wait 10 minutes and try again.',logout:'Log out',admin:'Admin',
  team:'Team (Danru)',teamTitle:'Team',back:'Back',addTitle:'Add a new member',namePh:'Full name',addGo:'Add and create PIN',search:'Search name',newPin:'New PIN',deact:'Deactivate',act:'Activate',pinSet:'PIN set',noPin:'No PIN yet',danru:'Danru',supv:'Shift Supervisor',inactive:'Inactive',pinShowTitle:'PIN for',pinShowHelp:'Give this PIN to the guard now. It cannot be shown again. If it is lost, make a new PIN.',done2:'Done',confirmReset:'Make a new PIN for',confirmOff:'Deactivate',confirmOn:'Activate',yes:'Yes',no:'No',mkDanru:'Give Team and Shift plan access',rmDanru:'Remove access',members:'members',
  err_dup:'This name is already in the list.',err_bad_name:'Enter the full name (2 to 40 characters).',err_auth:'Not allowed.',err_locked:'Too many wrong tries. Wait 10 minutes.',err_danru_locked:'Only the admin can change a Danru.',err_pin:'PIN is wrong.',err_self:'You cannot deactivate yourself.',
  adminLogin:'Log in',keep:'Keep me signed in on this phone',badPin:'PIN is wrong or locked. Try again later.',err_unknown_point:'This point is not active.',err_unknown_guard:'Your name is not on the list.',err_server:'Server error. Try again.',
@@ -173,7 +180,7 @@ var T={en:{
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
  notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
- scanNext:'Pindai berikutnya',close:'Tutup',queued:'BELUM TERKIRIM. Disimpan di ponsel. Akan terkirim sendiri saat sinyal kembali. Biarkan aplikasi terbuka.',pendRow:'tersimpan di ponsel, belum terkirim',badGuardPin:'PIN salah. Tanyakan kepada Danru Anda.',locked:'Terlalu banyak salah. Tunggu 10 menit lalu coba lagi.',logout:'Keluar',admin:'Admin',
+ scanNext:'Pindai berikutnya',close:'Tutup',startsIn:'Mulai dalam',noRound:'Tidak ada putaran patroli sekarang. Putaran berikut:',offRound:'Di luar jam patroli: tercatat, tetapi tidak dihitung dalam putaran.',queued:'BELUM TERKIRIM. Disimpan di ponsel. Akan terkirim sendiri saat sinyal kembali. Biarkan aplikasi terbuka.',pendRow:'tersimpan di ponsel, belum terkirim',badGuardPin:'PIN salah. Tanyakan kepada Danru Anda.',locked:'Terlalu banyak salah. Tunggu 10 menit lalu coba lagi.',logout:'Keluar',admin:'Admin',
  team:'Tim (Danru)',teamTitle:'Tim',back:'Kembali',addTitle:'Tambah anggota baru',namePh:'Nama lengkap',addGo:'Tambah dan buat PIN',search:'Cari nama',newPin:'PIN baru',deact:'Nonaktifkan',act:'Aktifkan',pinSet:'PIN sudah ada',noPin:'Belum ada PIN',danru:'Danru',supv:'Supervisor Shift',inactive:'Tidak aktif',pinShowTitle:'PIN untuk',pinShowHelp:'Berikan PIN ini kepada anggota sekarang. PIN tidak dapat ditampilkan lagi. Jika hilang, buat PIN baru.',done2:'Selesai',confirmReset:'Buat PIN baru untuk',confirmOff:'Nonaktifkan',confirmOn:'Aktifkan',yes:'Ya',no:'Tidak',mkDanru:'Beri akses Tim dan Rencana shift',rmDanru:'Cabut akses',members:'anggota',
  err_dup:'Nama ini sudah ada dalam daftar.',err_bad_name:'Masukkan nama lengkap (2 sampai 40 karakter).',err_auth:'Tidak diizinkan.',err_locked:'Terlalu banyak salah. Tunggu 10 menit.',err_danru_locked:'Hanya admin yang dapat mengubah Danru.',err_pin:'PIN salah.',err_self:'Anda tidak dapat menonaktifkan diri sendiri.',
  adminLogin:'Masuk',keep:'Biarkan saya tetap masuk di ponsel ini',badPin:'PIN salah atau terkunci. Coba lagi nanti.',err_unknown_point:'Titik ini tidak aktif.',err_unknown_guard:'Nama Anda tidak ada dalam daftar.',err_server:'Kesalahan server. Coba lagi.',
@@ -270,24 +277,26 @@ function pendSet(){
 function setHtml(el,h){if(el&&el._h!==h){el._h=h;el.innerHTML=h;}}
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
-  $('rLabel').textContent=tr('round')+' '+st.round.label;$('who').textContent=S.guard;
+  $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
-  $('ofTotal').textContent=n+' '+tr('of')+' '+total+' '+tr('points');
+  $('ofTotal').textContent=st.round.upcoming?'':n+' '+tr('of')+' '+total+' '+tr('points');
   $('pend').textContent=(S.online?'':tr('offline')+' ')+(S.queue.length?S.queue.length+' '+tr('pending'):'');
   tick();renderList(d);
 }
 function tick(){
   var st=S.state;if(!st)return;
-  var left=(st.round.end-nowMs())/1000,el=$('left');
-  el.textContent=fmtLeft(left);el.className=left<300?'late':(left<900?'warn':'');
+  var up=!!st.round.upcoming,left=((up?st.round.start:st.round.end)-nowMs())/1000,el=$('left');
+  $('lTime').textContent=up?tr('startsIn'):tr('timeLeft');
+  el.textContent=fmtLeft(left);el.className=up?'':(left<300?'late':(left<900?'warn':''));
   if(left<=0&&!S.loading){loadState(true);}
   var ck=st.clock;if(ck&&!ck.mine&&!ck.win&&ck.nextOpens&&nowMs()>=ck.nextOpens&&!S.loading){ck.nextOpens=null;loadState(true);}
   clockRender();
 }
 function renderList(d){
   var st=S.state,box=$('list'),rem=S.tab==='rem';
+  if(st.round.upcoming){setHtml(box,'<div class="card" style="text-align:center"><p>'+esc(tr('noRound'))+'</p><b style="font-size:22px">'+esc(st.round.label)+'</b></div>');return;}
   if(rem&&!st.showNames){setHtml(box,'<p class="note">'+esc(tr('hidden'))+'</p>');return;}
   var pd=pendSet(),items=st.points.filter(function(p){return rem?!d[p.id]:!!d[p.id];});
   if(rem&&!items.length){setHtml(box,'<div class="card" style="text-align:center"><div class="big okc">&#10003;</div><p>'+esc(tr('allDone'))+'</p></div>');return;}
@@ -419,6 +428,7 @@ function sendPhoto(pt,r,photo){
 }
 function result(pt,r,note){
   var d=doneSet(),n=0,total=S.state.points.length;S.state.points.forEach(function(p){if(d[p.id])n++;});
+  if(r&&r.off&&!note)note=tr('offRound');
   var msg=r===null?tr('queued'):(r.gps==='OK'?tr('locOk'):(r.gps==='OUTSIDE'?tr('locOut'):(r.gps==='NO_GPS'?tr('locNone'):tr('locCal'))));
   var good=r!==null&&(r.gps==='OK'||r.gps==='UNCALIBRATED');
   showRes('<div class="big '+(good?'okc':'wrn')+'">'+(good?'&#10003;':'!')+'</div><p style="text-align:center;font-size:18px;margin:8px 0 2px"><b>'+esc(pt.no+'. '+pt.name)+'</b></p>'+
@@ -430,8 +440,8 @@ function result(pt,r,note){
 var A={pin:'',tab:'live',pts:[],cal:null};
 function aApi(b){b.pin=A.pin;return api(b);}
 function aTab(t){
-  A.tab=t;['Stats','Live','Hist','Cal','Set','Plan','Award','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
-  PL.on=false;var f={stats:aStats,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,team:aTeam}[t];f();
+  A.tab=t;['Stats','Live','Hist','Cal','Set','Plan','Award','Ts','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  PL.on=false;var f={stats:aStats,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,team:aTeam}[t];f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -439,7 +449,7 @@ function aLive(idx){
   $('aBody').innerHTML='<p><span class="sp"></span></p>';
   aApi(b).then(function(r){
     if(!r.ok){return aErr(r);}
-    var sel='<select id="rSel">';for(var k=0;k<12;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+pad((7+k*2)%24)+':00-'+pad((9+k*2)%24)+':00</option>';}sel+='</select>';
+    var sel='<select id="rSel">';var RL=(S.state&&S.state.rlabels)||['08:00-10:00','10:00-12:00','12:00-14:00','16:00-18:00','18:00-20:00','20:00-22:00','00:00-02:00','02:00-04:00','04:00-06:00'];for(var k=0;k<RL.length;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+RL[k]+'</option>';}sel+='</select>';
     var h='<label>Round ('+esc(r.round.date)+')</label>'+sel+'<div class="counts"><div class="cnt d"><b>'+r.done.length+'</b><span>Done</span></div><div class="cnt r"><b>'+r.missed.length+'</b><span>Missed / remaining</span></div></div>';
     h+='<div class="zh">Not scanned</div>';
     r.missed.forEach(function(p){h+='<div class="pt'+(p.hi?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+(p.pc?' &#128247;':'')+'</b></div>';});
@@ -543,6 +553,65 @@ function aStats(){
   }).catch(function(){if($('stOut'))$('stOut').innerHTML='<p class="err">No connection.</p>';});
 }
 $('aBody').addEventListener('click',function(e){if(e.target&&e.target.id==='stGo'&&A.tab==='stats'){ST.from=$('stF').value;ST.to=$('stT').value;aStats();}});
+
+/* ===== Timesheet (Form Kehadiran Reguler). Admin only for now; Danru access is switched on later. ===== */
+var TS={ym:'',guard:'',data:null},MID=['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+function tsMin(t){var m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?(+m[1])*60+(+m[2]):null;}
+function tsHrs(a,b){var x=tsMin(a),y=tsMin(b);if(x==null||y==null)return '';var d=y-x;if(d<=0)d+=1440;return Math.round(d/6)/10;}
+function tsDM(ds){var p=ds.split('-');return {d:+p[2],m:MID[+p[1]-1]};}
+function aTs(){
+  $('aBody').innerHTML='<p><span class="sp"></span></p>';
+  aApi({action:'a_ts_get',ym:TS.ym}).then(function(r){
+    if(!r.ok)return aErr(r);
+    TS.ym=r.period.ym;
+    var h='<p class="note">Attendance form (Form Kehadiran Reguler). Pick a guard and the month the period ends in (16th to 15th). Days are pre-filled from the real clock-in, or else the shift plan (yellow). Edit, Save, then Print.</p><label>Guard</label><select id="tsG"><option value="">Select...</option>';
+    r.guards.forEach(function(g){h+='<option value="'+esc(g)+'"'+(g===TS.guard?' selected':'')+'>'+esc(g)+'</option>';});
+    h+='</select><label>Period ends 15th of</label><input id="tsM" type="month" value="'+esc(TS.ym)+'"><div id="tsOut"></div><datalist id="tsNotes"><option value="OFF"><option value="HARI LIBUR NASIONAL"><option value="CUTI"><option value="SAKIT"></datalist>';
+    $('aBody').innerHTML=h;
+    $('tsG').addEventListener('change',function(){TS.guard=this.value;tsLoad();});
+    $('tsM').addEventListener('change',function(){TS.ym=this.value;tsLoad();});
+    if(TS.guard)tsLoad();
+  }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+function tsLoad(){
+  var out=$('tsOut');if(!TS.guard){out.innerHTML='';return;}
+  out.innerHTML='<p><span class="sp"></span></p>';
+  aApi({action:'a_ts_get',guard:TS.guard,ym:TS.ym}).then(function(r){
+    if(!r.ok){out.innerHTML='<p class="err">'+esc(r.err)+'</p>';return;}
+    TS.data=r;
+    var h='<label>NPK</label><input id="tsN" type="text" maxlength="30" value="'+esc(r.npk)+'"><p class="note">'+esc(r.guard)+' &middot; '+esc(r.role)+' &middot; '+esc(r.period.from)+' to '+esc(r.period.to)+'</p><table class="tst"><tr><th>Date</th><th>Start</th><th>End</th><th>Hrs</th><th>Note</th></tr>';
+    r.days.forEach(function(d){var x=tsDM(d.date);h+='<tr data-d="'+d.date+'" class="'+(d.src==='clock'||d.src==='plan'?'auto':'')+'"><td>'+x.d+' '+x.m.slice(0,3)+'</td><td><input class="tsS" type="time" value="'+esc(d.start)+'"></td><td><input class="tsE" type="time" value="'+esc(d.end)+'"></td><td class="tsH">'+d.hours+'</td><td><input class="tsT" list="tsNotes" maxlength="60" value="'+esc(d.note)+'"></td></tr>';});
+    h+='</table><button class="btn" id="tsSave" type="button">Save</button><button class="btn ghost" id="tsPrintBtn" type="button">Print form</button><div id="tsMsg" class="note"></div>';
+    out.innerHTML=h;
+  }).catch(function(){out.innerHTML='<p class="err">No connection.</p>';});
+}
+function tsRows(){
+  var rows=[];document.querySelectorAll('#tsOut .tst tr[data-d]').forEach(function(tr){rows.push({date:tr.getAttribute('data-d'),start:tr.querySelector('.tsS').value,end:tr.querySelector('.tsE').value,note:tr.querySelector('.tsT').value});});return rows;
+}
+function tsPrintHtml(d,rows){
+  var role=String(d.role||'').toUpperCase(),jab=role==='SECURITY GUARD'||role==='ARMY'?'ANGGOTA':role,f=tsDM(d.period.from),t=tsDM(d.period.to);
+  var yr=d.period.to.slice(0,4),h='<div class="tsf"><div class="tsft">FORM KEHADIRAN REGULER</div><table class="tsh"><tr><td style="width:12%">NAMA</td><td style="width:38%">: '+esc(d.guard)+'</td><td style="width:18%">PROJEK</td><td>: '+esc(d.project)+'</td></tr><tr><td>NPK</td><td>: '+esc($('tsN')?$('tsN').value:d.npk)+'</td><td>PERIODE ABSENSI</td><td>: '+f.d+' '+f.m+' - '+t.d+' '+t.m+' '+yr+'</td></tr><tr><td>JABATAN</td><td>: '+esc(jab)+'</td><td></td><td></td></tr></table>';
+  h+='<table class="tsg" style="margin-top:6px"><tr><th style="width:6%">TGL</th><th style="width:14%">BULAN</th><th style="width:11%">JAM MULAI</th><th style="width:11%">JAM SELESAI</th><th style="width:10%">JUMLAH JAM</th><th style="width:13%">PARAF</th><th>KETERANGAN LOKASI/LAIN-LAIN</th></tr>';
+  rows.forEach(function(r){var x=tsDM(r.date),hh=tsHrs(r.start,r.end),off=!r.start&&!r.end;h+='<tr><td>'+x.d+'</td><td>'+x.m+'</td><td>'+esc(r.start)+'</td><td>'+esc(r.end)+'</td><td>'+(off?'':hh)+'</td><td></td><td class="l">'+esc(r.note)+'</td></tr>';});
+  h+='</table><p class="tsn">Keterangan: Yang dimasukan kedalam form ini adalah kehadiran sesuai dengan jadwal yang telah ditentukan, jika ada permintaan lembur dipisahkan dengan form lembur (form c)</p>';
+  h+='<table class="tss"><tr><td style="width:34%"><b>Kolom Pengesahan</b><br><br><br><br>Paraf<br>Nama : '+esc(d.guard)+'<br>Tanggal :</td><td style="width:33%">Diketahui &amp; Disetujui oleh Area Manager<br><br><br><br>Paraf<br>Nama :<br>Tanggal :</td><td>Diketahui &amp; Disetujui oleh Pihak Client<br><br><br><br>Paraf<br>Nama :<br>Tanggal :</td></tr></table></div>';
+  return h;
+}
+$('aBody').addEventListener('input',function(e){
+  var c=e.target.className;if(c!=='tsS'&&c!=='tsE')return;
+  var tr=e.target.closest('tr');tr.querySelector('.tsH').textContent=tsHrs(tr.querySelector('.tsS').value,tr.querySelector('.tsE').value);tr.classList.remove('auto');
+});
+$('aBody').addEventListener('click',function(e){
+  var id=e.target&&e.target.id;
+  if(id==='tsSave'){
+    var m=$('tsMsg');m.textContent='Saving...';
+    aApi({action:'a_ts_save',guard:TS.guard,npk:$('tsN').value,rows:tsRows()}).then(function(r){m.textContent=r.ok?'Saved '+r.saved+' days.':'Not saved: '+(r.err||'error');}).catch(function(){m.textContent='No connection.';});
+  }
+  if(id==='tsPrintBtn'&&TS.data){
+    var el=$('tsPrint');if(!el){el=document.createElement('div');el.id='tsPrint';document.body.appendChild(el);}
+    el.innerHTML=tsPrintHtml(TS.data,tsRows());window.print();
+  }
+});
 
 /* ===== Clock in (shift start). Button only inside the circle around the guard house; the server checks again. ===== */
 var CK={wid:null,pos:null,html:'',busy:false,msg:'',paused:false};
@@ -886,7 +955,7 @@ $('pinForm').addEventListener('submit',function(e){
   }).catch(function(){$('pinErr').textContent='No connection.';});
 });
 $('aStats').addEventListener('click',function(){aTab('stats');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
-$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aTeam').addEventListener('click',function(){aTab('team');});
+$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});
 window.addEventListener('offline',function(){S.online=false;render();});

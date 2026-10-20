@@ -1,0 +1,41 @@
+const {chromium}=require('playwright-core');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action:'d_clock',gp:dp['Rendi Irawan'],name:'Sheet Guard'});
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
+ const ctx=await b.newContext({viewport:{width:390,height:800},permissions:['geolocation','camera','microphone']});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:m.ctx.doPost({postData:{contents:body}}).s});});
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:')||u.startsWith('blob:'))return r.fallback();r.abort();});
+ await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');let n=0;setInterval(()=>{x.fillStyle='hsl('+(n++*9%360)+',70%,50%)';x.fillRect(0,0,480,270);},60);return c.captureStream(15);};});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+
+ await pg.evaluate(()=>{window.__printed=0;window.print=function(){window.__printed++;};});
+ await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
+ ok(await pg.locator('#aTs').isVisible(),'Admin has a Timesheet tab');
+ ok((await pg.locator('#vAdmin a[href*="EcoOils-Project-Security/"]').count())===1,'Admin has the Security app link');
+ await pg.click('#aTs');await pg.waitForSelector('#tsG');
+ await pg.selectOption('#tsG','Sheet Guard');await pg.waitForSelector('#tsOut .tst');
+ ok((await pg.locator('#tsOut tr[data-d]').count())>=30,'one row per day of the period');
+ ok((await pg.locator('#tsOut tr.auto').count())>=1,'auto-filled day is highlighted');
+ await pg.fill('#tsN','NPK-77');
+ const row=pg.locator('#tsOut tr[data-d]').first();await row.locator('.tsS').fill('07:00');await row.locator('.tsE').fill('16:00');
+ ok((await row.locator('.tsH').innerText())==='9','hours calculated live: '+(await row.locator('.tsH').innerText()));
+ await row.locator('.tsT').fill('HARI LIBUR NASIONAL');
+ await pg.click('#tsSave');await pg.waitForFunction(()=>/Saved/.test(document.querySelector('#tsMsg').textContent),null,{timeout:10000});
+ ok(m.sheets.Timesheet.rows.some(x=>x[2]==='Sheet Guard'&&x[3]==='07:00'&&x[4]==='16:00'&&x[6]==='HARI LIBUR NASIONAL'),'saved to the Timesheet sheet');
+ await pg.click('#tsPrintBtn');
+ const ph=await pg.locator('#tsPrint').innerHTML();
+ ok((await pg.evaluate(()=>window.__printed))===1,'print dialog opened');
+ ok(/FORM KEHADIRAN REGULER/.test(ph)&&/Sheet Guard/.test(ph)&&/NPK-77/.test(ph)&&/PERIODE ABSENSI/.test(ph)&&/OKTOBER/.test(ph)&&/NOVEMBER/.test(ph)&&/Kolom Pengesahan/.test(ph)&&/Area Manager/.test(ph)&&/Pihak Client/.test(ph),'printable form has header, period, signature blocks');
+ ok(/HARI LIBUR NASIONAL/.test(ph)&&/ANGGOTA/.test(ph),'note and Indonesian job title (ANGGOTA) on the form');
+ // Danru sees the link but no timesheet
+ await pg.click('#aOut');await pg.waitForSelector('#vSetup:not(.hidden)');
+ await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ ok(await pg.locator('#lSecApp').isVisible(),'Danru sees the Security app link');
+ ok((await pg.locator('#aTs').isVisible())===false,'Danru does not see the Timesheet (Admin only)');
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
+})();
