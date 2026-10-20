@@ -1,0 +1,34 @@
+const {chromium}=require('playwright-core');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action:'d_clock',gp:dp['Rendi Irawan'],name:'Sheet Guard'});
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
+ const ctx=await b.newContext({viewport:{width:390,height:800},permissions:['geolocation','camera','microphone']});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:m.ctx.doPost({postData:{contents:body}}).s});});
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:')||u.startsWith('blob:'))return r.fallback();r.abort();});
+ await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');let n=0;setInterval(()=>{x.fillStyle='hsl('+(n++*9%360)+',70%,50%)';x.fillRect(0,0,480,270);},60);return c.captureStream(15);};});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+
+ await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
+ await pg.click('#aTs');await pg.waitForSelector('#tsG');await pg.selectOption('#tsG','Sheet Guard');await pg.waitForSelector('#tsOut .tst');
+ const rows=pg.locator('#tsOut tr[data-d]');const n=await rows.count();
+ await pg.click('#tsBulk .tsChip[data-s="15:00"]');
+ ok((await pg.inputValue('#tsBS'))==='15:00'&&(await pg.inputValue('#tsBE'))==='23:00','shift chip fills start and end');
+ await rows.nth(5).locator('.tsT').fill('OFF');
+ await pg.selectOption('#tsBW','nonote');await pg.click('#tsBApply');
+ ok((await rows.nth(3).locator('.tsS').inputValue())==='15:00'&&(await rows.nth(3).locator('.tsH').innerText())==='8','applied to all days without a note, hours calculated');
+ ok((await rows.nth(5).locator('.tsS').inputValue())!=='15:00','day with a note (OFF) skipped');
+ await rows.nth(10).locator('.tsS').fill('07:00');await rows.nth(10).locator('.tsE').fill('16:00');
+ await rows.nth(10).locator('.tsDn').click();
+ ok((await rows.nth(n-1).locator('.tsS').inputValue())==='07:00'&&(await rows.nth(11).locator('.tsH').innerText())==='9'&&(await rows.nth(9).locator('.tsS').inputValue())==='15:00','copy down fills the days below only');
+ const cin=await rows.evaluateAll(r=>r.filter(x=>x.getAttribute('data-cin')).map(x=>x.getAttribute('data-cin')));
+ ok(cin.length>=1&&/^\d\d:\d\d$/.test(cin[0]),'actual clock-in time is shown for days with a clock-in: '+cin[0]);
+ await pg.click('#tsBClock');
+ const withC=await rows.evaluateAll(r=>r.filter(x=>x.getAttribute('data-cin')).map(x=>[x.getAttribute('data-cin'),x.querySelector('.tsS').value]));
+ ok(withC.every(x=>x[0]===x[1]),'Start = actual clock-in time works');
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
+})();

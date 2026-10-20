@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.16';
+var VERSION = 'v1.17';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -678,10 +678,10 @@ function timesheet_(a, b, by) {
     if (!g) return {ok: false, err: 'bad_guard'};
     var key = g.name.toLowerCase(), saved = {}, sh = sh_('Timesheet');
     if (sh && sh.getLastRow() >= 2) sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues().forEach(function (r) { var k = String(r[0]); if (k.slice(-key.length - 1) === '|' + key) saved[String(r[1])] = {start: String(r[3] || ''), end: String(r[4] || ''), note: String(r[6] || '')}; });
-    var clock = {}; clockRows_().forEach(function (r) { if (r.guard.toLowerCase() === key) clock[r.date] = r.shift; });
+    var clock = {}, cin = {}; clockRows_().forEach(function (r) { if (r.guard.toLowerCase() === key) { clock[r.date] = r.shift; cin[r.date] = String(r.at || '').slice(11, 16); } });
     var tm = tsShiftTimes_(), days = [], d = Date.parse(per.from + 'T00:00:00Z'), end = Date.parse(per.to + 'T00:00:00Z');
     for (; d <= end; d += 86400000) {
-      var ds = new Date(d).toISOString().slice(0, 10), row = {date: ds, start: '', end: '', hours: '', note: '', src: ''};
+      var ds = new Date(d).toISOString().slice(0, 10), row = {date: ds, start: '', end: '', hours: '', note: '', src: '', cin: cin[ds] || ''};
       if (saved[ds]) { row.start = saved[ds].start; row.end = saved[ds].end; row.note = saved[ds].note; row.src = 'saved'; }
       else {
         var code = clock[ds] || null, src = 'clock';
