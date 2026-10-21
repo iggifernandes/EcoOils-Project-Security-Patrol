@@ -17,10 +17,10 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  const rows=pg.locator('#tsOut tr[data-d]');const n=await rows.count();
  await pg.click('#tsBulk .tsChip[data-s="15:00"]');
  ok((await pg.inputValue('#tsBS'))==='15:00'&&(await pg.inputValue('#tsBE'))==='23:00','shift chip fills start and end');
- await rows.nth(5).locator('.tsT').fill('OFF');
+ await rows.nth(20).locator('.tsT').fill('OFF');
  await pg.selectOption('#tsBW','nonote');await pg.click('#tsBApply');
  ok((await rows.nth(3).locator('.tsS').inputValue())==='15:00'&&(await rows.nth(3).locator('.tsH').innerText())==='8','applied to all days without a note, hours calculated');
- ok((await rows.nth(5).locator('.tsS').inputValue())!=='15:00','day with a note (OFF) skipped');
+ ok((await rows.nth(20).locator('.tsS').inputValue())!=='15:00','day with a note (OFF) skipped');
  await rows.nth(10).locator('.tsS').fill('07:00');await rows.nth(10).locator('.tsE').fill('16:00');
  await rows.nth(10).locator('.tsDn').click();
  ok((await rows.nth(n-1).locator('.tsS').inputValue())==='07:00'&&(await rows.nth(11).locator('.tsH').innerText())==='9'&&(await rows.nth(9).locator('.tsS').inputValue())==='15:00','copy down fills the days below only');
