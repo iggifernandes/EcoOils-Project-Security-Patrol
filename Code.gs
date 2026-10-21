@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.20';
+var VERSION = 'v1.21';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -371,12 +371,38 @@ function adminOk_(pin) {
   if (!ok) failed_('fp');
   return ok;
 }
-function folder_() {
-  var p = props_(), id = p.getProperty('PHOTO_FOLDER');
-  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
-  var f = DriveApp.createFolder('EcoOils Patrol Photos');
-  p.setProperty('PHOTO_FOLDER', f.getId());
+/* Photos and videos go to the Drive folder in script properties PHOTO_FOLDER / VIDEO_FOLDER (run setDriveFolders once to set both to DRIVE_FOLDER_ID).
+   If the chosen folder cannot be opened (for example it is not shared with the account that owns this script) the file is NOT lost: it goes to a clearly named FALLBACK folder in the script owner's own Drive,
+   and the chosen folder id is left untouched so fixing the sharing is enough. */
+var DRIVE_FOLDER_ID = '1LDSiie7L6CfPuaxlsVHLdZTduFpjGqx3';
+function driveFolder_(prop, name) {
+  var p = props_(), id = p.getProperty(prop);
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { Logger.log(prop + ' cannot be opened: ' + e); } }
+  var fk = prop + '_FALLBACK', fid = id ? p.getProperty(fk) : '';
+  if (fid) { try { return DriveApp.getFolderById(fid); } catch (e2) {} }
+  var f = DriveApp.createFolder(id ? name + ' (FALLBACK - chosen folder cannot be opened)' : name);
+  p.setProperty(id ? fk : prop, f.getId());
   return f;
+}
+function folder_() { return driveFolder_('PHOTO_FOLDER', 'EcoOils Patrol Photos'); }
+/* Run once from the editor: points photos and videos at DRIVE_FOLDER_ID, moves anything already saved in the old folders into it, and trashes old folders that end up empty. Safe to run again. */
+function setDriveFolders() {
+  var id = DRIVE_FOLDER_ID, f;
+  try { f = DriveApp.getFolderById(id); var t = f.createFile('patrol-write-test.txt', 'ok'); t.setTrashed(true); }
+  catch (e) { Logger.log('CANNOT USE THE FOLDER. Open it in Google Drive > Share and give the Google account that owns this script EDITOR access, then run setDriveFolders again. Error: ' + e); return {ok: false}; }
+  var p = props_(), olds = {}, moved = 0, left = 0, start = Date.now();
+  ['PHOTO_FOLDER', 'VIDEO_FOLDER', 'PHOTO_FOLDER_FALLBACK', 'VIDEO_FOLDER_FALLBACK'].forEach(function (k) { var o = p.getProperty(k); if (o && o !== id) olds[o] = 1; });
+  p.setProperty('PHOTO_FOLDER', id); p.setProperty('VIDEO_FOLDER', id);
+  p.deleteProperty('PHOTO_FOLDER_FALLBACK'); p.deleteProperty('VIDEO_FOLDER_FALLBACK');
+  Object.keys(olds).forEach(function (oid) {
+    try {
+      var of = DriveApp.getFolderById(oid), it = of.getFiles();
+      while (it.hasNext()) { if (Date.now() - start > 270000) { left++; break; } it.next().moveTo(f); moved++; }
+      if (!left && !of.getFiles().hasNext() && !of.getFolders().hasNext()) of.setTrashed(true);
+    } catch (e3) { Logger.log('Old folder ' + oid + ' skipped: ' + e3); }
+  });
+  Logger.log('Photos and videos now go to: ' + f.getName() + ' (' + id + '). Moved ' + moved + ' old file(s).' + (left ? ' Time ran out: run setDriveFolders again to move the rest.' : ''));
+  return {ok: true, moved: moved, more: left > 0};
 }
 
 /* ---------- web app ---------- */
@@ -805,13 +831,7 @@ function holdSet_(on, by, reason) {
 }
 
 /* ---------- short low-resolution video (weather / conditions), stored in Google Drive ---------- */
-function videoFolder_() {
-  var p = props_(), id = p.getProperty('VIDEO_FOLDER');
-  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
-  var f = DriveApp.createFolder('EcoOils Patrol Videos');
-  p.setProperty('VIDEO_FOLDER', f.getId());
-  return f;
-}
+function videoFolder_() { return driveFolder_('VIDEO_FOLDER', 'EcoOils Patrol Videos'); }
 function videoSave_(b, me) {
   var v = String(b.video || ''), mime = String(b.mime || '').toLowerCase().indexOf('mp4') >= 0 ? 'video/mp4' : 'video/webm', secs = Math.round(Number(b.sec) || 0);
   if (v.length < 100 || v.length > 12000000) return {ok: false, err: 'bad_video'};
