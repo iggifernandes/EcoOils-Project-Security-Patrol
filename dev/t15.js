@@ -6,7 +6,7 @@ const A=dp['Rendi Irawan'];
 let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
 // high-risk seeds
 const pts=m.ctx.points_(true);const hi=pts.filter(p=>p.hi).map(p=>p.no);
-ok(JSON.stringify(hi)===JSON.stringify([1,2,13,18,21,22,23,26,27,28,30,34,38,41,42]),'high-risk set: '+hi.join(','));
+ok(JSON.stringify(hi)===JSON.stringify([1,2,13,18,21,22,23,26,27,28,30,34,38,41,42,46]),'high-risk set: '+hi.join(','));
 ok(!pts.find(p=>p.no===32).hi,'32 (SBE 1) not high risk');
 // scan every point; photograph 3 of the 5 photo points, leave 1 skipped, 1 unscanned
 const r=m.ctx.roundAt_(Date.now());
@@ -31,5 +31,5 @@ m.ctx.mails.length=0;m.ctx.dailySummary();
 const mail=m.ctx.mails[0];
 ok(mail&&/photos \/ foto 3\/45/.test(mail.subject),'daily subject shows photos taken: '+(mail&&mail.subject));
 ok(mail.htmlBody.includes('Photo checks taken: 3 of 45')&&mail.htmlBody.includes('Pemeriksaan foto terambil: 3 dari 45')&&mail.htmlBody.includes('<th>Photo</th>')&&mail.htmlBody.includes('<th>Foto</th>'),'daily email has photo column and totals in both languages');
-ok(mail.htmlBody.includes(r3.label+'</td><td align="right">44</td><td align="right">1</td><td align="right">3/5</td>'),'round row shows 3/5 photos');
+ok(mail.htmlBody.includes(r3.label+'</td><td align="right">45</td><td align="right">1</td><td align="right">3/5</td>'),'round row shows 3/5 photos');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

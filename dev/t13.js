@@ -27,7 +27,7 @@ pts.forEach((id,i)=>{const r=call({action:'scan',gp:i%2?A:B,pid:id,lat:2.9,lng:9
 ok(need.length===5,'exactly 5 scans ask for a photo: '+need.length);
 const rows=m.sheets.Scans.rows;
 ok(rows.filter(r=>/NO_PHOTO/.test(r[15])).length===5,'those 5 rows start flagged NO_PHOTO');
-ok(rows.slice(1).filter(r=>!/NO_PHOTO/.test(r[15])).length===40,'other 40 not flagged for photo');
+ok(rows.slice(1).filter(r=>!/NO_PHOTO/.test(r[15])).length===41,'other 41 not flagged for photo');
 // upload photo
 const n0=need[0];let r=call({action:'photo',gp:n0.by,scanId:n0.sid,photo:'A'.repeat(500)});
 ok(r.ok,'photo accepted');
@@ -51,6 +51,6 @@ ok(rq.ok&&rq.needPhoto===false&&/QUEUED/.test(rq.flags.join(' '))&&/NO_PHOTO/.te
 r=call({action:'a_config',pin:m.props.ADMIN_PIN,photoN:0});ok(r.ok&&r.photoN===0,'admin sets 0 = off');
 ok(Object.keys(m.ctx.photoSet_(m.ctx.roundAt_(Date.now()),pp)).length===0,'0 disables photos');
 r=call({action:'a_config',pin:m.props.ADMIN_PIN,photoN:8});ok(r.photoN===8,'admin sets 8');
-r=call({action:'a_config',pin:m.props.ADMIN_PIN,photoN:99});ok(r.err==='bad_number','rejects 99');
+r=call({action:'a_config',pin:m.props.ADMIN_PIN,photoN:101});ok(r.err==='bad_number','rejects 101');
 r=call({action:'a_config',pin:m.props.ADMIN_PIN});ok(r.photoN===8,'a_config reads value');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

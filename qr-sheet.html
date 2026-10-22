@@ -27,7 +27,7 @@ body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#000;background:#fff}
 <script src="qrcode.js"></script>
 <script>
 /* number, name  (generated from the checkpoint list) */
-var POINTS=[[1,"Main gate / security building"],[2,"West gate / security post"],[3,"Weighbridge"],[4,"Administration building"],[5,"Warehouse Block B"],[6,"Workshop area(In admin Building)"],[7,"Block 6 B South East Corner"],[8,"GSB Office"],[9,"WEN Office"],[10,"PBS Office"],[11,"KKS Office"],[12,"MCC Building"],[13,"DDE treatment plant (DTP)"],[14,"Soil disposal gate"],[15,"Pipe rack - north"],[16,"Cooling tower"],[17,"Dirty cooling tower"],[18,"FFA plant"],[19,"Pipe rack - centre"],[20,"Pipe rack - tank farm"],[21,"Boiler / chimney area"],[22,"Electrical substation (PLN)"],[23,"Extraction plant - north"],[24,"Pre-treatment unit (PTU)"],[25,"Control room / MCC room"],[26,"Extraction plant - centre"],[27,"Silo"],[28,"Extraction plant - south"],[29,"Scheduled and domestic waste shed"],[30,"Dry and liquid chemical storage"],[31,"Raw water pit"],[32,"SBE 1"],[33,"Tank farm -21T03"],[34,"Tank farm - 21T01"],[35,"Tank farm - 21T08"],[36,"Fire water tank"],[37,"Fire water pump house"],[38,"Hexane and diesel receiving bay"],[39,"Water treatment plant (WTP) and tanks"],[40,"SBE 2"],[41,"Diesel tank / generator area"],[42,"Effluent treatment plant (ETP)"],[43,"Waste water treatment plant (WWTP)"],[44,"North-west corner Block 6a"],[45,"EcoOils Ware House"]];
+var POINTS=[[1,"Main gate / security building"],[2,"West gate / security post"],[3,"Weighbridge"],[4,"Administration building"],[5,"Warehouse Block B"],[6,"Workshop area(In admin Building)"],[7,"Block 6 B South East Corner"],[8,"GSB Office"],[9,"WEN Office"],[10,"PBS Office"],[11,"KKS Office"],[12,"MCC Building"],[13,"DDE treatment plant (DTP)"],[14,"Soil disposal gate"],[15,"Pipe rack - north"],[16,"Cooling tower"],[17,"Dirty cooling tower"],[18,"FFA plant"],[19,"Pipe rack - centre"],[20,"Pipe rack - tank farm"],[21,"Boiler / chimney area"],[22,"Electrical substation (PLN)"],[23,"Extraction plant - north"],[24,"Pre-treatment unit (PTU)"],[25,"Control room / MCC room"],[26,"Extraction plant - centre"],[27,"Silo"],[28,"Extraction plant - south"],[29,"Scheduled and domestic waste shed"],[30,"Dry and liquid chemical storage"],[31,"Raw water pit"],[32,"SBE 1"],[33,"Tank farm -21T03"],[34,"Tank farm - 21T01"],[35,"Tank farm - 21T08"],[36,"Fire water tank"],[37,"Fire water pump house"],[38,"Hexane and diesel receiving bay"],[39,"Water treatment plant (WTP) and tanks"],[40,"SBE 2"],[41,"Diesel tank / generator area"],[42,"Effluent treatment plant (ETP)"],[43,"Waste water treatment plant (WWTP)"],[44,"North-west corner Block 6a"],[45,"EcoOils Ware House"],[46,"Block 6B East Gate"]];
 function qrSvg(text,label){
   var qr=qrcode(0,'H');qr.addData(text);qr.make();
   var n=qr.getModuleCount(),q=4,size=n+2*q,d='';
@@ -43,7 +43,8 @@ function build(){
   if(base.indexOf('?')>=0)base=base.split('?')[0];
   var h='';
   var ex=document.getElementById('extra').value.split('\n').map(function(l){var i=l.indexOf(',');return i>0?[parseInt(l.slice(0,i),10),l.slice(i+1).trim()]:null;}).filter(function(x){return x&&x[0]&&x[1];});
-  POINTS.concat(ex).forEach(function(p){
+  var only=(location.search.match(/[?&]only=([\d,]+)/)||[])[1],keep=only?only.split(',').map(Number):null;
+  POINTS.concat(ex).filter(function(p){return !keep||keep.indexOf(p[0])>=0;}).forEach(function(p){
     h+='<div class="st"><div class="top">UAUC</div>'+qrSvg(base+'?loc='+p[0],p[0])+'<div class="nm">'+esc(p[1])+'</div></div>';
   });
   document.getElementById('sheet').innerHTML=h;

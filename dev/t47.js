@@ -1,0 +1,20 @@
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+const rows=m.sheets.Points.rows;
+ok(rows.length===47&&Number(rows[46][1])===46&&rows[46][2]==='Block 6B East Gate','fresh sheet seeds point 46 Block 6B East Gate');
+// simulate an EXISTING 45-point sheet: drop row 46, then run the one-time function
+rows.pop();ok(rows.length===46,'old sheet has 45 points');
+m.ctx.addEastGate();
+ok(rows.length===47&&Number(rows[46][1])===46&&rows[46][0]==='MEN-SEC-GT-04'&&rows[46][5]===10&&rows[46][7]==='Yes'&&rows[46][6]==='Yes','addEastGate adds point 46 (radius 10, active, high risk)');
+const lastRow=JSON.stringify(rows[46]);m.ctx.addEastGate();
+ok(rows.length===47&&JSON.stringify(rows[46])===lastRow,'running it twice changes nothing');
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'East Guard'});
+const st=m.call({action:'state',gp:g.pin});
+const p46=st.points.find(p=>p.no===46);
+ok(st.points.length===46&&p46&&p46.name==='Block 6B East Gate'&&p46.hi===true&&p46.x===null,'state lists 46 points; 46 has no map position until calibrated');
+const r=m.call({action:'scan',gp:g.pin,pid:p46.id,lat:3.1313,lng:99.3505,acc:8});
+ok(r.ok,'a scan of the East Gate is accepted: '+JSON.stringify(r).slice(0,100));
+const live=m.call({action:'a_live',pin:m.props.ADMIN_PIN});
+ok(live.total===46&&live.done.concat(live.missed).some(p=>p.no===46),'Admin Live counts 46 points');
+console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);
