@@ -1,0 +1,30 @@
+const {chromium}=require('playwright-core');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+// calibrate three points (Lat col I=idx 8, Lng col J=idx 9)
+const rows=m.sheets.Points.rows;
+[[1,3.1310,99.3480],[2,3.1305,99.3475],[13,3.1300,99.3485]].forEach(([no,la,ln])=>{const r=rows.find((x,i)=>i>0&&Number(x[1])===no);r[8]=la;r[9]=ln;r[10]='2026-10-22';});
+const live=m.call({action:'a_live',pin:m.props.ADMIN_PIN});
+const all=live.done.concat(live.missed);
+ok(live.ok&&all.find(p=>p.no===1).lat===3.1310&&all.find(p=>p.no===1).lng===99.348,'a_live returns lat/lng for calibrated points');
+ok(all.find(p=>p.no===5).lat==null||all.find(p=>p.no===5).lat==='','uncalibrated point has no coordinates');
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox']});
+ const ctx=await b.newContext({viewport:{width:360,height:800}});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();const out=m.ctx.doPost({postData:{contents:body}}).s;await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:out});});
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:'))return r.fallback();r.abort();});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+ await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
+ await pg.click('#aLive');await pg.waitForSelector('#lmSvg');
+ ok(await pg.locator('#lmSvg .lmp').count()===3,'map shows the 3 calibrated points');
+ ok(await pg.locator('#lmSvg image').getAttribute('href')==='layout.png','outline image used');
+ await pg.locator('#lmSvg .lmp').first().click();
+ ok(/\d+\. /.test(await pg.locator('#lmInfo').innerText()),'tap shows point info: '+(await pg.locator('#lmInfo').innerText()));
+ ok(/Not on the map/.test(await pg.locator('#aBody').innerText()),'uncalibrated points listed');
+ await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('260%'),'zoom in');
+ await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('100%'),'fit again');
+ ok(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page overflow at 360');
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);
+})();

@@ -93,6 +93,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .links button{background:none;border:0;color:var(--mute);font:inherit;font-size:14px;min-height:44px;text-decoration:underline;cursor:pointer}
 .mem{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:#fff;margin:6px 0}.mem.off{opacity:.55}.mem small{color:var(--mute)}.mem .acts{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.mem .btn.sm{margin:0;padding:6px 10px;font-size:13px}.pinbig{font-size:44px;font-weight:500;letter-spacing:8px;text-align:center;color:var(--text);margin:8px 0;font-variant-numeric:tabular-nums}
 .remember{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}.remember input{width:20px;height:20px;margin:0}
+.lmw{overflow:auto;border:1px solid var(--line);border-radius:var(--r);margin-top:12px;max-height:75vh;background:#fff}.lmw svg{display:block;width:100%}.lmb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.lmb .btn.sm{margin:0}.lmk{font-size:13px;color:var(--mute);display:flex;gap:12px;flex-wrap:wrap;align-items:center}.lmk i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px}#lmInfo{min-height:24px;margin:8px 0 0;font-size:15px}
 @media print{body::after{display:none!important}}
 </style></head><body>
 <header><div class="brand" id="brand">EcoOils Patrol</div>
@@ -183,7 +184,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.22';
+var VERSION='v1.23';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -477,13 +478,41 @@ function aLive(idx){
     if(!r.ok){return aErr(r);}
     var sel='<select id="rSel">';var RL=(S.state&&S.state.rlabels)||['08:00-10:00','10:00-12:00','12:00-14:00','16:00-18:00','18:00-20:00','20:00-22:00','00:00-02:00','02:00-04:00','04:00-06:00'];for(var k=0;k<RL.length;k++){sel+='<option value="'+k+'"'+(k===r.round.idx?' selected':'')+'>'+RL[k]+'</option>';}sel+='</select>';
     var h='<label>Round ('+esc(r.round.date)+')</label>'+sel+'<div class="counts"><div class="cnt d"><b>'+r.done.length+'</b><span>Done</span></div><div class="cnt r"><b>'+r.missed.length+'</b><span>Missed / remaining</span></div></div>';
+    h+=lmHtml(r);
     h+='<div class="zh">Not scanned</div>';
     r.missed.forEach(function(p){h+='<div class="pt'+(p.hi?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+(p.pc?' &#128247;':'')+'</b></div>';});
     if(!r.missed.length)h+='<p class="note">All points scanned.</p>';
     h+='<div class="zh">Scanned</div>';
     r.done.forEach(function(p){h+='<div class="pt"><b>'+p.no+'. '+esc(p.name)+(p.pc?' &#128247;'+(p.photo?' <a href="'+esc(p.photo)+'" target="_blank" rel="noopener" style="color:#231f20;text-decoration:underline">photo</a>':''):'')+(p.flags?' <span class="fl">'+esc(p.flags)+'</span>':'')+'</b><small>'+fmtT(p.t)+' '+esc(p.by)+'</small></div>';});
-    $('aBody').innerHTML=h;$('rSel').addEventListener('change',function(){aLive(this.value);});
+    $('aBody').innerHTML=h;lmBind(r);$('rSel').addEventListener('change',function(){aLive(this.value);});
   }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+
+/* ===== live map (Admin > Live): calibrated points on the Block 6A outline ===== */
+var LM={lat1:3.131341,lat0:3.129797,lng0:99.347330,lng1:99.348803,W:900,H:948,zoom:1};
+function lmHtml(r){
+  var pts=[],no=[];
+  r.done.forEach(function(p){p.st='d';(p.lat==null||p.lng==null?no:pts).push(p);});
+  r.missed.forEach(function(p){p.st='m';(p.lat==null||p.lng==null?no:pts).push(p);});
+  var z=LM.zoom,h='<div class="lmb"><button class="btn ghost sm" id="lmZ" type="button">'+(z>1?'Fit':'Zoom in')+'</button><span class="lmk"><span><i style="background:#44a276"></i>Done</span><span><i style="background:#ffc600"></i>Not yet</span><span><i style="border:2px solid #231f20;background:#fff"></i>High risk</span></span></div>';
+  h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map"><image href="layout.png" x="0" y="0" width="'+LM.W+'" height="'+LM.H+'"/>';
+  pts.forEach(function(p){
+    var x=(p.lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,y=(LM.lat1-p.lat)/(LM.lat1-LM.lat0)*LM.H,off=x<0||x>LM.W||y<0||y>LM.H;
+    x=Math.max(22,Math.min(LM.W-22,x));y=Math.max(22,Math.min(LM.H-22,y));
+    h+='<g class="lmp" data-no="'+p.no+'" style="cursor:pointer"><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="21" fill="'+(p.st==='d'?'#44a276':'#ffc600')+'" stroke="#231f20" stroke-width="'+(p.hi?4:1)+'"'+(off?' stroke-dasharray="4 3"':'')+'/><text x="'+x.toFixed(1)+'" y="'+(y+7).toFixed(1)+'" text-anchor="middle" font-size="21" font-weight="600" fill="#231f20" font-family="Jost,system-ui,Arial,sans-serif" pointer-events="none">'+p.no+'</text></g>';
+  });
+  h+='</svg></div><div id="lmInfo" class="note">Tap a number.</div>';
+  if(no.length)h+='<p class="note">Not on the map (not calibrated yet): '+no.map(function(p){return p.no;}).join(', ')+'</p>';
+  LM.pts=pts;return h;
+}
+function lmBind(r){
+  var sv=$('lmSvg');if(!sv)return;
+  sv.addEventListener('click',function(e){
+    var g=e.target.closest?e.target.closest('.lmp'):null;if(!g)return;
+    var n=Number(g.getAttribute('data-no')),p=LM.pts.filter(function(q){return q.no===n;})[0];if(!p)return;
+    $('lmInfo').innerHTML='<b>'+p.no+'. '+esc(p.name)+'</b> &middot; '+(p.st==='d'?'scanned '+esc(fmtT(p.t))+' by '+esc(p.by):'not scanned yet')+(p.flags?' <span class="fl">'+esc(p.flags)+'</span>':'');
+  });
+  $('lmZ').addEventListener('click',function(){LM.zoom=LM.zoom>1?1:2.6;sv.style.width=(LM.zoom*100)+'%';this.textContent=LM.zoom>1?'Fit':'Zoom in';});
 }
 function aErr(r){if(r&&r.err==='pin'){aLogout();return;}$('aBody').innerHTML='<p class="err">'+esc(r&&r.err||'error')+'</p>';}
 function today(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
