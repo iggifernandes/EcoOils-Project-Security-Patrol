@@ -7,7 +7,7 @@ const rows=m.sheets.Points.rows;
 [[1,3.1310,99.3480],[2,3.1305,99.3475],[13,3.1300,99.3485]].forEach(([no,la,ln])=>{const r=rows.find((x,i)=>i>0&&Number(x[1])===no);r[8]=la;r[9]=ln;r[10]='2026-10-22';});
 const st=m.call({action:'state',gp:g.pin});
 const p1=st.points.find(p=>p.no===1),p5=st.points.find(p=>p.no===5);
-ok(typeof p1.x==='number'&&typeof p1.y==='number'&&p1.x>0&&p1.x<900,'state gives map x,y for a calibrated point: '+p1.x+','+p1.y);
+ok(typeof p1.x==='number'&&typeof p1.y==='number'&&p1.x>0&&p1.x<1000,'state gives map x,y for a calibrated point: '+p1.x+','+p1.y);
 ok(p5.x===null&&p5.y===null,'uncalibrated point has null x,y');
 ok(!('lat' in p1)&&!('lng' in p1)&&!JSON.stringify(st).includes('3.1310'),'no raw coordinates sent to phones');
 (async()=>{

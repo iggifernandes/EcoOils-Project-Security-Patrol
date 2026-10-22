@@ -18,7 +18,7 @@ ok(all.find(p=>p.no===5).lat==null||all.find(p=>p.no===5).lat==='','uncalibrated
  await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
  await pg.click('#aLive');await pg.waitForSelector('#lmSvg');
  ok(await pg.locator('#lmSvg .lmp').count()===3,'map shows the 3 calibrated points');
- ok(await pg.locator('#lmSvg image').getAttribute('href')==='layout.png','outline image used');
+ ok(await pg.locator('#lmSvg polygon').count()===1&&/PLOT 6A/.test(await pg.locator('#lmSvg').innerHTML())&&await pg.locator('#lmSvg image').count()===0,'plain 6A/6B outline, no drawing');
  await pg.locator('#lmSvg .lmp').first().click();
  ok(/\d+\. /.test(await pg.locator('#lmInfo').innerText()),'tap shows point info: '+(await pg.locator('#lmInfo').innerText()));
  ok(/Not on the map/.test(await pg.locator('#aBody').innerText()),'uncalibrated points listed');

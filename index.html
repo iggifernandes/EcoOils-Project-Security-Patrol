@@ -184,7 +184,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.25';
+var VERSION='v1.26';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -495,15 +495,24 @@ function aLive(idx){
 
 /* ===== live map (Admin > Live): calibrated points on the Block 6A outline ===== */
 function lmHas(p){return p.x!=null||(p.lat!=null&&p.lng!=null&&p.lat!==''&&p.lng!=='');}
-var LM={lat1:3.131341,lat0:3.129797,lng0:99.347330,lng1:99.348803,W:900,H:948,zoom:1};
+var LM={lat1:3.13145,lat0:3.12965,lng0:99.34720,lng1:99.35070,W:1000,H:511,zoom:1,C:{NW:[3.131341,99.347342],NE:[3.131336,99.350326],SE:[3.129740,99.350593],SW:[3.129797,99.347316]},MID:99.348803};
+function lmXY(lat,lng){return [(lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,(LM.lat1-lat)/(LM.lat1-LM.lat0)*LM.H];}
+function lmOutline(){
+  var c=LM.C,P=[c.NW,c.NE,c.SE,c.SW].map(function(q){return lmXY(q[0],q[1]);}),pts=P.map(function(q){return q[0].toFixed(1)+','+q[1].toFixed(1);}).join(' ');
+  function yAt(a,b,lng){var t=(lng-a[1])/(b[1]-a[1]);return lmXY(a[0]+t*(b[0]-a[0]),lng);}
+  var n=yAt(c.NW,c.NE,LM.MID),so=yAt(c.SW,c.SE,LM.MID),F='font-family="Jost,system-ui,Arial,sans-serif"';
+  return '<polygon points="'+pts+'" fill="#fafafa" stroke="#231f20" stroke-width="2"/><line x1="'+n[0].toFixed(1)+'" y1="'+n[1].toFixed(1)+'" x2="'+so[0].toFixed(1)+'" y2="'+so[1].toFixed(1)+'" stroke="#231f20" stroke-width="2" stroke-dasharray="10 6"/>'
+   +'<text x="'+((P[0][0]+n[0])/2).toFixed(0)+'" y="'+(P[3][1]-14).toFixed(0)+'" font-size="26" font-weight="300" letter-spacing="4" fill="#aaaaaa" text-anchor="middle" '+F+'>PLOT 6A</text><text x="'+((n[0]+P[1][0])/2).toFixed(0)+'" y="'+(P[3][1]-14).toFixed(0)+'" font-size="26" font-weight="300" letter-spacing="4" fill="#aaaaaa" text-anchor="middle" '+F+'>PLOT 6B</text>'
+   +'<text x="'+(LM.W-30)+'" y="36" font-size="26" font-weight="500" fill="#6e6b6c" text-anchor="middle" '+F+'>N &#8593;</text>';
+}
 function lmHtml(r,guard){
   var pts=[],no=[];
   r.done.forEach(function(p){p.st='d';(lmHas(p)?pts:no).push(p);});
   r.missed.forEach(function(p){p.st='m';(lmHas(p)?pts:no).push(p);});
   var z=LM.zoom,h='<div class="lmb"><button class="btn ghost sm" id="lmZ" type="button">'+esc(z>1?tr('mapFit'):tr('mapZoom'))+'</button><span class="lmk"><span><i style="background:#44a276"></i>'+esc(tr('mapDone'))+'</span><span><i style="background:#ffc600"></i>'+esc(tr('mapNot'))+'</span><span><i style="border:2px solid #231f20;background:#fff"></i>'+esc(tr('mapHi'))+'</span></span></div>';
-  h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map">'+(guard?'<rect x="2" y="2" width="'+(LM.W-4)+'" height="'+(LM.H-4)+'" fill="#f7f7f7" stroke="#aaaaaa" stroke-width="2" stroke-dasharray="10 6"/><text x="'+(LM.W-40)+'" y="46" font-size="30" font-weight="500" fill="#6e6b6c" text-anchor="middle" font-family="Jost,system-ui,Arial,sans-serif">N &#8593;</text>':'<image href="layout.png" x="0" y="0" width="'+LM.W+'" height="'+LM.H+'"/>')+'';
+  h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map">'+lmOutline();
   pts.forEach(function(p){
-    var x=p.x!=null?p.x:(p.lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,y=p.x!=null?p.y:(LM.lat1-p.lat)/(LM.lat1-LM.lat0)*LM.H,off=x<0||x>LM.W||y<0||y>LM.H;
+    var xy=p.x!=null?[p.x,p.y]:lmXY(p.lat,p.lng),x=xy[0],y=xy[1],off=x<0||x>LM.W||y<0||y>LM.H;
     x=Math.max(22,Math.min(LM.W-22,x));y=Math.max(22,Math.min(LM.H-22,y));
     h+='<g class="lmp" data-no="'+p.no+'" style="cursor:pointer"><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="21" fill="'+(p.st==='d'?'#44a276':'#ffc600')+'" stroke="#231f20" stroke-width="'+(p.hi?4:1)+'"'+(off?' stroke-dasharray="4 3"':'')+'/><text x="'+x.toFixed(1)+'" y="'+(y+7).toFixed(1)+'" text-anchor="middle" font-size="21" font-weight="600" fill="#231f20" font-family="Jost,system-ui,Arial,sans-serif" pointer-events="none">'+p.no+'</text></g>';
   });

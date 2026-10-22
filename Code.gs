@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.25';
+var VERSION = 'v1.26';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -229,8 +229,8 @@ function setCfg_(k, val) {
   for (var i = 0; i < v.length; i++) if (String(v[i][0]) === k) { sh.getRange(i + 2, 2).setValue(val); return; }
   sh.appendRow([k, val]);
 }
-/* Live map position of a calibrated point on layout.png (900 x 948 units; Block 6A box). Phones get these rounded positions, not raw coordinates. */
-var MAP_BOX = {lat1: 3.131341, lat0: 3.129797, lng0: 99.347330, lng1: 99.348803, W: 900, H: 948};
+/* Live map position of a calibrated point on the Plot 6A + 6B outline (1000 x 511 units, about 2.57 units per metre; same box as LM in index.html). Phones get these rounded positions, not raw coordinates. */
+var MAP_BOX = {lat1: 3.13145, lat0: 3.12965, lng0: 99.34720, lng1: 99.35070, W: 1000, H: 511};
 function mapXY_(p) {
   if (p.lat == null || p.lng == null || p.lat === '' || p.lng === '') return {x: null, y: null};
   var B = MAP_BOX;
