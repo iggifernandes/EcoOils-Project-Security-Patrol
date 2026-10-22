@@ -131,7 +131,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <button class="btn ghost" id="bVid" type="button"></button>
   <div id="planCard"></div>
   <div id="awardCard"></div>
-  <div class="tabs"><button id="tRem" class="on" type="button"></button><button id="tDone" type="button"></button></div>
+  <div class="tabs"><button id="tRem" class="on" type="button"></button><button id="tDone" type="button"></button><button id="tMap" type="button"></button></div>
   <div id="list"></div>
   <div class="links"><button id="bChange" type="button"></button></div>
 </section>
@@ -184,14 +184,14 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.23';
+var VERSION='v1.24';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
 var T={en:{
  title:'EcoOils Patrol',setup:'Start your patrol',pinLabel:'Your personal PIN',pinHelp:'Your Danru gives you a 6-digit PIN. You only enter it once on this phone.',pinGo:'Continue',
  round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
- scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
+ scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',tabMap:'Map',mapZoom:'Zoom in',mapFit:'Fit',mapDone:'Done',mapNot:'Not yet',mapHi:'High risk',mapTap:'Tap a number.',mapScanned:'scanned',mapBy:'by',mapNotYet:'not scanned yet',mapOff:'Not on the map (not calibrated yet):',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
  notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
@@ -203,7 +203,7 @@ var T={en:{
  id:{
  title:'EcoOils Patroli',setup:'Mulai patroli',pinLabel:'PIN pribadi Anda',pinHelp:'Danru memberi Anda PIN 6 angka. Cukup dimasukkan sekali di ponsel ini.',pinGo:'Lanjut',
  round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
- scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
+ scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',tabMap:'Peta',mapZoom:'Perbesar',mapFit:'Pas',mapDone:'Selesai',mapNot:'Belum',mapHi:'Risiko tinggi',mapTap:'Ketuk sebuah nomor.',mapScanned:'dipindai',mapBy:'oleh',mapNotYet:'belum dipindai',mapOff:'Tidak ada di peta (belum dikalibrasi):',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
  notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
@@ -272,7 +272,7 @@ function applyLang(){
   $('tSetup').textContent=tr('setup');$('lGpin').textContent=tr('pinLabel');$('hGpin').textContent=tr('pinHelp');$('bGpin').textContent=tr('pinGo');
   $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');$('bPlanOpen').textContent=tr('plan');$('bTsOpen').textContent=tr('tsBtn');$('tsBack').textContent=tr('back');$('bVid').textContent=tr('vidBtn');$('vBack').textContent=tr('back');$('vRec').textContent=tr('vidRec');$('vSend').textContent=tr('vidSend');$('vRetake').textContent=tr('vidRetake');$('vNote').textContent=tr('vidNote');$('pBack').textContent=tr('back');
   $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
-  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
+  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
   render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
@@ -323,6 +323,11 @@ function tick(){
 }
 function renderList(d){
   var st=S.state,box=$('list'),rem=S.tab==='rem';
+  if(S.tab==='map'){
+    if(!st.showNames&&!(st.me&&st.me.danru)){setHtml(box,'<p class="note">'+esc(tr('hidden'))+'</p>');return;}
+    var mr={done:[],missed:[]};st.points.forEach(function(p){var q={no:p.no,name:p.name,hi:p.hi,x:p.x,y:p.y};if(d[p.id]){q.t=d[p.id].t;q.by=d[p.id].by;mr.done.push(q);}else mr.missed.push(q);});
+    setHtml(box,lmHtml(mr,true));lmBind(mr);return;
+  }
   if(st.round.upcoming){setHtml(box,'<div class="card empty" style="text-align:center"><p>'+esc(tr('noRound'))+'</p><b style="font-size:22px">'+esc(st.round.label)+'</b></div>');return;}
   if(rem&&!st.showNames){setHtml(box,'<p class="note">'+esc(tr('hidden'))+'</p>');return;}
   var pd=pendSet(),items=st.points.filter(function(p){return rem?!d[p.id]:!!d[p.id];});
@@ -489,30 +494,31 @@ function aLive(idx){
 }
 
 /* ===== live map (Admin > Live): calibrated points on the Block 6A outline ===== */
+function lmHas(p){return p.x!=null||(p.lat!=null&&p.lng!=null&&p.lat!==''&&p.lng!=='');}
 var LM={lat1:3.131341,lat0:3.129797,lng0:99.347330,lng1:99.348803,W:900,H:948,zoom:1};
-function lmHtml(r){
+function lmHtml(r,guard){
   var pts=[],no=[];
-  r.done.forEach(function(p){p.st='d';(p.lat==null||p.lng==null?no:pts).push(p);});
-  r.missed.forEach(function(p){p.st='m';(p.lat==null||p.lng==null?no:pts).push(p);});
-  var z=LM.zoom,h='<div class="lmb"><button class="btn ghost sm" id="lmZ" type="button">'+(z>1?'Fit':'Zoom in')+'</button><span class="lmk"><span><i style="background:#44a276"></i>Done</span><span><i style="background:#ffc600"></i>Not yet</span><span><i style="border:2px solid #231f20;background:#fff"></i>High risk</span></span></div>';
+  r.done.forEach(function(p){p.st='d';(lmHas(p)?pts:no).push(p);});
+  r.missed.forEach(function(p){p.st='m';(lmHas(p)?pts:no).push(p);});
+  var z=LM.zoom,h='<div class="lmb"><button class="btn ghost sm" id="lmZ" type="button">'+esc(z>1?tr('mapFit'):tr('mapZoom'))+'</button><span class="lmk"><span><i style="background:#44a276"></i>'+esc(tr('mapDone'))+'</span><span><i style="background:#ffc600"></i>'+esc(tr('mapNot'))+'</span><span><i style="border:2px solid #231f20;background:#fff"></i>'+esc(tr('mapHi'))+'</span></span></div>';
   h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map"><image href="layout.png" x="0" y="0" width="'+LM.W+'" height="'+LM.H+'"/>';
   pts.forEach(function(p){
-    var x=(p.lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,y=(LM.lat1-p.lat)/(LM.lat1-LM.lat0)*LM.H,off=x<0||x>LM.W||y<0||y>LM.H;
+    var x=p.x!=null?p.x:(p.lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,y=p.x!=null?p.y:(LM.lat1-p.lat)/(LM.lat1-LM.lat0)*LM.H,off=x<0||x>LM.W||y<0||y>LM.H;
     x=Math.max(22,Math.min(LM.W-22,x));y=Math.max(22,Math.min(LM.H-22,y));
     h+='<g class="lmp" data-no="'+p.no+'" style="cursor:pointer"><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="21" fill="'+(p.st==='d'?'#44a276':'#ffc600')+'" stroke="#231f20" stroke-width="'+(p.hi?4:1)+'"'+(off?' stroke-dasharray="4 3"':'')+'/><text x="'+x.toFixed(1)+'" y="'+(y+7).toFixed(1)+'" text-anchor="middle" font-size="21" font-weight="600" fill="#231f20" font-family="Jost,system-ui,Arial,sans-serif" pointer-events="none">'+p.no+'</text></g>';
   });
-  h+='</svg></div><div id="lmInfo" class="note">Tap a number.</div>';
-  if(no.length)h+='<p class="note">Not on the map (not calibrated yet): '+no.map(function(p){return p.no;}).join(', ')+'</p>';
+  h+='</svg></div><div id="lmInfo" class="note">'+esc(tr('mapTap'))+'</div>';
+  if(no.length&&!guard)h+='<p class="note">'+esc(tr('mapOff'))+' '+no.map(function(p){return p.no;}).join(', ')+'</p>';
   LM.pts=pts;return h;
 }
 function lmBind(r){
-  var sv=$('lmSvg');if(!sv)return;
+  var sv=$('lmSvg');if(!sv||sv.__b)return;sv.__b=1;
   sv.addEventListener('click',function(e){
     var g=e.target.closest?e.target.closest('.lmp'):null;if(!g)return;
     var n=Number(g.getAttribute('data-no')),p=LM.pts.filter(function(q){return q.no===n;})[0];if(!p)return;
-    $('lmInfo').innerHTML='<b>'+p.no+'. '+esc(p.name)+'</b> &middot; '+(p.st==='d'?'scanned '+esc(fmtT(p.t))+' by '+esc(p.by):'not scanned yet')+(p.flags?' <span class="fl">'+esc(p.flags)+'</span>':'');
+    $('lmInfo').innerHTML='<b>'+p.no+'. '+esc(p.name)+'</b> &middot; '+(p.st==='d'?esc(tr('mapScanned'))+' '+esc(fmtT(p.t))+' '+esc(tr('mapBy'))+' '+esc(p.by):esc(tr('mapNotYet')))+(p.flags?' <span class="fl">'+esc(p.flags)+'</span>':'');
   });
-  $('lmZ').addEventListener('click',function(){LM.zoom=LM.zoom>1?1:2.6;sv.style.width=(LM.zoom*100)+'%';this.textContent=LM.zoom>1?'Fit':'Zoom in';});
+  $('lmZ').addEventListener('click',function(){LM.zoom=LM.zoom>1?1:2.6;sv.style.width=(LM.zoom*100)+'%';this.textContent=LM.zoom>1?tr('mapFit'):tr('mapZoom');});
 }
 function aErr(r){if(r&&r.err==='pin'){aLogout();return;}$('aBody').innerHTML='<p class="err">'+esc(r&&r.err||'error')+'</p>';}
 function today(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10);}
@@ -1094,8 +1100,9 @@ $('bTeamOpen').addEventListener('click',teamOpen);
 $('tBack').addEventListener('click',function(){showPatrol();});
 $('bScan').addEventListener('click',function(){openScan(handleCode);});
 $('scanX').addEventListener('click',closeScan);
-$('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');render();});
-$('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList.add('on');$('tRem').classList.remove('on');render();});
+$('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');$('tMap').classList.remove('on');render();});
+$('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList.add('on');$('tRem').classList.remove('on');$('tMap').classList.remove('on');render();});
+$('tMap').addEventListener('click',function(){S.tab='map';$('tMap').classList.add('on');$('tRem').classList.remove('on');$('tDone').classList.remove('on');render();});
 $('resBody').addEventListener('click',function(e){
   var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');
   if(a==='close')hideRes();if(a==='again'){hideRes();openScan(handleCode);}

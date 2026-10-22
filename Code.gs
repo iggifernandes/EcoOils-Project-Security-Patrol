@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.23';
+var VERSION = 'v1.24';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -229,6 +229,13 @@ function setCfg_(k, val) {
   for (var i = 0; i < v.length; i++) if (String(v[i][0]) === k) { sh.getRange(i + 2, 2).setValue(val); return; }
   sh.appendRow([k, val]);
 }
+/* Live map position of a calibrated point on layout.png (900 x 948 units; Block 6A box). Phones get these rounded positions, not raw coordinates. */
+var MAP_BOX = {lat1: 3.131341, lat0: 3.129797, lng0: 99.347330, lng1: 99.348803, W: 900, H: 948};
+function mapXY_(p) {
+  if (p.lat == null || p.lng == null || p.lat === '' || p.lng === '') return {x: null, y: null};
+  var B = MAP_BOX;
+  return {x: Math.round((p.lng - B.lng0) / (B.lng1 - B.lng0) * B.W), y: Math.round((B.lat1 - p.lat) / (B.lat1 - B.lat0) * B.H)};
+}
 function points_(activeOnly) {
   var sh = sh_('Points'), n = sh.getLastRow();
   if (n < 2) return [];
@@ -436,7 +443,7 @@ function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
-    points: points_(true).map(function (p) { return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi}; }),
+    points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
     done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_()
   };
 }
