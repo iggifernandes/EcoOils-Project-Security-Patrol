@@ -8,10 +8,11 @@ const live=m.call({action:'a_live',pin:m.props.ADMIN_PIN});
 const all=live.done.concat(live.missed);
 ok(live.ok&&all.find(p=>p.no===1).lat===3.1310&&all.find(p=>p.no===1).lng===99.348,'a_live returns lat/lng for calibrated points');
 ok(all.find(p=>p.no===5).lat==null||all.find(p=>p.no===5).lat==='','uncalibrated point has no coordinates');
+let strip=false;
 (async()=>{
  const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox']});
  const ctx=await b.newContext({viewport:{width:360,height:800}});
- await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();const out=m.ctx.doPost({postData:{contents:body}}).s;await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:out});});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();let out=m.ctx.doPost({postData:{contents:body}}).s;if(strip){const o=JSON.parse(out);(o.done||[]).concat(o.missed||[]).forEach(q=>{delete q.lat;delete q.lng});out=JSON.stringify(o);}await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:out});});
  await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:'))return r.fallback();r.abort();});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
@@ -21,9 +22,9 @@ ok(all.find(p=>p.no===5).lat==null||all.find(p=>p.no===5).lat==='','uncalibrated
  ok(await pg.locator('#lmSvg polygon').count()===1&&/PLOT 6A/.test(await pg.locator('#lmSvg').innerHTML())&&await pg.locator('#lmSvg image').count()===0,'plain 6A/6B outline, no drawing');
  await pg.locator('#lmSvg .lmp').first().click();
  ok(/\d+\. /.test(await pg.locator('#lmInfo').innerText()),'tap shows point info: '+(await pg.locator('#lmInfo').innerText()));
- const old=await pg.evaluate(()=>lmHtml({done:[],missed:[{no:1,name:'a'}]}));ok(/older version/.test(old),'old server (no coordinates field) gets a clear message');
- const none=await pg.evaluate(()=>lmHtml({done:[],missed:[{no:1,name:'a',lat:null,lng:null}]}));ok(/none calibrated/.test(none),'no calibrated points gets a clear message');
  ok(/Not on the map/.test(await pg.locator('#aBody').innerText()),'uncalibrated points listed');
+ strip=true;await pg.click('#aHist');await pg.click('#aLive');await pg.waitForSelector('#lmSvg');ok(/older version/.test(await pg.locator('#aBody').innerText()),'old server (no coordinate fields): clear message');strip=false;
+ rows.forEach((x,i)=>{if(i>0){x[8]='';x[9]='';}});await pg.click('#aHist');await pg.click('#aLive');await pg.waitForSelector('#lmSvg');ok(/none calibrated/.test(await pg.locator('#aBody').innerText()),'nothing calibrated: clear message');
  await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('260%'),'zoom in');
  await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('100%'),'fit again');
  ok(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page overflow at 360');
