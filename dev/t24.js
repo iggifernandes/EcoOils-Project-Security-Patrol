@@ -44,5 +44,5 @@ ok(call({action:'a_award_draw',pin:AP,month:'2026-09'}).err==='announced','no re
 call({action:'a_award_set',pin:AP,minScans:9999});
 ok(call({action:'a_award_draw',pin:AP,month:'2026-08'}).err==='no_qualifiers','no qualifiers -> no draw');
 call({action:'a_award_set',pin:AP,maxIssues:''});ok(m.ctx.awardCrit_().maxIssues===null,'blank max issues = no limit');
-ok(m.ctx.VERSION==='v1.28','version v1.9');
+ok(m.ctx.VERSION==='v1.29','version v1.9');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
