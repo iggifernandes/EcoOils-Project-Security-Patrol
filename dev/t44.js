@@ -21,6 +21,8 @@ ok(all.find(p=>p.no===5).lat==null||all.find(p=>p.no===5).lat==='','uncalibrated
  ok(await pg.locator('#lmSvg polygon').count()===1&&/PLOT 6A/.test(await pg.locator('#lmSvg').innerHTML())&&await pg.locator('#lmSvg image').count()===0,'plain 6A/6B outline, no drawing');
  await pg.locator('#lmSvg .lmp').first().click();
  ok(/\d+\. /.test(await pg.locator('#lmInfo').innerText()),'tap shows point info: '+(await pg.locator('#lmInfo').innerText()));
+ const old=await pg.evaluate(()=>lmHtml({done:[],missed:[{no:1,name:'a'}]}));ok(/older version/.test(old),'old server (no coordinates field) gets a clear message');
+ const none=await pg.evaluate(()=>lmHtml({done:[],missed:[{no:1,name:'a',lat:null,lng:null}]}));ok(/none calibrated/.test(none),'no calibrated points gets a clear message');
  ok(/Not on the map/.test(await pg.locator('#aBody').innerText()),'uncalibrated points listed');
  await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('260%'),'zoom in');
  await pg.click('#lmZ');ok((await pg.locator('#lmSvg').getAttribute('style')).includes('100%'),'fit again');

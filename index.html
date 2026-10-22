@@ -184,14 +184,14 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.26';
+var VERSION='v1.27';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
 var T={en:{
  title:'EcoOils Patrol',setup:'Start your patrol',pinLabel:'Your personal PIN',pinHelp:'Your Danru gives you a 6-digit PIN. You only enter it once on this phone.',pinGo:'Continue',
  round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
- scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',tabMap:'Map',mapZoom:'Zoom in',mapFit:'Fit',mapDone:'Done',mapNot:'Not yet',mapHi:'High risk',mapTap:'Tap a number.',mapScanned:'scanned',mapBy:'by',mapNotYet:'not scanned yet',mapOff:'Not on the map (not calibrated yet):',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
+ scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',tabMap:'Map',mapZoom:'Zoom in',mapFit:'Fit',mapDone:'Done',mapNot:'Not yet',mapHi:'High risk',mapTap:'Tap a number.',mapScanned:'scanned',mapBy:'by',mapNotYet:'not scanned yet',mapOff:'Not on the map (not calibrated yet):',mapOld:'The server (Code.gs) is an older version. Deploy the latest Code.gs as a New version to see the map.',mapNone:'No points on the map yet (none calibrated).',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
  offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
  notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
@@ -203,7 +203,7 @@ var T={en:{
  id:{
  title:'EcoOils Patroli',setup:'Mulai patroli',pinLabel:'PIN pribadi Anda',pinHelp:'Danru memberi Anda PIN 6 angka. Cukup dimasukkan sekali di ponsel ini.',pinGo:'Lanjut',
  round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
- scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',tabMap:'Peta',mapZoom:'Perbesar',mapFit:'Pas',mapDone:'Selesai',mapNot:'Belum',mapHi:'Risiko tinggi',mapTap:'Ketuk sebuah nomor.',mapScanned:'dipindai',mapBy:'oleh',mapNotYet:'belum dipindai',mapOff:'Tidak ada di peta (belum dikalibrasi):',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
+ scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',tabMap:'Peta',mapZoom:'Perbesar',mapFit:'Pas',mapDone:'Selesai',mapNot:'Belum',mapHi:'Risiko tinggi',mapTap:'Ketuk sebuah nomor.',mapScanned:'dipindai',mapBy:'oleh',mapNotYet:'belum dipindai',mapOff:'Tidak ada di peta (belum dikalibrasi):',mapOld:'Server (Code.gs) masih versi lama. Terapkan Code.gs terbaru sebagai New version untuk melihat peta.',mapNone:'Belum ada titik di peta (belum ada yang dikalibrasi).',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
  offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
  notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
@@ -325,7 +325,7 @@ function renderList(d){
   var st=S.state,box=$('list'),rem=S.tab==='rem';
   if(S.tab==='map'){
     if(!st.showNames&&!(st.me&&st.me.danru)){setHtml(box,'<p class="note">'+esc(tr('hidden'))+'</p>');return;}
-    var mr={done:[],missed:[]};st.points.forEach(function(p){var q={no:p.no,name:p.name,hi:p.hi,x:p.x,y:p.y};if(d[p.id]){q.t=d[p.id].t;q.by=d[p.id].by;mr.done.push(q);}else mr.missed.push(q);});
+    var mr={done:[],missed:[]};st.points.forEach(function(p){var q={no:p.no,name:p.name,hi:p.hi};if('x' in p){q.x=p.x;q.y=p.y;}if(d[p.id]){q.t=d[p.id].t;q.by=d[p.id].by;mr.done.push(q);}else mr.missed.push(q);});
     setHtml(box,lmHtml(mr,true));lmBind(mr);return;
   }
   if(st.round.upcoming){setHtml(box,'<div class="card empty" style="text-align:center"><p>'+esc(tr('noRound'))+'</p><b style="font-size:22px">'+esc(st.round.label)+'</b></div>');return;}
@@ -518,6 +518,9 @@ function lmHtml(r,guard){
   });
   h+='</svg></div><div id="lmInfo" class="note">'+esc(tr('mapTap'))+'</div>';
   if(no.length&&!guard)h+='<p class="note">'+esc(tr('mapOff'))+' '+no.map(function(p){return p.no;}).join(', ')+'</p>';
+  var all=r.done.concat(r.missed);
+  if(all.length&&!('lat' in all[0])&&!('x' in all[0]))h+='<p class="err">'+esc(tr('mapOld'))+'</p>';
+  else if(!pts.length)h+='<p class="note">'+esc(tr('mapNone'))+'</p>';
   LM.pts=pts;return h;
 }
 function lmBind(r){
