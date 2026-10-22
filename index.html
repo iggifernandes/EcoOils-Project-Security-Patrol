@@ -184,7 +184,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.24';
+var VERSION='v1.25';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -501,7 +501,7 @@ function lmHtml(r,guard){
   r.done.forEach(function(p){p.st='d';(lmHas(p)?pts:no).push(p);});
   r.missed.forEach(function(p){p.st='m';(lmHas(p)?pts:no).push(p);});
   var z=LM.zoom,h='<div class="lmb"><button class="btn ghost sm" id="lmZ" type="button">'+esc(z>1?tr('mapFit'):tr('mapZoom'))+'</button><span class="lmk"><span><i style="background:#44a276"></i>'+esc(tr('mapDone'))+'</span><span><i style="background:#ffc600"></i>'+esc(tr('mapNot'))+'</span><span><i style="border:2px solid #231f20;background:#fff"></i>'+esc(tr('mapHi'))+'</span></span></div>';
-  h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map"><image href="layout.png" x="0" y="0" width="'+LM.W+'" height="'+LM.H+'"/>';
+  h+='<div class="lmw"><svg id="lmSvg" viewBox="0 0 '+LM.W+' '+LM.H+'" style="width:'+(z*100)+'%" role="img" aria-label="Site map">'+(guard?'<rect x="2" y="2" width="'+(LM.W-4)+'" height="'+(LM.H-4)+'" fill="#f7f7f7" stroke="#aaaaaa" stroke-width="2" stroke-dasharray="10 6"/><text x="'+(LM.W-40)+'" y="46" font-size="30" font-weight="500" fill="#6e6b6c" text-anchor="middle" font-family="Jost,system-ui,Arial,sans-serif">N &#8593;</text>':'<image href="layout.png" x="0" y="0" width="'+LM.W+'" height="'+LM.H+'"/>')+'';
   pts.forEach(function(p){
     var x=p.x!=null?p.x:(p.lng-LM.lng0)/(LM.lng1-LM.lng0)*LM.W,y=p.x!=null?p.y:(LM.lat1-p.lat)/(LM.lat1-LM.lat0)*LM.H,off=x<0||x>LM.W||y<0||y>LM.H;
     x=Math.max(22,Math.min(LM.W-22,x));y=Math.max(22,Math.min(LM.H-22,y));

@@ -23,6 +23,7 @@ ok(!('lat' in p1)&&!('lng' in p1)&&!JSON.stringify(st).includes('3.1310'),'no ra
  let pg=await sess(g.pin);
  await pg.click('#tMap');await pg.waitForSelector('#lmSvg');
  ok(await pg.locator('#lmSvg .lmp').count()===3,'guard sees 3 calibrated points on the map');
+ ok(await pg.locator('#lmSvg image').count()===0,'guard map has no plot plan image');
  await pg.locator('#lmSvg .lmp').first().click();
  ok(/not scanned yet/.test(await pg.locator('#lmInfo').innerText()),'tap info (EN): '+(await pg.locator('#lmInfo').innerText()));
  ok(!/Not on the map/.test(await pg.locator('#list').innerText()),'guard is not shown the uncalibrated list');
@@ -38,5 +39,6 @@ ok(!('lat' in p1)&&!('lng' in p1)&&!JSON.stringify(st).includes('3.1310'),'no ra
  ok(await pg.locator('#lmSvg').count()===0&&/hidden/i.test(await pg.locator('#list').innerText()),'names hidden: guard gets no map');
  const pd=await sess(D);await pd.click('#tMap');await pd.waitForSelector('#lmSvg');
  ok(await pd.locator('#lmSvg .lmp').count()===3,'Danru still sees the map');
+ ok(await pd.locator('#lmSvg image').count()===0,'Danru map has no plot plan image');
  await b.close();console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);
 })();
