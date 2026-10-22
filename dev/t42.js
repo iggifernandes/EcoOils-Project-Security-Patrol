@@ -34,7 +34,7 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  const ft=await pg.evaluate(()=>[...document.querySelectorAll('#tsPrint .tsFt')].map(x=>x.textContent));
  ok(/^Dicetak: \d{1,2} \w+ 20\d\d \d\d:\d\d WIBHalaman 1 dari /.test(ft[0])&&new RegExp('Halaman '+nG+' dari '+nG+'$').test(ft[nG-1]),'footer: printing date/time and page number only: '+ft[0]+' | '+ft[nG-1]);
  ok(/NPK-A1/.test(await pg.locator('#tsPrint').innerHTML()),'edited NPK printed');
- const mg=await pg.evaluate(()=>{const st=[...document.styleSheets].flatMap(x=>[...x.cssRules]);const pr=st.filter(r=>r.type===4||r.media).flatMap(r=>[...r.cssRules]).find(r=>r.type===6);return pr?pr.style.margin||pr.cssText:'';});
+ const mg=await pg.evaluate(()=>{const st=[...document.styleSheets].flatMap(x=>{try{return [...x.cssRules]}catch(e){return []}});const pr=st.filter(r=>r.type===4||r.media).flatMap(r=>[...r.cssRules]).find(r=>r.type===6);return pr?pr.style.margin||pr.cssText:'';});
  ok(/^0(px)?$/.test(mg),'page margin 0 so the browser prints no header/footer: '+mg);
  await pg.click('#tsAllPdf');await pg.waitForFunction(()=>window.__printed>=2,null,{timeout:8000});
  ok(/Save as PDF/.test(await pg.locator('#tsAllMsg').innerText())&&/^Timesheet semua anggota/.test(await pg.evaluate(()=>window.__title[window.__title.length-1])),'PDF button: hint shown, file name set from the title');
