@@ -17,5 +17,5 @@ let r=m.call({action:'d_plan_get',gp:D,date:now.date,shift:'P'});
 ok(r.day.P[0].guard==='Agus Fazar'&&r.day.S[0].guard==='Valen Andriano'&&r.day.M[0].guard==='Jona Alfian','d_plan_get returns all 3 shifts of the day');
 const st=m.call({action:'state',gp:D});
 ok(st.plan.day.P.length===1&&st.plan.day.S.length===1&&st.plan.day.M.length===1&&st.plan.date===now.date,'state carries the day overview for guards');
-ok(m.ctx.VERSION==='v1.27','version v1.8.2');
+ok(m.ctx.VERSION==='v1.28','version v1.8.2');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
