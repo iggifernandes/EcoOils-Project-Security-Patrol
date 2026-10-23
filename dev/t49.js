@@ -25,19 +25,20 @@ const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Off Guard'});
  await pg.waitForTimeout(500);
  let q=await pg.evaluate(()=>JSON.parse(localStorage.getItem('sp_q')||'[]'));
  ok(q.length===1&&q[0].photo==='','skipped selfie is queued without a photo');
- // server: a photo sent with a queued scan is kept ONLY where a selfie was due
- const pts=m.ctx.points_(false);let withP=0,without=0;
+ // offline queue: ALL points with a selfie each; after reconnect only the required selfies are uploaded
  const jpg2='/9j/'+'A'.repeat(400);
- const rr=m.ctx.roundAt_(Date.now());
- pts.forEach(p=>{if(!p.active)return;const cts=Date.now()-1000*(withP+without+5);
-  const r=m.call({action:'scan',gp:g.pin,pid:p.id,lat:2.9,lng:99.1,acc:10,queued:true,clientTs:cts,photo:jpg2});
-  const row=m.sheets.Scans.rows[m.sheets.Scans.rows.length-1];
-  if(r.dup)return;
-  if(/NO_PHOTO/.test(row[15])){without++;ok(false,'queued scan with photo still NO_PHOTO at '+p.no);}
-  else if(row[16]){withP++;} });
- ok(withP>0,'selfie sent with queued scan is saved at selfie points: '+withP);
- const kept=m.sheets.Scans.rows.filter(r=>r[16]&&r[0]!=='ScanId'&&r[4]!=='Guard').length;if(kept!==withP)console.log(m.sheets.Scans.rows.filter(r=>r[16]).map(r=>r[4]+' '+r[7]+' '+r[15]).join('\n'));
- ok(kept===withP,'photos kept only at selfie points ('+kept+' kept)');
+ const t0=Date.now();
+ const items=st.points.map((p,i)=>({pid:p.id,guard:'Off Guard',pin:g.pin,lat:2.9,lng:99.1,acc:10,ts:t0-60000-i*500,photo:jpg2}));
+ await pg.evaluate(x=>localStorage.setItem('sp_q',JSON.stringify(x)),items);
+ global.BLOCK=false;await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.waitForFunction(()=>JSON.parse(localStorage.getItem('sp_q')||'[]').length===0&&JSON.parse(localStorage.getItem('sp_pq')||'[]').length===0,null,{timeout:60000});
+ const rs=m.sheets.Scans.rows.filter(r=>r[4]==='Off Guard'&&/QUEUED/.test(r[15]));
+ const taken=rs.filter(r=>r[16]).length, tk=rs.filter(r=>r[18]==='Taken').length;
+ const due=rs.filter(r=>r[18]==='Taken'||r[18]==='Missing').length;
+ ok(rs.length>=st.points.length-1,'all queued scans recorded: '+rs.length);
+ ok(taken>0&&taken===tk,'photos stored only where due, status Taken: '+taken);
+ ok(taken===due,'every due selfie was uploaded, none missing');
+ ok(rs.every(r=>r[16]||!/NO_PHOTO/.test(r[15])||r[18]!=='Taken'),'no stray photo');
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
 })();

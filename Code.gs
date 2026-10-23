@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.32';
+var VERSION = 'v1.33';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -9,7 +9,7 @@ var TZ = 'Asia/Jakarta';
 var ZORDER = ['GT', 'FN', 'PL', 'UT', 'LD', 'BL', 'MP'];
 var ZNAME = {GT: 'Gate / entry', FN: 'Perimeter fence', PL: 'Process plant', UT: 'Utilities / tanks', LD: 'Laydown', BL: 'Buildings', MP: 'Muster point'};
 var HEAD = {
-  Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms'],
+  Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms', 'Photo taken'],
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
@@ -487,6 +487,7 @@ function scan_(b, g) {
     var sf = shiftAt_(ts), pl = roster_(sf.date, sf.code);
     if (pl.length && !g.danru && !onPlan_(pl, g.name)) flags.push('NOT_ON_PLAN');
   } catch (e0) {}
+  if (String(b.vpn || '') === 'S') flags.push('VPN_SUSPECT');
   if (acc != null && acc === 0) flags.push('SUSPECT_GPS');
   if (acc != null && acc > 50 && !skipG) flags.push('LOW_ACCURACY');
   var lock = LockService.getScriptLock(), sid = Utilities.getUuid().slice(0, 8), needPhoto = false;
@@ -503,7 +504,7 @@ function scan_(b, g) {
       for (i = recent.length - 1; i >= 0; i--) {
         var rw = recent[i], rms = Number(rw[17]);
         if (rms < cts - 10000) break;
-        if (String(rw[4]) === g.name && String(rw[6]) === pt.id && rms <= cts + 180000) return {ok: true, gps: 'UNCALIBRATED', dist: '', flags: [], done: Object.keys(prev).length, total: pts.filter(function (q) { return q.active; }).length, round: roundAt_(Date.now()), needPhoto: false, scanId: String(rw[0]), dup: true};
+        if (String(rw[4]) === g.name && String(rw[6]) === pt.id && rms <= cts + 180000) return {ok: true, gps: 'UNCALIBRATED', dist: '', flags: [], done: Object.keys(prev).length, total: pts.filter(function (q) { return q.active; }).length, round: roundAt_(Date.now()), needPhoto: /NO_PHOTO/.test(String(rw[15])), scanId: String(rw[0]), dup: true};
       }
     }
     for (i = recent.length - 1; i >= 0; i--) {
@@ -526,11 +527,22 @@ function scan_(b, g) {
     }
     if (needPhoto && !gotPhoto) flags.push('NO_PHOTO');
     sh_('Scans').appendRow([sid, ymdhms_(ts), r.date, r.label, g.name, g.role, pt.id, pt.no, pt.name, pt.zone,
-      lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts]);
+      lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts, needPhoto ? (gotPhoto ? 'Taken' : 'Missing') : '']);
+    photoHdr_();
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
   var quiet = quiet_();
-  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto && !b.queued, scanId: sid, off: !!r.upcoming};
+  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto, scanId: sid, off: !!r.upcoming};
+}
+/* The Scans sheet gets a 'Photo taken' header in column S once (existing sheets). */
+function photoHdr_() {
+  try {
+    var pr = PropertiesService.getScriptProperties();
+    if (pr.getProperty('PH_HDR') === '1') return;
+    var sh = sh_('Scans');
+    if (!sh.getRange(1, 19).getValue()) sh.getRange(1, 19).setValue('Photo taken');
+    pr.setProperty('PH_HDR', '1');
+  } catch (e) {}
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
 function photo_(b, me) {
@@ -546,11 +558,13 @@ function photo_(b, me) {
     if (hit < 0) return {ok: false, err: 'no_scan'};
     var row = v[hit];
     if (row[16]) return {ok: false, err: 'has_photo'};
-    if (Date.now() - Number(row[17]) > 15 * 60000) return {ok: false, err: 'too_late'};
+    if (Date.now() - Number(row[17]) > (/QUEUED/.test(String(row[15])) ? 36 * 3600000 : 15 * 60000)) return {ok: false, err: 'too_late'};
+    if (!/NO_PHOTO/.test(String(row[15]))) return {ok: false, err: 'not_needed'};
     var ts = Number(row[17]), url;
     try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(photo), 'image/jpeg', row[2] + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + row[6] + '_' + me.name + '.jpg')).getUrl(); }
     catch (e) { return {ok: false, err: 'photo_fail'}; }
     sh.getRange(st + hit, 17).setValue(url);
+    sh.getRange(st + hit, 19).setValue('Taken');
     sh.getRange(st + hit, 16).setValue(String(row[15]).split(' ').filter(function (f) { return f && f !== 'NO_PHOTO'; }).join(' '));
     return {ok: true};
   } finally { lock.releaseLock(); }
@@ -1360,8 +1374,8 @@ function award_(a, b) {
 /* ---------- emails (English + Bahasa Indonesia) ---------- */
 var ZNAME_ID = {GT: 'Gerbang / pintu masuk', FN: 'Pagar keliling', PL: 'Area pabrik', UT: 'Utilitas / tangki', LD: 'Area penyimpanan', BL: 'Bangunan', MP: 'Titik kumpul'};
 var FLAGTXT = {
-  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed', NOT_ON_PLAN: 'not on the shift plan'},
-  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal', NOT_ON_PLAN: 'tidak ada di rencana shift'}
+  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed', VPN_SUSPECT: 'VPN suspected', NOT_ON_PLAN: 'not on the shift plan'},
+  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal', VPN_SUSPECT: 'VPN dicurigai', NOT_ON_PLAN: 'tidak ada di rencana shift'}
 };
 var TXT = {
   en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol', photoChecks: 'Photo checks (selfie)', photoTaken: 'photo taken', photoMissing: 'NO PHOTO', photoNone: 'not scanned', photoCol: 'Photo', photoTotal: 'Photo checks taken', photoLink: 'view'},

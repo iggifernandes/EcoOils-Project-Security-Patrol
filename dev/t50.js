@@ -1,0 +1,28 @@
+const {chromium}=require('playwright-core');const qrcode=require('qrcode-generator');
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+const qr=qrcode(0,'H');qr.addData('https://iggifernandes.github.io/EcoOils-Project-UAUC-Report/?loc=1');qr.make();
+const qrUrl='data:image/svg+xml;base64,'+Buffer.from(qr.createSvgTag({cellSize:8,margin:4})).toString('base64');
+const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Vpn Guard'});
+global.IP={success:true,country_code:'NL',timezone:{id:'Europe/Amsterdam'}};
+(async()=>{
+ const b=await chromium.launch({executablePath:process.env.CHROME||require('fs').readdirSync('/opt/pw-browsers').filter(x=>x.startsWith('chromium-')).map(x=>'/opt/pw-browsers/'+x+'/chrome-linux/chrome')[0],args:['--no-sandbox']});
+ const ctx=await b.newContext({viewport:{width:390,height:800},geolocation:{latitude:2.9,longitude:99.1,accuracy:10},permissions:['geolocation','camera']});
+ await ctx.route('**/script.google.com/**',async r=>{const body=r.request().postData();await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:m.ctx.doPost({postData:{contents:body}}).s});});
+ await ctx.route('**/ipwho.is/**',r=>r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(global.IP)}));
+ await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.includes('ipwho.is')||u.startsWith('data:')||u.startsWith('blob:'))return r.fallback();r.abort();});
+ await ctx.addInitScript(({qrUrl})=>{navigator.mediaDevices.getUserMedia=function(){const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');const im=new Image();im.onload=()=>{setInterval(()=>{x.fillStyle='#fff';x.fillRect(0,0,640,480);x.drawImage(im,120,40,400,400);},100)};im.src=qrUrl;return Promise.resolve(c.captureStream(10));};},{qrUrl});
+ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
+ await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ await pg.click('#bScan');await pg.waitForSelector('#vpnRe',{timeout:15000});
+ ok(true,'VPN (foreign IP) blocks the scan');
+ ok(await pg.locator('#scanModal.hidden').count()===1,'camera did not open');
+ global.IP={success:true,country_code:'ID',timezone:{id:'Asia/Jakarta'}};
+ await pg.click('#vpnRe');await pg.waitForSelector('#scanModal:not(.hidden)',{timeout:15000});
+ ok(true,'after the VPN is off the scanner opens');
+ await pg.waitForSelector('#resBody .big',{timeout:20000});
+ ok(errs.length===0,'no page errors '+errs.join('|'));
+ await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
+})();

@@ -46,7 +46,17 @@ r=call({action:'photo',gp:n1.by,scanId:n1.sid,photo:'A'.repeat(500)});ok(r.err==
 const q=need[2];
 rows.forEach(x=>{if(x[6]===q.id)x[17]=Number(x[17])-600000;});
 const rq=call({action:'scan',gp:A,pid:q.id,lat:2.9,lng:99.1,acc:10,queued:true,clientTs:Date.now()-1000});
-ok(rq.ok&&rq.needPhoto===false&&/QUEUED/.test(rq.flags.join(' '))&&/NO_PHOTO/.test(rq.flags.join(' ')),'queued scan not prompted, flagged NO_PHOTO+QUEUED');
+ok(rq.ok&&rq.needPhoto===true&&rq.scanId&&/QUEUED/.test(rq.flags.join(' '))&&/NO_PHOTO/.test(rq.flags.join(' ')),'queued scan: server says selfie due, flagged NO_PHOTO+QUEUED');
+const rph=call({action:'photo',gp:A,scanId:rq.scanId,photo:'A'.repeat(500)});
+ok(rph.ok,'selfie for a queued scan accepted later (36 h window)');
+const lastRow=rows[rows.length-1];
+ok(lastRow[18]==='Taken'&&!/NO_PHOTO/.test(lastRow[15]),'Photo taken column = Taken, flag cleared');
+const nn={id:pts.find(id=>!need.some(y=>y.id===id)&&id!==q.id)};
+const rn=call({action:'scan',gp:A,pid:nn.id,lat:2.9,lng:99.1,acc:10,queued:true,clientTs:Date.now()-2000});
+ok(rn.needPhoto===false,'queued scan at a non-selfie point: no selfie wanted');
+ok(call({action:'photo',gp:A,scanId:rn.scanId,photo:'A'.repeat(500)}).err==='not_needed','selfie for a non-selfie point refused');
+const rv=call({action:'scan',gp:A,pid:nn.id,lat:2.9,lng:99.1,acc:10,vpn:'S'});
+ok(/VPN_SUSPECT/.test(rv.flags.join(' ')),'vpn flag recorded');
 // setting
 r=call({action:'a_config',pin:m.props.ADMIN_PIN,photoN:0});ok(r.ok&&r.photoN===0,'admin sets 0 = off');
 ok(Object.keys(m.ctx.photoSet_(m.ctx.roundAt_(Date.now()),pp)).length===0,'0 disables photos');

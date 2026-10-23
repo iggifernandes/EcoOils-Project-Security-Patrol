@@ -198,7 +198,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.32';
+var VERSION='v1.33';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -206,8 +206,8 @@ var T={en:{
  title:'EcoOils Patrol',setup:'Start your patrol',pinLabel:'Your personal PIN',pinHelp:'Your Danru gives you a 6-digit PIN. You only enter it once on this phone.',pinGo:'Continue',
  round:'Round',timeLeft:'Time left',done:'Done',rem:'Remaining',of:'of',points:'points in this round',
  scan:'Scan QR',tabRem:'Remaining',tabDone:'Done',tabMap:'Map',themeDark:'Dark mode',themeLight:'Light mode',mapZoom:'Zoom in',mapFit:'Fit',mapDone:'Done',mapNot:'Not yet',mapHi:'High risk',mapTap:'Tap a number.',mapScanned:'scanned',mapBy:'by',mapNotYet:'not scanned yet',mapOff:'Not on the map (not calibrated yet):',mapOld:'The server (Code.gs) is an older version. Deploy the latest Code.gs as a New version to see the map.',mapNone:'No points on the map yet (none calibrated).',allDone:'All points done for this round. Well done.',hidden:'Point names are hidden. Keep going until Remaining reaches zero.',
- offline:'No connection. Scans are saved on this phone and will send automatically.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
- notPoint:'This QR is not a patrol point.',gps:'Getting location...',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
+ offline:'NO SIGNAL. Every location needs a selfie. Scans and selfies are saved on this phone and send by themselves.',pending:'waiting to send',scanHelp:'Point the camera at the QR code',cancel:'Cancel',camErr:'Camera is not available. Allow camera access and try again.',
+ notPoint:'This QR is not a patrol point.',gps:'Getting location...',offNeed:'NO SIGNAL on this phone. Every location needs a selfie. Take a selfie here.',vpnT:'VPN detected',vpnB:'Switch off the VPN on this phone to continue. The app works only without a VPN.',vpnRe:'I switched it off, check again',photoNeed:'Take a selfie at this point. Show the area behind you.',takePhoto:'Take selfie',skipPhoto:'Skip selfie (will be flagged)',sending:'Sending...',photoSent:'Selfie sent',photoSkipped:'No selfie sent. This scan is flagged.',photoFail:'Selfie could not be sent.',retry:'Try again',
  recorded:'Recorded',locOk:'Location confirmed',locOut:'Location does not match this point. Recorded and flagged.',locNone:'No location available. Recorded and flagged.',locCal:'Recorded',
  scanNext:'Scan next',close:'Close',startsIn:'Starts in',noRound:'No patrol round now. Next round:',offRound:'Outside patrol time: recorded, but not counted in a round.',queued:'NOT SENT YET. Saved on this phone. It will send by itself when the signal is back. Keep the app open.',pendRow:'saved on phone, not sent yet',badGuardPin:'PIN is wrong. Check it with your Danru.',locked:'Too many wrong tries. Wait 10 minutes and try again.',logout:'Log out',admin:'Admin',
  team:'Team (Danru)',teamTitle:'Team',back:'Back',addTitle:'Add a new member',namePh:'Full name',addGo:'Add and create PIN',search:'Search name',newPin:'New PIN',deact:'Deactivate',act:'Activate',pinSet:'PIN set',noPin:'No PIN yet',danru:'Danru',supv:'Shift Supervisor',inactive:'Inactive',pinShowTitle:'PIN for',pinShowHelp:'Give this PIN to the guard now. It cannot be shown again. If it is lost, make a new PIN.',done2:'Done',confirmReset:'Make a new PIN for',confirmOff:'Deactivate',confirmOn:'Activate',yes:'Yes',no:'No',mkDanru:'Give Team and Shift plan access',rmDanru:'Remove access',members:'members',
@@ -218,8 +218,8 @@ var T={en:{
  title:'EcoOils Patroli',setup:'Mulai patroli',pinLabel:'PIN pribadi Anda',pinHelp:'Danru memberi Anda PIN 6 angka. Cukup dimasukkan sekali di ponsel ini.',pinGo:'Lanjut',
  round:'Putaran',timeLeft:'Sisa waktu',done:'Selesai',rem:'Tersisa',of:'dari',points:'titik dalam putaran ini',
  scan:'Pindai QR',tabRem:'Tersisa',tabDone:'Selesai',tabMap:'Peta',themeDark:'Mode gelap',themeLight:'Mode terang',mapZoom:'Perbesar',mapFit:'Pas',mapDone:'Selesai',mapNot:'Belum',mapHi:'Risiko tinggi',mapTap:'Ketuk sebuah nomor.',mapScanned:'dipindai',mapBy:'oleh',mapNotYet:'belum dipindai',mapOff:'Tidak ada di peta (belum dikalibrasi):',mapOld:'Server (Code.gs) masih versi lama. Terapkan Code.gs terbaru sebagai New version untuk melihat peta.',mapNone:'Belum ada titik di peta (belum ada yang dikalibrasi).',allDone:'Semua titik putaran ini selesai. Kerja bagus.',hidden:'Nama titik disembunyikan. Lanjutkan sampai Tersisa nol.',
- offline:'Tidak ada koneksi. Pindaian disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
- notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
+ offline:'TIDAK ADA SINYAL. Setiap lokasi perlu selfie. Pindaian dan selfie disimpan di ponsel dan terkirim otomatis.',pending:'menunggu dikirim',scanHelp:'Arahkan kamera ke kode QR',cancel:'Batal',camErr:'Kamera tidak tersedia. Izinkan akses kamera lalu coba lagi.',
+ notPoint:'QR ini bukan titik patroli.',gps:'Mencari lokasi...',offNeed:'TIDAK ADA SINYAL di ponsel ini. Setiap lokasi perlu selfie. Ambil selfie di sini.',vpnT:'VPN terdeteksi',vpnB:'Matikan VPN di ponsel ini untuk melanjutkan. Aplikasi hanya berjalan tanpa VPN.',vpnRe:'Sudah saya matikan, periksa lagi',photoNeed:'Ambil selfie di titik ini. Perlihatkan area di belakang Anda.',takePhoto:'Ambil selfie',skipPhoto:'Lewati selfie (akan ditandai)',sending:'Mengirim...',photoSent:'Selfie terkirim',photoSkipped:'Selfie tidak dikirim. Pemindaian ini ditandai.',photoFail:'Selfie gagal dikirim.',retry:'Coba lagi',
  recorded:'Tercatat',locOk:'Lokasi sesuai',locOut:'Lokasi tidak sesuai dengan titik ini. Tercatat dan ditandai.',locNone:'Lokasi tidak tersedia. Tercatat dan ditandai.',locCal:'Tercatat',
  scanNext:'Pindai berikutnya',close:'Tutup',startsIn:'Mulai dalam',noRound:'Tidak ada putaran patroli sekarang. Putaran berikut:',offRound:'Di luar jam patroli: tercatat, tetapi tidak dihitung dalam putaran.',queued:'BELUM TERKIRIM. Disimpan di ponsel. Akan terkirim sendiri saat sinyal kembali. Biarkan aplikasi terbuka.',pendRow:'tersimpan di ponsel, belum terkirim',badGuardPin:'PIN salah. Tanyakan kepada Danru Anda.',locked:'Terlalu banyak salah. Tunggu 10 menit lalu coba lagi.',logout:'Keluar',admin:'Admin',
  team:'Tim (Danru)',teamTitle:'Tim',back:'Kembali',addTitle:'Tambah anggota baru',namePh:'Nama lengkap',addGo:'Tambah dan buat PIN',search:'Cari nama',newPin:'PIN baru',deact:'Nonaktifkan',act:'Aktifkan',pinSet:'PIN sudah ada',noPin:'Belum ada PIN',danru:'Danru',supv:'Supervisor Shift',inactive:'Tidak aktif',pinShowTitle:'PIN untuk',pinShowHelp:'Berikan PIN ini kepada anggota sekarang. PIN tidak dapat ditampilkan lagi. Jika hilang, buat PIN baru.',done2:'Selesai',confirmReset:'Buat PIN baru untuk',confirmOff:'Nonaktifkan',confirmOn:'Aktifkan',yes:'Ya',no:'Tidak',mkDanru:'Beri akses Tim dan Rencana shift',rmDanru:'Cabut akses',members:'anggota',
@@ -239,6 +239,8 @@ function fmtLeft(s){s=Math.max(0,Math.floor(s));var h=Math.floor(s/3600),m=Math.
 ls('sp_team',null);ls('sp_guard',null);
 var S={pin:ls('sp_gpin')||'',guard:ls('sp_gname')||'',state:null,off:0,tab:'rem',queue:[],loading:false,online:true};
 try{S.queue=JSON.parse(ls('sp_q')||'[]');}catch(e){S.queue=[];}
+try{S.pq=JSON.parse(ls('sp_pq')||'[]');}catch(e){S.pq=[];}
+function savePQ(){ls('sp_pq',JSON.stringify(S.pq));}
 function saveQ(){ls('sp_q',JSON.stringify(S.queue));}
 function nowMs(){return Date.now()+S.off;}
 
@@ -263,20 +265,63 @@ function loadState(quiet){
   });
 }
 function flush(){
-  if(!S.queue.length||!API_URL||(S.flushing&&Date.now()-S.flushAt<90000))return Promise.resolve();
+  if(!(S.queue.length||S.pq.length)||!API_URL||(S.flushing&&Date.now()-S.flushAt<90000))return Promise.resolve();
   S.flushing=true;S.flushAt=Date.now();
-  var lim=Date.now()-36*3600000;S.queue=S.queue.filter(function(x){return x.ts>lim;});saveQ();
+  var lim=Date.now()-36*3600000;S.queue=S.queue.filter(function(x){return x.ts>lim;});saveQ();S.pq=S.pq.filter(function(x){return x.ts>lim;});savePQ();
   var q=S.queue.slice(),p=Promise.resolve(),stop=false;
   q.forEach(function(it){p=p.then(function(){
     if(stop)return;
-    var b={action:'scan',gp:it.pin||S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo,queued:true};
+    /* two steps: the scan goes first WITHOUT the selfie; the server says whether a selfie was due; only then is the selfie sent */
+    var b={action:'scan',gp:it.pin||S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,queued:true,vpn:it.vpn||''};
     return api(b).then(function(r){
-      if(r&&(r.ok||r.err==='unknown_point')){S.queue=S.queue.filter(function(x){return x!==it&&x.ts!==it.ts;});saveQ();}
+      if(r&&(r.ok||r.err==='unknown_point')){
+        S.queue=S.queue.filter(function(x){return x!==it&&x.ts!==it.ts;});saveQ();
+        if(r.ok&&r.needPhoto&&r.scanId&&it.photo){S.pq.push({scanId:r.scanId,photo:it.photo,pin:it.pin||S.pin,ts:it.ts});savePQ();}
+      }
       else if(r&&r.err==='pin'){if(S.pin&&it.guard===S.guard&&it.pin!==S.pin){it.pin=S.pin;saveQ();}stop=true;}
       else if(r&&r.err==='locked'){stop=true;}
     },function(){stop=true;});
   });});
+  p=p.then(function(){return stop?null:flushPhotos();});
   return p.then(function(){S.flushing=false;render();return loadState(true);},function(){S.flushing=false;});
+}
+function flushPhotos(){
+  var p=Promise.resolve();
+  S.pq.slice().forEach(function(x){p=p.then(function(){
+    return api({action:'photo',gp:x.pin||S.pin,scanId:x.scanId,photo:x.photo},60000).then(function(r){
+      if(r&&(r.ok||r.err==='has_photo'||r.err==='too_late'||r.err==='no_scan'||r.err==='bad_photo'||r.err==='not_needed')){S.pq=S.pq.filter(function(y){return y!==x;});savePQ();}
+    },function(){});
+  });});
+  return p;
+}
+/* ===== VPN check (best effort, free IP lookup; never blocks when the lookup itself fails) ===== */
+var VPN={at:0,res:null};
+function vpnCheck(force){
+  if(!force&&VPN.res&&Date.now()-VPN.at<120000)return Promise.resolve(VPN.res);
+  var ctl=window.AbortController?new AbortController():null,t=ctl?setTimeout(function(){ctl.abort();},6000):null;
+  return fetch('https://ipwho.is/',{signal:ctl?ctl.signal:undefined}).then(function(r){return r.json();}).then(function(j){
+    if(t)clearTimeout(t);
+    var res={block:false,suspect:false};
+    if(j&&j.success!==false&&j.country_code){
+      var sec=j.security||{},tz=(j.timezone&&j.timezone.id)||'',my='';
+      try{my=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
+      if(j.country_code!=='ID')res.block=true;
+      if(sec.vpn||sec.proxy||sec.tor)res.block=true;
+      if(sec.hosting||(tz&&my&&tz!==my&&/^Asia\/(Jakarta|Pontianak|Makassar|Jayapura)$/.test(my)))res.suspect=true;
+    }
+    VPN.at=Date.now();VPN.res=res;return res;
+  },function(){if(t)clearTimeout(t);return {block:false,suspect:false};});
+}
+/* resolves true when the guard may go on; shows a blocking screen when a VPN is suspected */
+function vpnGate(){
+  if(!navigator.onLine)return Promise.resolve(true);
+  return vpnCheck(false).then(function(r){
+    if(!r.block)return true;
+    return new Promise(function(res){
+      showRes('<div class="big wrn">!</div><p style="text-align:center"><b>'+esc(tr('vpnT'))+'</b></p><p style="text-align:center">'+esc(tr('vpnB'))+'</p><button class="btn" id="vpnRe" type="button">'+esc(tr('vpnRe'))+'</button>');
+      $('vpnRe').addEventListener('click',function(){showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');vpnCheck(true).then(function(x){if(!x.block){hideRes();res(true);}else{res(vpnGate());}});});
+    });
+  });
 }
 
 /* ===== language and static text ===== */
@@ -432,9 +477,9 @@ function shrink(file,lines,max){
 }
 function showRes(html){$('resBody').innerHTML=html;$('resModal').classList.remove('hidden');}
 function hideRes(){CK.paused=false;$('resModal').classList.add('hidden');}
-function askPhoto(pt){
+function askPhoto(pt,off){
   return new Promise(function(res){
-    showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr('photoNeed'))+'</p>'+
+    showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr(off?'offNeed':'photoNeed'))+'</p>'+
       '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="user" style="display:none"></label>'+
       '<button class="btn ghost" id="phSkip" type="button">'+esc(tr('skipPhoto'))+'</button>');
     $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f,[stampTime(),pt.no+'. '+pt.name+'  |  '+(S.guard||'')]).then(res,function(){res('');});});
@@ -450,8 +495,8 @@ function handleCode(raw){
 }
 function submit(pt,fix,photo){
   showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
-  var it={pid:pt.id,guard:S.guard,pin:S.pin,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||''};
-  return api({action:'scan',gp:S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo},40000).then(function(r){return r;},function(){return null;}).then(function(r){
+  var it={pid:pt.id,guard:S.guard,pin:S.pin,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||'',vpn:(VPN.res&&VPN.res.suspect)?'S':''};
+  return api({action:'scan',gp:S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo,vpn:it.vpn},40000).then(function(r){return r;},function(){return null;}).then(function(r){
     if(!r)return offlineSave(pt,it);
     if(!r.ok){
       if(r.err==='locked')return offlineSave(pt,it);
@@ -464,7 +509,7 @@ function submit(pt,fix,photo){
 }
 /* Offline (no signal / locked): the phone cannot know which points are selfie points, so it asks at EVERY point and sends the photo with the queued scan. The server keeps it only where a selfie was due. */
 function offlineSave(pt,it){
-  return askPhoto(pt).then(function(photo){
+  return askPhoto(pt,true).then(function(photo){
     it.photo=photo||'';S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);
   });
 }
@@ -1266,14 +1311,14 @@ $('pinBox').addEventListener('submit',function(e){
 $('bChange').addEventListener('click',function(){dropLogin('');});
 $('bTeamOpen').addEventListener('click',teamOpen);
 $('tBack').addEventListener('click',function(){showPatrol();});
-$('bScan').addEventListener('click',function(){openScan(handleCode);});
+$('bScan').addEventListener('click',function(){vpnGate().then(function(ok){if(ok)openScan(handleCode);});});
 $('scanX').addEventListener('click',closeScan);
 $('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');$('tMap').classList.remove('on');render();});
 $('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList.add('on');$('tRem').classList.remove('on');$('tMap').classList.remove('on');render();});
 $('tMap').addEventListener('click',function(){S.tab='map';$('tMap').classList.add('on');$('tRem').classList.remove('on');$('tDone').classList.remove('on');render();});
 $('resBody').addEventListener('click',function(e){
   var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');
-  if(a==='close')hideRes();if(a==='again'){hideRes();openScan(handleCode);}
+  if(a==='close')hideRes();if(a==='again'){hideRes();vpnGate().then(function(ok){if(ok)openScan(handleCode);});}
   if(a==='yes'){var f=TM.pending;TM.pending=null;hideRes();if(f)f();}
 });
 $('bAdmin').addEventListener('click',function(){var p=ls('sp_pin');if(p){A.pin=p;enterAdmin();}else openPin();});
