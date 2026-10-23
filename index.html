@@ -198,7 +198,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.31';
+var VERSION='v1.32';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -452,14 +452,20 @@ function submit(pt,fix,photo){
   showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
   var it={pid:pt.id,guard:S.guard,pin:S.pin,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null,ts:nowMs(),photo:photo||''};
   return api({action:'scan',gp:S.pin,pid:it.pid,lat:it.lat,lng:it.lng,acc:it.acc,clientTs:it.ts,photo:it.photo},40000).then(function(r){return r;},function(){return null;}).then(function(r){
-    if(!r){S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);}
+    if(!r)return offlineSave(pt,it);
     if(!r.ok){
-      if(r.err==='locked'){S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);}
+      if(r.err==='locked')return offlineSave(pt,it);
       if(r.err==='pin'){hideRes();dropLogin(tr('badGuardPin'));return;}
       showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(errText(r.err))+'</p><button class="btn" data-act="close">'+esc(tr('close'))+'</button>');return;
     }
     if(S.state){S.state.done=S.state.done||{};if(!S.state.done[pt.id])S.state.done[pt.id]={t:nowMs(),by:S.guard};render();}
     return loadState(true).then(function(){if(r.needPhoto&&r.scanId)return photoStep(pt,r);result(pt,r);});
+  });
+}
+/* Offline (no signal / locked): the phone cannot know which points are selfie points, so it asks at EVERY point and sends the photo with the queued scan. The server keeps it only where a selfie was due. */
+function offlineSave(pt,it){
+  return askPhoto(pt).then(function(photo){
+    it.photo=photo||'';S.queue.push(it);saveQ();S.online=false;render();return result(pt,null);
   });
 }
 function photoStep(pt,r){

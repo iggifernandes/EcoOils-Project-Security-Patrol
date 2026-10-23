@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.31';
+var VERSION = 'v1.32';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -520,7 +520,7 @@ function scan_(b, g) {
       }
     }
     var url = '', gotPhoto = false;
-    if (b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
+    if (needPhoto && b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
       try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', r.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + pt.id + '_' + g.name + '.jpg')).getUrl(); gotPhoto = true; }
       catch (e2) { flags.push('PHOTO_FAIL'); }
     }
