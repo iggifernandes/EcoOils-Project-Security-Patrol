@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.33';
+var VERSION = 'v1.34';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -172,11 +172,12 @@ function setRadius10() {
 function setupTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     var h = t.getHandlerFunction();
-    if (h === 'roundCheck' || h === 'dailySummary') ScriptApp.deleteTrigger(t);
+    if (h === 'roundCheck' || h === 'dailySummary' || h === 'weeklyGps') ScriptApp.deleteTrigger(t);
   });
   ROUNDS.forEach(function (rd) { var h = rd[1] % 24; ScriptApp.newTrigger('roundCheck').timeBased().atHour(h).nearMinute(5).everyDays(1).inTimezone(TZ).create(); });
   ScriptApp.newTrigger('dailySummary').timeBased().atHour(7).nearMinute(10).everyDays(1).inTimezone(TZ).create();
-  Logger.log('Triggers created: 9 round checks, 5 minutes after each round ends (10:05, 12:05, 14:05, 18:05, 20:05, 22:05, 02:05, 04:05, 06:05 Jakarta time) and 1 daily summary at about 07:10.');
+  ScriptApp.newTrigger('weeklyGps').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(18).nearMinute(0).inTimezone(TZ).create();
+  Logger.log('Triggers created: 1 weekly GPS report on Sunday about 18:00 (for the Monday morning discussion with the Danru), 9 round checks, 5 minutes after each round ends (10:05, 12:05, 14:05, 18:05, 20:05, 22:05, 02:05, 04:05, 06:05 Jakarta time) and 1 daily summary at about 07:10.');
 }
 function testEmail() { send_('Patrol app test email / Email uji coba', '<p>This is a test from the EcoOils Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p><hr><p>Ini adalah email uji coba dari aplikasi Patroli Keamanan EcoOils Mentari ' + VERSION + '. Jika Anda dapat membaca ini, ringkasan titik yang terlewat akan sampai kepada Anda.</p>'); }
 
@@ -1039,6 +1040,69 @@ function obsDailyHtml_(L, y) {
   } catch (e) { return ''; }
 }
 
+/* ---------- Weekly GPS check: how many scans were OUTSIDE ----------
+   Only scans where GPS was really checked count (gps OK or OUTSIDE). Points in Config GPS_SKIP (shaded / tall structure / upper floors) are never checked, so they cannot be OUTSIDE.
+   'Good GPS' = OUTSIDE with a fix of 20 m accuracy or better: hard to explain by the phone alone.
+   A point where several different guards are OUTSIDE is flagged 'review the point' (position, radius or shade), not a guard problem.
+   Recipients: the owner (first NOTIFY_EMAIL address) gets everything; Config DANRU_EMAIL (comma list) gets the same OUTSIDE tables without the no-GPS count.
+   Scheduled Sunday about 18:00 Jakarta (setupTriggers) so the Danru has it for the Monday morning discussion; it covers Monday to Sunday of that week (the last 7 days including today). The Danru can also open it on the phone (d_gps, last 7/14/30 days). */
+function gpsWeek_(fromD, to) {
+  var sh = sh_('Scans'), last = sh.getLastRow(), G = {}, P = {}, tot = {checked: 0, outside: 0, strong: 0, noGps: 0};
+  if (last >= 2) sh.getRange(2, 1, last - 1, 18).getValues().forEach(function (r) {
+    var dt = rowWhen_(r).date;
+    if (dt < fromD || dt > to) return;
+    var fl = String(r[15]).split(' ');
+    if (fl.indexOf('REPEAT') >= 0) return;
+    var gps = String(r[14]), who = String(r[4]);
+    var g = G[who] || (G[who] = {guard: who, checked: 0, outside: 0, strong: 0, dist: 0, noGps: 0});
+    if (gps === 'NO_GPS') { tot.noGps++; g.noGps++; }
+    if (gps !== 'OK' && gps !== 'OUTSIDE') return;
+    var no = Number(r[7]), p = P[no] || (P[no] = {no: no, name: String(r[8]), checked: 0, outside: 0, who: {}, dist: 0});
+    g.checked++; p.checked++; tot.checked++;
+    if (gps === 'OUTSIDE') {
+      var acc = r[12] === '' ? null : Number(r[12]), d = Number(r[13]) || 0;
+      g.outside++; p.outside++; tot.outside++; g.dist += d; p.dist += d; p.who[who] = 1;
+      if (acc != null && acc <= 20) { g.strong++; tot.strong++; }
+    }
+  });
+  var guards = Object.keys(G).map(function (k) { var g = G[k]; return {guard: g.guard, checked: g.checked, outside: g.outside, strong: g.strong, pct: g.checked ? Math.round(100 * g.outside / g.checked) : 0, avgDist: g.outside ? Math.round(g.dist / g.outside) : 0, noGps: g.noGps}; })
+    .filter(function (g) { return g.checked || g.noGps; }).sort(function (a, b) { return b.outside - a.outside || b.pct - a.pct || a.guard.localeCompare(b.guard); });
+  var points = Object.keys(P).map(function (k) { var p = P[k], ng = Object.keys(p.who).length; return {no: p.no, name: p.name, checked: p.checked, outside: p.outside, guards: ng, pct: p.checked ? Math.round(100 * p.outside / p.checked) : 0, avgDist: p.outside ? Math.round(p.dist / p.outside) : 0, review: ng >= 3 && p.checked >= 5 && p.outside / p.checked >= 0.4}; })
+    .filter(function (p) { return p.outside > 0; }).sort(function (a, b) { return b.pct - a.pct || b.outside - a.outside; });
+  return {from: fromD, to: to, totals: {checked: tot.checked, outside: tot.outside, strong: tot.strong, pct: tot.checked ? Math.round(100 * tot.outside / tot.checked) : 0, noGps: tot.noGps}, guards: guards, points: points,
+    skipped: String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).filter(String)};
+}
+function gpsWeekHtml_(L, rep, owner) {
+  var en = L === 'en', t = rep.totals;
+  var h = '<h3 style="margin:0 0 6px">' + (en ? 'Weekly GPS check' : 'Pemeriksaan GPS mingguan') + ' ' + rep.from + ' - ' + rep.to + '</h3>';
+  h += '<p style="margin:0 0 6px"><b>' + t.outside + '</b> ' + (en ? 'scans outside the point radius, out of' : 'pemindaian di luar radius titik, dari') + ' <b>' + t.checked + '</b> ' + (en ? 'checked' : 'yang diperiksa') + ' (' + t.pct + '%). ' + (en ? 'With a good GPS fix (20 m or better): ' : 'Dengan GPS baik (20 m atau lebih baik): ') + '<b>' + t.strong + '</b>.' + (owner ? ' ' + (en ? 'Scans without GPS: ' : 'Pemindaian tanpa GPS: ') + t.noGps + '.' : '') + '</p>';
+  h += '<p style="margin:0 0 8px;color:#555">' + (en ? 'Points in shade, under tall structures or on upper floors are not checked (points ' : 'Titik di area teduh, di bawah struktur tinggi atau lantai atas tidak diperiksa (titik ') + esc_(rep.skipped.join(', ')) + ').</p>';
+  h += '<p style="margin:10px 0 2px"><b>' + (en ? 'By guard' : 'Per petugas') + '</b></p>';
+  var gl = rep.guards.filter(function (g) { return g.outside > 0; });
+  if (gl.length) {
+    h += '<table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + (en ? 'Guard' : 'Petugas') + '</th><th>' + (en ? 'Outside' : 'Di luar') + '</th><th>' + (en ? 'Checked' : 'Diperiksa') + '</th><th>%</th><th>' + (en ? 'Good GPS' : 'GPS baik') + '</th><th>' + (en ? 'Avg m away' : 'Rata-rata m') + '</th></tr>';
+    gl.forEach(function (g) { h += '<tr><td>' + esc_(g.guard) + '</td><td align="right">' + g.outside + '</td><td align="right">' + g.checked + '</td><td align="right">' + g.pct + '</td><td align="right">' + g.strong + '</td><td align="right">' + g.avgDist + '</td></tr>'; });
+    h += '</table>';
+  } else h += '<p style="margin:0">' + (en ? 'No scan was outside.' : 'Tidak ada pemindaian di luar.') + '</p>';
+  h += '<p style="margin:12px 0 2px"><b>' + (en ? 'By point' : 'Per titik') + '</b></p>';
+  if (rep.points.length) {
+    h += '<table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + (en ? 'Point' : 'Titik') + '</th><th>' + (en ? 'Outside' : 'Di luar') + '</th><th>' + (en ? 'Checked' : 'Diperiksa') + '</th><th>%</th><th>' + (en ? 'Guards' : 'Petugas') + '</th><th></th></tr>';
+    rep.points.slice(0, 20).forEach(function (p) { h += '<tr><td>' + p.no + '. ' + esc_(p.name) + '</td><td align="right">' + p.outside + '</td><td align="right">' + p.checked + '</td><td align="right">' + p.pct + '</td><td align="right">' + p.guards + '</td><td>' + (p.review ? (en ? 'REVIEW THE POINT (several guards: position, radius or shade)' : 'PERIKSA TITIK (banyak petugas: posisi, radius atau teduh)') : '') + '</td></tr>'; });
+    h += '</table>';
+  } else h += '<p style="margin:0">-</p>';
+  h += '<p style="margin:10px 0 0;color:#555">' + (en ? 'How to read: one guard outside at many points = look at that guard. Many guards outside at one point = the point needs a new position, a bigger radius, or a place on the shaded list.' : 'Cara membaca: satu petugas di luar di banyak titik = periksa petugas itu. Banyak petugas di luar di satu titik = titik perlu posisi baru, radius lebih besar, atau masuk daftar area teduh.') + '</p>';
+  return h;
+}
+function weeklyGps() {
+  var to = ymdhms_(Date.now()).slice(0, 10), fromD = ymdhms_(Date.now() - 6 * 86400000).slice(0, 10);
+  var rep = gpsWeek_(fromD, to), foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
+  var subj = 'Weekly GPS check / Pemeriksaan GPS mingguan ' + fromD + ' - ' + to + ': ' + rep.totals.outside + ' outside / di luar';
+  var all = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my').split(',').map(function (x) { return x.trim(); }).filter(String);
+  if (all.length) MailApp.sendEmail({to: all[0], subject: subj, htmlBody: both_(gpsWeekHtml_('en', rep, true), gpsWeekHtml_('id', rep, true)) + foot});
+  var dr = String(cfg_('DANRU_EMAIL', '')).split(',').map(function (x) { return x.trim(); }).filter(String);
+  if (dr.length) MailApp.sendEmail({to: dr.join(','), subject: subj, htmlBody: both_(gpsWeekHtml_('en', rep, false), gpsWeekHtml_('id', rep, false)) + foot});
+}
+
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -1059,6 +1123,13 @@ function team_(a, b) {
   if (a === 'd_ts_get' || a === 'd_ts_save' || a === 'd_ts_all' || a === 'd_ts_saveall' || a === 'd_ts_reset') {
     if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
     return timesheet_('a_' + a.slice(2), b, adm ? 'Admin' : me.name);
+  }
+  if (a === 'd_gps') {
+    var days = Math.max(1, Math.min(31, parseInt(b.days, 10) || 7)), gto = ymdhms_(Date.now()).slice(0, 10), gfrom = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10);
+    var gr = gpsWeek_(gfrom, gto);
+    gr.totals.noGps = 0; gr.guards.forEach(function (g) { g.noGps = 0; });
+    gr.ok = true; gr.days = days;
+    return gr;
   }
   if (a === 'd_obs_list') return obsList_();
   if (a === 'd_obs_close') return obsClose_(b, adm ? 'Admin' : me.name);

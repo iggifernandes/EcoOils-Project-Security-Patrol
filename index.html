@@ -138,6 +138,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <button class="btn ghost hidden" id="bTsOpen" type="button"></button>
   <a class="btn ghost hidden" id="lSecApp" href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">Security app</a>
   <button class="btn ghost hidden" id="bHold" type="button"></button>
+  <button class="btn ghost hidden" id="bGps" type="button"></button>
   <button class="btn ghost" id="bVid" type="button"></button>
   <div id="planCard"></div>
   <div id="awardCard"></div>
@@ -145,6 +146,8 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <div id="list"></div>
   <div class="links"><button id="bChange" type="button"></button></div>
 </section>
+
+<section id="vGps" class="hidden"><div id="gpsBody"></div></section>
 
 <section id="vObs" class="hidden"><div id="obsBody"></div></section>
 
@@ -198,7 +201,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.33';
+var VERSION='v1.34';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -334,7 +337,7 @@ function applyLang(){
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
-  if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();
+  if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();
   render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function curTheme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';}
@@ -347,7 +350,7 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function startUp(){
@@ -966,6 +969,35 @@ $('vSend').addEventListener('click',function(){
 $('vBack').addEventListener('click',function(){vClose();showPatrol();});
 $('bVid').addEventListener('click',vOpen);
 
+/* ===== Weekly GPS check (Danru / Shift Supervisor): scans outside the point radius ===== */
+Object.assign(T.en,{gpsBtn:'GPS check (outside scans)',gpsTitle:'GPS check',gpsDays:'Period',gpsD7:'Last 7 days',gpsD14:'Last 14 days',gpsD30:'Last 30 days',gpsSum:'scans outside the point radius, out of',gpsSum2:'checked',gpsGood:'with a good GPS fix (20 m or better)',gpsSkip:'Not checked (shade, tall structures, upper floors): points',gpsGuards:'By guard',gpsPoints:'By point',gpsNone:'No scan was outside.',gpsOut:'outside',gpsOf:'of',gpsAway:'m away on average',gpsReview:'Review the point: several guards are outside here (position, radius or shade).',gpsHow:'One guard outside at many points: talk to that guard. Many guards outside at one point: the point needs a new position, a bigger radius, or a place on the shaded list.'});
+Object.assign(T.id,{gpsBtn:'Cek GPS (pemindaian di luar)',gpsTitle:'Cek GPS',gpsDays:'Periode',gpsD7:'7 hari terakhir',gpsD14:'14 hari terakhir',gpsD30:'30 hari terakhir',gpsSum:'pemindaian di luar radius titik, dari',gpsSum2:'yang diperiksa',gpsGood:'dengan GPS baik (20 m atau lebih baik)',gpsSkip:'Tidak diperiksa (teduh, struktur tinggi, lantai atas): titik',gpsGuards:'Per petugas',gpsPoints:'Per titik',gpsNone:'Tidak ada pemindaian di luar.',gpsOut:'di luar',gpsOf:'dari',gpsAway:'m rata-rata jaraknya',gpsReview:'Periksa titik: banyak petugas di luar di sini (posisi, radius atau teduh).',gpsHow:'Satu petugas di luar di banyak titik: bicarakan dengan petugas itu. Banyak petugas di luar di satu titik: titik perlu posisi baru, radius lebih besar, atau masuk daftar area teduh.'});
+var GP={days:7};
+function gpsOpen(){show('vGps');gpsLoad();}
+function gpsLoad(){
+  $('gpsBody').innerHTML='<h1>'+esc(tr('gpsTitle'))+'</h1><p><span class="sp"></span></p>';
+  api({action:'d_gps',gp:S.pin,days:GP.days}).then(function(r){
+    var h='<h1>'+esc(tr('gpsTitle'))+'</h1>';
+    if(!r||!r.ok){$('gpsBody').innerHTML=h+'<p class="err">'+esc(errText(r&&r.err||'server'))+'</p><button class="btn ghost" id="gpBack" type="button">'+esc(tr('back'))+'</button>';return;}
+    var t=r.totals;
+    h+='<label for="gpDays">'+esc(tr('gpsDays'))+'</label><select id="gpDays">'+[7,14,30].map(function(d){return '<option value="'+d+'"'+(d===GP.days?' selected':'')+'>'+esc(tr('gpsD'+d))+'</option>';}).join('')+'</select>';
+    h+='<div class="counts"><div class="cnt r"><b>'+t.outside+'</b><span>'+esc(tr('gpsOut'))+'</span></div><div class="cnt d"><b>'+t.checked+'</b><span>'+esc(tr('gpsSum2'))+'</span></div></div>';
+    h+='<div class="card"><small class="note">'+esc(r.from)+' - '+esc(r.to)+'. '+t.pct+'%. '+esc(tr('gpsGood'))+': '+t.strong+'.<br>'+esc(tr('gpsSkip'))+' '+esc(r.skipped.join(', '))+'.</small></div>';
+    h+='<div class="zh">'+esc(tr('gpsGuards'))+'</div>';
+    var gl=r.guards.filter(function(g){return g.outside>0;});
+    gl.forEach(function(g){h+='<div class="pt"><b>'+esc(g.guard)+' &middot; '+g.outside+' '+esc(tr('gpsOf'))+' '+g.checked+' ('+g.pct+'%)</b><small>'+esc(tr('gpsGood'))+': '+g.strong+' &middot; '+g.avgDist+' '+esc(tr('gpsAway'))+'</small></div>';});
+    if(!gl.length)h+='<p class="note">'+esc(tr('gpsNone'))+'</p>';
+    h+='<div class="zh">'+esc(tr('gpsPoints'))+'</div>';
+    r.points.slice(0,20).forEach(function(p){h+='<div class="pt'+(p.review?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+' &middot; '+p.outside+' '+esc(tr('gpsOf'))+' '+p.checked+' ('+p.pct+'%)</b><small>'+p.guards+' &middot; '+p.avgDist+' '+esc(tr('gpsAway'))+(p.review?'<br><span class="fl">'+esc(tr('gpsReview'))+'</span>':'')+'</small></div>';});
+    if(!r.points.length)h+='<p class="note">'+esc(tr('gpsNone'))+'</p>';
+    h+='<p class="note">'+esc(tr('gpsHow'))+'</p><button class="btn ghost" id="gpBack" type="button">'+esc(tr('back'))+'</button>';
+    $('gpsBody').innerHTML=h;
+  }).catch(function(){$('gpsBody').innerHTML='<h1>'+esc(tr('gpsTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
+}
+$('gpsBody').addEventListener('click',function(e){if(e.target&&e.target.id==='gpBack')showPatrol();});
+$('gpsBody').addEventListener('change',function(e){if(e.target&&e.target.id==='gpDays'){GP.days=Number(e.target.value)||7;gpsLoad();}});
+$('bGps').addEventListener('click',gpsOpen);
+
 /* ===== Security observations (guards record; Danru / Shift Supervisor close issues) ===== */
 Object.assign(T.en,{obsBtn:'Observation',obsOf:'this shift',obsDue:'Record at least {n} observation this shift (a positive or an issue).',obsTitle:'Security observation',obsType:'What did you see?',obsPos:'Positive (good practice)',obsIss:'Issue found',obsCat:'Category',obsPt:'Point (optional)',obsNoPt:'No specific point',obsText:'Describe it: what and where',obsTextPh:'Short description',obsPhoto:'Add photo (optional)',obsPhotoOn:'Photo added',obsPhotoRm:'Remove photo',obsSpot:'I already fixed or closed this on the spot',obsSpotHelp:'Tick only if it is resolved. If not ticked, the issue goes to your Danru to close.',obsSend:'Send observation',obsSent:'Observation recorded. Thank you.',obsSentIss:'Issue recorded. Your Danru will close it.',obsQueued:'NOT SENT YET. Saved on this phone. It will send by itself when the signal is back.',obsPhotoFail:'Recorded, but the photo could not be saved.',obsAnother:'Record another',obsPickType:'Choose Positive or Issue first.',obsShort:'Write a short description first.',obsOpenBtn:'Open issues',obsNone:'No open issues.',obsClose:'Close issue',obsNotePh:'What was done (optional)',obsRecent:'Recently closed',obsSpotTag:'closed on the spot',obsClosedBy:'Closed by',obsPhotoLink:'photo',obsListTitle:'Open issues',obsConfirm:'Close this issue?',err_not_guard:'Only security guards record observations here. Everyone else uses the UA/UC form.',err_bad_text:'Write a short description (3 to 400 characters).',err_bad_cat:'Choose a category.',err_bad_type:'Choose Positive or Issue.',err_bad_obs:'Issue not found.',err_already_closed:'This issue is already closed.'});
 Object.assign(T.id,{obsBtn:'Observasi',obsOf:'shift ini',obsDue:'Catat minimal {n} observasi pada shift ini (hal positif atau temuan).',obsTitle:'Observasi keamanan',obsType:'Apa yang Anda lihat?',obsPos:'Positif (praktik baik)',obsIss:'Temuan masalah',obsCat:'Kategori',obsPt:'Titik (opsional)',obsNoPt:'Tidak ada titik tertentu',obsText:'Jelaskan: apa dan di mana',obsTextPh:'Deskripsi singkat',obsPhoto:'Tambah foto (opsional)',obsPhotoOn:'Foto ditambahkan',obsPhotoRm:'Hapus foto',obsSpot:'Sudah saya perbaiki atau tutup di tempat',obsSpotHelp:'Centang hanya jika sudah selesai. Jika tidak dicentang, temuan diteruskan ke Danru untuk ditutup.',obsSend:'Kirim observasi',obsSent:'Observasi tercatat. Terima kasih.',obsSentIss:'Temuan tercatat. Danru akan menutupnya.',obsQueued:'BELUM TERKIRIM. Disimpan di ponsel. Akan terkirim sendiri saat sinyal kembali.',obsPhotoFail:'Tercatat, tetapi foto gagal disimpan.',obsAnother:'Catat lagi',obsPickType:'Pilih Positif atau Temuan dulu.',obsShort:'Tulis deskripsi singkat dulu.',obsOpenBtn:'Temuan terbuka',obsNone:'Tidak ada temuan terbuka.',obsClose:'Tutup temuan',obsNotePh:'Apa yang dilakukan (opsional)',obsRecent:'Baru ditutup',obsSpotTag:'ditutup di tempat',obsClosedBy:'Ditutup oleh',obsPhotoLink:'foto',obsListTitle:'Temuan terbuka',obsConfirm:'Tutup temuan ini?',err_not_guard:'Hanya petugas keamanan yang mencatat observasi di sini. Yang lain memakai formulir UA/UC.',err_bad_text:'Tulis deskripsi singkat (3 sampai 400 karakter).',err_bad_cat:'Pilih kategori.',err_bad_type:'Pilih Positif atau Temuan.',err_bad_obs:'Temuan tidak ditemukan.',err_already_closed:'Temuan ini sudah ditutup.'});
@@ -976,7 +1008,7 @@ function catLabel(c){return lang==='id'?(c.id||c.en):c.en;}
 function obsBtns(){
   var st=S.state,o=st&&st.obs,guard=!!(o&&o.guard),dan=!!(st&&st.me&&st.me.danru&&o);
   var b=$('bObs'),l=$('bObsL'),n=$('obsNote');if(!b)return;
-  b.classList.toggle('hidden',!guard);l.classList.toggle('hidden',!dan);
+  b.classList.toggle('hidden',!guard);l.classList.toggle('hidden',!dan);var gb=$('bGps');gb.classList.toggle('hidden',!(st&&st.me&&st.me.danru));gb.textContent=tr('gpsBtn');
   if(guard){var q=S.oq.length;b.textContent=tr('obsBtn')+(o.min?' · '+(o.mine+q)+' / '+o.min+' '+tr('obsOf'):'');
     setHtml(n,o.min&&(o.mine+q)<o.min?'<div class="note">'+esc(tr('obsDue').replace('{n}',o.min))+'</div>':(q?'<div class="note">'+q+' '+esc(tr('pending'))+'</div>':''));}
   else if(dan){l.textContent=tr('obsOpenBtn')+' ('+(o.open||0)+')';setHtml(n,'');}
