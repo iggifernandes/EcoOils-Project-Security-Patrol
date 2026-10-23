@@ -38,5 +38,5 @@ ok(m.sheets.Videos.rows.length===2&&m.sheets.Videos.rows[1][1]==='Hold Guard'&&m
 ok(call({action:'video',gp:'111111',video:big,mime:'video/webm',sec:5}).err==='pin','video needs a valid PIN');
 const td=new Date(Date.now()+7*3600000).toISOString().slice(0,10);
 r=call({action:'a_stats',pin:AP,from:td,to:td});ok(r.videos.length===1&&r.videos[0].guard==='Hold Guard','Admin stats lists the video');
-ok(m.ctx.VERSION==='v1.30','version v1.11');
+ok(m.ctx.VERSION==='v1.31','version v1.11');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

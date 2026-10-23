@@ -31,8 +31,9 @@ h1{font-weight:300;font-size:22px;letter-spacing:.14em;text-transform:uppercase;
 h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;background:var(--green)}
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
-input,select{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
-input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
+textarea{min-height:90px;resize:vertical;line-height:1.4}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 .btn{display:block;width:100%;background:var(--green);color:var(--text);border:1px solid var(--green);border-radius:var(--r);padding:12px 15px;min-height:44px;font-weight:600;font-size:16px;cursor:pointer;margin-top:12px;transition:background .15s}
 .btn:hover{background:#3b9068}
 #bScan{background:var(--amber);border-color:var(--amber)}#bScan:hover{background:#e6b400}
@@ -129,6 +130,9 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <div id="clockBox"></div>
   <button class="btn" id="bScan" type="button"></button>
   <div class="note" id="pend"></div>
+  <button class="btn ghost hidden" id="bObs" type="button"></button>
+  <button class="btn ghost hidden" id="bObsL" type="button"></button>
+  <div id="obsNote"></div>
   <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
   <button class="btn ghost hidden" id="bPlanOpen" type="button"></button>
   <button class="btn ghost hidden" id="bTsOpen" type="button"></button>
@@ -141,6 +145,10 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <div id="list"></div>
   <div class="links"><button id="bChange" type="button"></button></div>
 </section>
+
+<section id="vObs" class="hidden"><div id="obsBody"></div></section>
+
+<section id="vObsL" class="hidden"><div id="obsLBody"></div></section>
 
 <section id="vVid" class="hidden">
   <button class="btn ghost" id="vBack" type="button"></button>
@@ -190,7 +198,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.30';
+var VERSION='v1.31';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -247,7 +255,7 @@ function loadState(quiet){
   return api({action:'state',gp:S.pin}).then(function(r){
     S.loading=false;
     if(!r||!r.ok){if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));}else if(r&&r.err==='locked'){S.online=false;render();}return false;}
-    S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));render();return true;
+    S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));render();try{flushObs();}catch(e0){}return true;
   }).catch(function(){
     S.loading=false;S.online=false;
     if(!S.state){try{S.state=JSON.parse(ls('sp_state')||'null');}catch(e){}}
@@ -281,6 +289,7 @@ function applyLang(){
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
+  if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();
   render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function curTheme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';}
@@ -293,7 +302,7 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function startUp(){
@@ -317,7 +326,7 @@ function pendSet(){
 function setHtml(el,h){if(el&&el._h!==h){el._h=h;el.innerHTML=h;}}
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -404,10 +413,10 @@ function stampTime(){
   var d=new Date(nowMs()+7*3600000),M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],p=function(n){return (n<10?'0':'')+n;};
   return p(d.getUTCDate())+' '+M[d.getUTCMonth()]+' '+d.getUTCFullYear()+'  '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds())+' WIB';
 }
-function shrink(file,lines){
+function shrink(file,lines,max){
   return new Promise(function(res,rej){
     var u=URL.createObjectURL(file),im=new Image();
-    im.onload=function(){var k=Math.min(1,640/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+    im.onload=function(){var k=Math.min(1,(max||640)/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
       c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);var x=c.getContext('2d');x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
       if(lines&&lines.length){
         var fs=Math.max(15,Math.round(c.width/22)),pad=Math.round(fs*0.45),bh=lines.length*Math.round(fs*1.25)+pad*2;
@@ -436,7 +445,7 @@ function handleCode(raw){
   var no=parseCode(raw),pt=null;
   if(S.state&&no!=null)S.state.points.forEach(function(p){if(p.no===no)pt=p;});
   if(!pt){showRes('<div class="big wrn">!</div><p style="text-align:center">'+esc(tr('notPoint'))+'</p><button class="btn" data-act="again">'+esc(tr('scanNext'))+'</button><button class="btn ghost" data-act="close">'+esc(tr('close'))+'</button>');return;}
-  showRes('<p><span class="sp"></span>'+esc(tr('gps'))+'</p>');
+  S.lastPt=pt.no;showRes('<p><span class="sp"></span>'+esc(tr('gps'))+'</p>');
   getFix().then(function(fix){return submit(pt,fix,'');});
 }
 function submit(pt,fix,photo){
@@ -632,6 +641,12 @@ function aStats(){
     (r.clockMissing||[]).forEach(function(x){h+='<div class="pt hi"><b>'+esc(x.guard)+' <span class="fl">no clock-in</span></b><small>'+esc(x.date)+' '+esc(SN[x.shift]||x.shift)+(x.duty?' &middot; '+esc(x.duty):'')+'</small></div>';});
     (r.clock||[]).forEach(function(x){h+='<div class="pt"><b>'+esc(x.guard)+' &middot; '+esc(x.at)+(x.status==='LATE'?' <span class="fl">late '+x.late+' min</span>':(x.status==='MANUAL'?' <span class="fl">manual by '+esc(x.by)+'</span>':''))+'</b><small>'+esc(x.date)+' '+esc(SN[x.shift]||x.shift)+'</small></div>';});
     if(!(r.clock||[]).length&&!(r.clockMissing||[]).length)h+='<p class="note">No clock-ins in this period.</p>';
+    var ob=r.obs||{guards:[],openList:[],missing:[],open:0,min:0};
+    h+='<div class="zh">Security observations ('+ob.open+' open)</div>';
+    ob.guards.forEach(function(g){h+='<div class="pt"><b>'+esc(g.guard)+' &middot; '+g.total+(g.total?' ('+g.pos+' positive : '+g.iss+' issues)':'')+'</b><small>'+g.photos+' photos, '+g.spot+' issues closed on the spot, '+g.open+' still open</small></div>';});
+    ob.openList.forEach(function(o){h+='<div class="pt hi"><b>'+esc(o.guard)+' <span class="fl">open</span> &middot; '+esc(o.cat)+(o.no?' &middot; '+o.no+'. '+esc(o.where):'')+'</b><small>'+esc(o.t.slice(5,16))+' '+esc(o.text)+(o.photo?' &middot; <a href="'+esc(o.photo)+'" target="_blank" rel="noopener" style="color:var(--text)">photo</a>':'')+'</small></div>';});
+    (ob.missing||[]).forEach(function(x){h+='<div class="pt hi"><b>'+esc(x.guard)+' <span class="fl">no observation</span></b><small>'+esc(x.date)+' '+esc(SN[x.shift]||x.shift)+(x.duty?' &middot; '+esc(x.duty):'')+' (minimum '+ob.min+' per shift)</small></div>';});
+    if(!ob.guards.length)h+='<p class="note">No observations in this period.</p>';
     h+='<div class="zh">Videos</div>';
     (r.videos||[]).forEach(function(x){h+='<div class="pt"><b>'+esc(x.guard)+' &middot; '+esc(x.t.slice(5,16))+' &middot; '+x.sec+' s &middot; <a href="'+esc(x.link)+'" target="_blank" rel="noopener" style="color:#231f20;text-decoration:underline">open</a></b><small>'+esc(x.note)+'</small></div>';});
     if(!(r.videos||[]).length)h+='<p class="note">No videos in this period.</p>';
@@ -900,6 +915,121 @@ $('vSend').addEventListener('click',function(){
 $('vBack').addEventListener('click',function(){vClose();showPatrol();});
 $('bVid').addEventListener('click',vOpen);
 
+/* ===== Security observations (guards record; Danru / Shift Supervisor close issues) ===== */
+Object.assign(T.en,{obsBtn:'Observation',obsOf:'this shift',obsDue:'Record at least {n} observation this shift (a positive or an issue).',obsTitle:'Security observation',obsType:'What did you see?',obsPos:'Positive (good practice)',obsIss:'Issue found',obsCat:'Category',obsPt:'Point (optional)',obsNoPt:'No specific point',obsText:'Describe it: what and where',obsTextPh:'Short description',obsPhoto:'Add photo (optional)',obsPhotoOn:'Photo added',obsPhotoRm:'Remove photo',obsSpot:'I already fixed or closed this on the spot',obsSpotHelp:'Tick only if it is resolved. If not ticked, the issue goes to your Danru to close.',obsSend:'Send observation',obsSent:'Observation recorded. Thank you.',obsSentIss:'Issue recorded. Your Danru will close it.',obsQueued:'NOT SENT YET. Saved on this phone. It will send by itself when the signal is back.',obsPhotoFail:'Recorded, but the photo could not be saved.',obsAnother:'Record another',obsPickType:'Choose Positive or Issue first.',obsShort:'Write a short description first.',obsOpenBtn:'Open issues',obsNone:'No open issues.',obsClose:'Close issue',obsNotePh:'What was done (optional)',obsRecent:'Recently closed',obsSpotTag:'closed on the spot',obsClosedBy:'Closed by',obsPhotoLink:'photo',obsListTitle:'Open issues',obsConfirm:'Close this issue?',err_not_guard:'Only security guards record observations here. Everyone else uses the UA/UC form.',err_bad_text:'Write a short description (3 to 400 characters).',err_bad_cat:'Choose a category.',err_bad_type:'Choose Positive or Issue.',err_bad_obs:'Issue not found.',err_already_closed:'This issue is already closed.'});
+Object.assign(T.id,{obsBtn:'Observasi',obsOf:'shift ini',obsDue:'Catat minimal {n} observasi pada shift ini (hal positif atau temuan).',obsTitle:'Observasi keamanan',obsType:'Apa yang Anda lihat?',obsPos:'Positif (praktik baik)',obsIss:'Temuan masalah',obsCat:'Kategori',obsPt:'Titik (opsional)',obsNoPt:'Tidak ada titik tertentu',obsText:'Jelaskan: apa dan di mana',obsTextPh:'Deskripsi singkat',obsPhoto:'Tambah foto (opsional)',obsPhotoOn:'Foto ditambahkan',obsPhotoRm:'Hapus foto',obsSpot:'Sudah saya perbaiki atau tutup di tempat',obsSpotHelp:'Centang hanya jika sudah selesai. Jika tidak dicentang, temuan diteruskan ke Danru untuk ditutup.',obsSend:'Kirim observasi',obsSent:'Observasi tercatat. Terima kasih.',obsSentIss:'Temuan tercatat. Danru akan menutupnya.',obsQueued:'BELUM TERKIRIM. Disimpan di ponsel. Akan terkirim sendiri saat sinyal kembali.',obsPhotoFail:'Tercatat, tetapi foto gagal disimpan.',obsAnother:'Catat lagi',obsPickType:'Pilih Positif atau Temuan dulu.',obsShort:'Tulis deskripsi singkat dulu.',obsOpenBtn:'Temuan terbuka',obsNone:'Tidak ada temuan terbuka.',obsClose:'Tutup temuan',obsNotePh:'Apa yang dilakukan (opsional)',obsRecent:'Baru ditutup',obsSpotTag:'ditutup di tempat',obsClosedBy:'Ditutup oleh',obsPhotoLink:'foto',obsListTitle:'Temuan terbuka',obsConfirm:'Tutup temuan ini?',err_not_guard:'Hanya petugas keamanan yang mencatat observasi di sini. Yang lain memakai formulir UA/UC.',err_bad_text:'Tulis deskripsi singkat (3 sampai 400 karakter).',err_bad_cat:'Pilih kategori.',err_bad_type:'Pilih Positif atau Temuan.',err_bad_obs:'Temuan tidak ditemukan.',err_already_closed:'Temuan ini sudah ditutup.'});
+var OB={type:'',photo:'',cid:'',busy:false,done:false};
+S.oq=[];try{S.oq=JSON.parse(ls('sp_oq')||'[]');}catch(e){S.oq=[];}
+function saveOQ(){ls('sp_oq',JSON.stringify(S.oq));}
+function catLabel(c){return lang==='id'?(c.id||c.en):c.en;}
+function obsBtns(){
+  var st=S.state,o=st&&st.obs,guard=!!(o&&o.guard),dan=!!(st&&st.me&&st.me.danru&&o);
+  var b=$('bObs'),l=$('bObsL'),n=$('obsNote');if(!b)return;
+  b.classList.toggle('hidden',!guard);l.classList.toggle('hidden',!dan);
+  if(guard){var q=S.oq.length;b.textContent=tr('obsBtn')+(o.min?' · '+(o.mine+q)+' / '+o.min+' '+tr('obsOf'):'');
+    setHtml(n,o.min&&(o.mine+q)<o.min?'<div class="note">'+esc(tr('obsDue').replace('{n}',o.min))+'</div>':(q?'<div class="note">'+q+' '+esc(tr('pending'))+'</div>':''));}
+  else if(dan){l.textContent=tr('obsOpenBtn')+' ('+(o.open||0)+')';setHtml(n,'');}
+  else setHtml(n,'');
+}
+function newCid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function obsOpen(){
+  OB={type:'',photo:'',cid:newCid(),busy:false,done:false,msg:''};$('obsBody').innerHTML='';show('vObs');obsDraw();
+}
+function obsDraw(){
+  var o=(S.state&&S.state.obs)||{cats:[]},h='<h1>'+esc(tr('obsTitle'))+'</h1>';
+  if(OB.done){$('obsBody').innerHTML=h+'<div class="card"><p>'+esc(OB.msg)+'</p></div><button class="btn" id="obAgain" type="button">'+esc(tr('obsAnother'))+'</button><button class="btn ghost" id="obHome" type="button">'+esc(tr('back'))+'</button>';return;}
+  var keep=$('obText')?$('obText').value:'',kc=$('obCat')?$('obCat').value:'',kp=$('obPt')?$('obPt').value:(S.lastPt!=null?String(S.lastPt):'');
+  h+='<label>'+esc(tr('obsType'))+'</label><div class="tabs" style="margin-top:4px"><button id="obPos" type="button"'+(OB.type==='Positive'?' class="on"':'')+'>'+esc(tr('obsPos'))+'</button><button id="obIss" type="button"'+(OB.type==='Issue'?' class="on"':'')+'>'+esc(tr('obsIss'))+'</button></div>';
+  h+='<label for="obCat">'+esc(tr('obsCat'))+'</label><select id="obCat">'+(o.cats||[]).map(function(c){return '<option value="'+esc(c.en)+'"'+(c.en===kc?' selected':'')+'>'+esc(catLabel(c))+'</option>';}).join('')+'</select>';
+  h+='<label for="obPt">'+esc(tr('obsPt'))+'</label><select id="obPt"><option value="">'+esc(tr('obsNoPt'))+'</option>'+((S.state&&S.state.points)||[]).slice().sort(function(a,b){return a.no-b.no;}).map(function(p){return '<option value="'+p.no+'"'+(String(p.no)===kp?' selected':'')+'>'+p.no+'. '+esc(p.name)+'</option>';}).join('')+'</select>';
+  h+='<label for="obText">'+esc(tr('obsText'))+'</label><textarea id="obText" rows="4" maxlength="400" placeholder="'+esc(tr('obsTextPh'))+'">'+esc(keep)+'</textarea>';
+  h+='<label class="btn ghost" style="text-align:center;cursor:pointer;margin-top:12px">'+esc(OB.photo?tr('obsPhotoOn'):tr('obsPhoto'))+'<input id="obPhoto" type="file" accept="image/*" capture="environment" style="display:none"></label>';
+  if(OB.photo)h+='<button class="btn ghost" id="obPhotoRm" type="button">'+esc(tr('obsPhotoRm'))+'</button>';
+  if(OB.type==='Issue')h+='<label class="remember"><input id="obSpot" type="checkbox"'+(OB.spot?' checked':'')+'><span>'+esc(tr('obsSpot'))+'</span></label><div class="note">'+esc(tr('obsSpotHelp'))+'</div>';
+  h+='<div class="err" id="obErr"></div><button class="btn" id="obSend" type="button"'+(OB.busy?' disabled':'')+'>'+esc(tr('obsSend'))+'</button><button class="btn ghost" id="obHome" type="button">'+esc(tr('back'))+'</button>';
+  $('obsBody').innerHTML=h;
+}
+function obsErr(t){var e=$('obErr');if(e)e.textContent=t;}
+function obsFinish(r,queued){
+  OB.done=true;OB.busy=false;
+  var m=queued?tr('obsQueued'):(OB.type==='Issue'&&!OB.spot?tr('obsSentIss'):tr('obsSent'));
+  if(r&&r.photoFail)m+=' '+tr('obsPhotoFail');
+  if(S.state&&S.state.obs&&r&&r.mine!=null)S.state.obs.mine=r.mine;
+  OB.msg=m;obsBtns();obsDraw();
+}
+function obsPost(it,queued){
+  var b={action:'obs',gp:it.pin||S.pin,type:it.type,cat:it.cat,pno:it.pno,text:it.text,spot:it.spot,photo:it.photo,cid:it.cid,clientTs:it.ts,queued:!!queued};
+  return api(b,60000);
+}
+function flushObs(){
+  if(!S.oq.length||!API_URL||S.oqBusy)return;
+  S.oqBusy=true;var q=S.oq.slice(),p=Promise.resolve(),stop=false;
+  q.forEach(function(it){p=p.then(function(){
+    if(stop)return;
+    return obsPost(it,true).then(function(r){
+      if(r&&(r.ok||['bad_text','bad_cat','bad_type','not_guard'].indexOf(r.err)>=0)){S.oq=S.oq.filter(function(x){return x.cid!==it.cid;});saveOQ();}
+      else stop=true;
+    },function(){stop=true;});
+  });});
+  p.then(function(){S.oqBusy=false;obsBtns();},function(){S.oqBusy=false;});
+}
+function obsSend(){
+  if(OB.busy)return;
+  if(!OB.type){obsErr(tr('obsPickType'));return;}
+  var text=($('obText').value||'').replace(/\s+/g,' ').trim();
+  if(text.length<3){obsErr(tr('obsShort'));return;}
+  OB.spot=OB.type==='Issue'&&!!($('obSpot')&&$('obSpot').checked);
+  var it={cid:OB.cid,pin:S.pin,guard:S.guard,type:OB.type,cat:$('obCat').value,pno:$('obPt').value||'',text:text,spot:OB.spot,photo:OB.photo||'',ts:nowMs()};
+  OB.busy=true;$('obSend').disabled=true;obsErr('');
+  obsPost(it,false).then(function(r){return r;},function(){return null;}).then(function(r){
+    if(!r||(r.err==='locked')){S.oq.push(it);saveOQ();S.online=false;return obsFinish(null,true);}
+    if(r.ok)return obsFinish(r,false);
+    if(r.err==='pin'){dropLogin(tr('badGuardPin'));return;}
+    OB.busy=false;obsDraw();obsErr(errText(r.err));
+  });
+}
+$('obsBody').addEventListener('click',function(e){
+  var id=e.target&&e.target.id;
+  if(id==='obPos'||id==='obIss'){OB.type=id==='obPos'?'Positive':'Issue';if($('obSpot'))OB.spot=$('obSpot').checked;obsDraw();}
+  if(id==='obPhotoRm'){OB.photo='';obsDraw();}
+  if(id==='obSend')obsSend();
+  if(id==='obHome'){showPatrol();}
+  if(id==='obAgain'){obsOpen();}
+});
+$('obsBody').addEventListener('change',function(e){
+  if(e.target&&e.target.id==='obPhoto'){var f=e.target.files&&e.target.files[0];if(!f)return;
+    shrink(f,[stampTime(),(S.guard||'')+' | '+tr('obsTitle')],800).then(function(p){OB.photo=p;obsDraw();},function(){obsErr(tr('photoFail'));});}
+});
+$('bObs').addEventListener('click',obsOpen);
+/* Danru / Shift Supervisor: open issues waiting to be closed */
+function obsListOpen(){show('vObsL');obsListLoad();}
+function obsListLoad(){
+  $('obsLBody').innerHTML='<h1>'+esc(tr('obsListTitle'))+'</h1><p><span class="sp"></span></p>';
+  api({action:'d_obs_list',gp:S.pin}).then(function(r){
+    if(!r||!r.ok){$('obsLBody').innerHTML='<h1>'+esc(tr('obsListTitle'))+'</h1><p class="err">'+esc(errText(r&&r.err||'server'))+'</p>';return;}
+    var cat=function(c){var m=((S.state&&S.state.obs&&S.state.obs.cats)||[]).filter(function(x){return x.en===c;})[0];return m?catLabel(m):c;};
+    var h='<h1>'+esc(tr('obsListTitle'))+' ('+r.open.length+')</h1>';
+    r.open.forEach(function(o){h+='<div class="card"><b>'+esc(cat(o.cat))+(o.no?' · '+o.no+'. '+esc(o.where):'')+'</b><br><small class="note">'+esc(o.t.slice(5,16))+' · '+esc(o.guard)+'</small><p style="margin:6px 0">'+esc(o.text)+'</p>'+(o.photo?'<a href="'+esc(o.photo)+'" target="_blank" rel="noopener" style="color:var(--text)">'+esc(tr('obsPhotoLink'))+'</a>':'')+'<input type="text" data-note="'+esc(o.id)+'" maxlength="300" placeholder="'+esc(tr('obsNotePh'))+'" style="margin-top:8px"><button class="btn" data-close="'+esc(o.id)+'" type="button">'+esc(tr('obsClose'))+'</button></div>';});
+    if(!r.open.length)h+='<div class="card empty"><p class="note">'+esc(tr('obsNone'))+'</p></div>';
+    if(r.closed.length){h+='<div class="zh">'+esc(tr('obsRecent'))+'</div>';r.closed.forEach(function(o){h+='<div class="pt"><b>'+esc(cat(o.cat))+' · '+esc(o.guard)+'</b><small>'+esc(o.text)+' · '+(o.spot?esc(tr('obsSpotTag')):esc(tr('obsClosedBy'))+' '+esc(o.by)+(o.note?': '+esc(o.note):''))+'</small></div>';});}
+    h+='<button class="btn ghost" id="obLBack" type="button">'+esc(tr('back'))+'</button>';
+    $('obsLBody').innerHTML=h;
+  }).catch(function(){$('obsLBody').innerHTML='<h1>'+esc(tr('obsListTitle'))+'</h1><p class="err">'+esc(tr('locked')||'')+'</p>';});
+}
+$('obsLBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  if(t.id==='obLBack'){showPatrol();return;}
+  var id=t.getAttribute&&t.getAttribute('data-close');
+  if(id){
+    if(!window.confirm(tr('obsConfirm')))return;
+    var inp=$('obsLBody').querySelector('input[data-note="'+id+'"]');t.disabled=true;
+    api({action:'d_obs_close',gp:S.pin,id:id,note:inp?inp.value:''}).then(function(r){
+      if(r&&r.ok){loadState(true);obsListLoad();}else{t.disabled=false;alert(errText(r&&r.err||'server'));}
+    }).catch(function(){t.disabled=false;});
+  }
+});
+$('bObsL').addEventListener('click',obsListOpen);
+
 /* ===== Best Guard of the month ===== */
 var MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 var MONTHS_ID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -920,11 +1050,17 @@ function aAward(){
     h+='<label for="awS">Minimum scans in the month</label><input type="number" id="awS" min="0" inputmode="numeric" value="'+c.minScans+'">';
     h+='<label for="awD">Minimum days with a scan</label><input type="number" id="awD" min="0" inputmode="numeric" value="'+c.minDays+'">';
     h+='<label for="awI">Maximum problem scans (blank = no limit)</label><input type="number" id="awI" min="0" inputmode="numeric" value="'+(c.maxIssues==null?'':c.maxIssues)+'">';
+    h+='<p class="note"><b>Observation criteria</b> (this month, guards only; 0 = no minimum)</p>';
+    h+='<label for="awO">Minimum observations</label><input type="number" id="awO" min="0" inputmode="numeric" value="'+c.minObs+'">';
+    h+='<label for="awP">Minimum positive observations</label><input type="number" id="awP" min="0" inputmode="numeric" value="'+c.minPos+'">';
+    h+='<label for="awX">Minimum issues identified</label><input type="number" id="awX" min="0" inputmode="numeric" value="'+c.minIss+'">';
+    h+='<label for="awH">Minimum observations with a photo</label><input type="number" id="awH" min="0" inputmode="numeric" value="'+c.minOPhotos+'">';
+    h+='<label for="awC">Minimum issues closed on the spot</label><input type="number" id="awC" min="0" inputmode="numeric" value="'+c.minSpot+'">';
     h+='<p class="note">Problem scans = scans with one of these flags: '+esc(c.issueFlags.join(', '))+'. Change the list in the Config sheet (AWARD_ISSUE_FLAGS). No GPS is not counted against a guard.</p>';
     h+='<button class="btn sm" id="awSave" type="button">Save criteria</button><div id="awMsg" class="note"></div></div>';
     var nq=r.rows.filter(function(x){return x.q;}).length;
     h+='<div class="card"><b>'+nq+' of '+r.rows.length+' guards qualify</b>';
-    r.rows.forEach(function(x){h+='<div class="pt"><b>'+(x.q?'&#9989; ':'&#10060; ')+esc(x.guard)+'</b><small>'+x.scans+' scans, '+x.days+' days, '+x.issues+' problem, '+x.photos+' photos</small></div>';});
+    r.rows.forEach(function(x){h+='<div class="pt"><b>'+(x.q?'&#9989; ':'&#10060; ')+esc(x.guard)+'</b><small>'+x.scans+' scans, '+x.days+' days, '+x.issues+' problem, '+x.photos+' photos<br>Observations: '+x.obs+' (positive '+x.pos+' : issues '+x.iss+'), '+x.ophotos+' with photo, '+x.spot+' closed on the spot</small></div>';});
     if(!r.rows.length)h+='<p class="note">No scans in this month.</p>';
     h+='</div><div class="card">';
     if(r.announced){h+='<b>&#127942; Announced: '+esc(r.announced.winner)+'</b><p class="note">'+esc(r.announced.at)+'. Guards can see this on their patrol screen. It cannot be redrawn.</p>';}
@@ -941,7 +1077,7 @@ function awMsg(t){if($('awMsg'))$('awMsg').textContent=t;else alert(t);}
 $('aBody').addEventListener('change',function(e){if(e.target&&e.target.id==='awM'&&e.target.value){AW.month=e.target.value;aAward();}});
 $('aBody').addEventListener('click',function(e){
   var id=e.target&&e.target.id;if(A.tab!=='award')return;
-  if(id==='awSave'){aApi({action:'a_award_set',minScans:$('awS').value,minDays:$('awD').value,maxIssues:$('awI').value}).then(function(r){if(r&&r.ok)aAward();else awMsg('Not saved. Use whole numbers, 0 or more.');});}
+  if(id==='awSave'){aApi({action:'a_award_set',minScans:$('awS').value,minDays:$('awD').value,maxIssues:$('awI').value,minObs:$('awO').value,minPos:$('awP').value,minIss:$('awX').value,minOPhotos:$('awH').value,minSpot:$('awC').value}).then(function(r){if(r&&r.ok)aAward();else awMsg('Not saved. Use whole numbers, 0 or more.');});}
   if(id==='awDraw'){aApi({action:'a_award_draw',month:AW.month}).then(function(r){if(r&&r.ok)aAward();else awMsg(r&&r.err==='no_qualifiers'?'Nobody qualifies.':'Could not draw: '+(r&&r.err));});}
   if(id==='awAnn'){if(!confirm('Announce this winner to all guards? It cannot be changed afterwards.'))return;aApi({action:'a_award_announce',month:AW.month}).then(function(r){if(r&&r.ok)aAward();else awMsg('Could not announce: '+(r&&r.err));});}
 });

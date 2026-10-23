@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.30';
+var VERSION = 'v1.31';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -16,6 +16,7 @@ var HEAD = {
   Hold: ['Time (WIB)', 'Action', 'By', 'Reason', 'Time ms'],
   Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
+  Observations: ['Obs ID', 'Time (WIB)', 'Date', 'Shift', 'Guard', 'Type', 'Category', 'Point No', 'Location', 'Description', 'Photo', 'Closed on spot', 'Status', 'Closed by', 'Closed at (WIB)', 'Close note', 'Time ms'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
   Staff: ['Guard', 'NPK'],
@@ -437,7 +438,7 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -445,6 +446,7 @@ function route_(b) {
   if (a === 'photo') return photo_(b, me);
   if (a === 'clockin') return clockIn_(b, me);
   if (a === 'video') return videoSave_(b, me);
+  if (a === 'obs') return obsSave_(b, me);
   return scan_(b, me);
 }
 function state_(me) {
@@ -452,7 +454,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_()
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me)
   };
 }
 function planNow_() {
@@ -871,6 +873,158 @@ function videoRows_(fromD, to) {
   }).filter(function (x) { return x.date >= fromD && x.date <= to; }).reverse().slice(0, 100);
 }
 
+/* ---------- Security observations (guards only; everybody else uses the UA/UC form) ----------
+   A guard records a Positive observation or an Issue found (category, optional point, description, optional photo, and for an issue: closed on the spot yes/no).
+   Issues not closed on the spot stay Open until a Danru / Shift Supervisor closes them (d_obs_close). Escalation to the owner is NOT built: the Danru raises it himself.
+   Config: OBS_MIN_PER_SHIFT (default 1; 0 = no minimum shown), OBS_CATS (comma list, default below), OBS_FROM (first day the missing-observation lists count, default 2026-10-24).
+   Award criteria use these rows (see awardStats_). */
+var OBS_CATS = [['Fence / perimeter', 'Pagar / keliling'], ['Gate / access control', 'Gerbang / kontrol akses'], ['Lighting / CCTV', 'Penerangan / CCTV'], ['Suspicious person or vehicle', 'Orang atau kendaraan mencurigakan'], ['Unsafe act', 'Tindakan tidak aman'], ['Unsafe condition', 'Kondisi tidak aman'], ['Fire / housekeeping', 'Kebakaran / kebersihan'], ['Good practice', 'Praktik baik'], ['Other', 'Lainnya']];
+function obsCats_() {
+  var c = String(cfg_('OBS_CATS', '')).split(',').map(function (x) { return x.trim(); }).filter(String).slice(0, 20);
+  if (c.length) return c.map(function (x) { return {en: x, id: x}; });
+  return OBS_CATS.map(function (x) { return {en: x[0], id: x[1]}; });
+}
+function obsMin_() { var n = parseInt(cfg_('OBS_MIN_PER_SHIFT', '1'), 10); return isFinite(n) && n > 0 ? Math.min(n, 20) : 0; }
+function obsSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Observations');
+  if (!sh) {
+    sh = s.insertSheet('Observations');
+    sh.appendRow(HEAD.Observations);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.Observations.length).setFontWeight('bold');
+    sh.getRange('C:D').setNumberFormat('@');
+  }
+  return sh;
+}
+function obsRow_(r, row) {
+  return {row: row, id: String(r[0]), t: String(r[1]), date: String(r[2]), shift: String(r[3]), guard: String(r[4]), type: String(r[5]), cat: String(r[6]), no: r[7] === '' ? null : Number(r[7]), where: String(r[8]), text: String(r[9]), photo: String(r[10]), spot: String(r[11]) === 'Yes', status: String(r[12]), by: String(r[13]), at: String(r[14]), note: String(r[15]), ms: Number(r[16]) || 0};
+}
+/* Rows of the Observations sheet (the last n, oldest first). Date and Shift come from the Time ms column so they survive Google Sheets reformatting text cells. */
+function obsRows_(n) {
+  var sh = obsSheet_(), last = sh.getLastRow();
+  if (last < 2) return [];
+  var st = n ? Math.max(2, last - n + 1) : 2;
+  return sh.getRange(st, 1, last - st + 1, 17).getValues().map(function (r, i) {
+    var o = obsRow_(r, st + i), ms = o.ms;
+    if (ms) { var sf = shiftAt_(ms); o.date = sf.date; o.shift = sf.code; }
+    return o;
+  });
+}
+function obsState_(me) {
+  try {
+    var now = Date.now(), sf = shiftAt_(now), out = {date: sf.date, shift: sf.code, min: obsMin_(), cats: obsCats_(), guard: !me.danru, mine: 0, open: 0};
+    var rows = obsRows_(600);
+    rows.forEach(function (o) {
+      if (!me.danru && o.guard === me.name && o.date === sf.date && o.shift === sf.code) out.mine++;
+      if (o.type === 'Issue' && o.status === 'Open') out.open++;
+    });
+    if (!me.danru) delete out.open;
+    return out;
+  } catch (e) { return {guard: !me.danru, mine: 0, min: 0, cats: obsCats_()}; }
+}
+function obsSave_(b, me) {
+  if (me.danru) return {ok: false, err: 'not_guard'};
+  var type = b.type === 'Positive' ? 'Positive' : (b.type === 'Issue' ? 'Issue' : '');
+  if (!type) return {ok: false, err: 'bad_type'};
+  var cat = '', cats = obsCats_();
+  cats.forEach(function (c) { if (c.en === String(b.cat)) cat = c.en; });
+  if (!cat) return {ok: false, err: 'bad_cat'};
+  var text = String(b.text || '').replace(/\s+/g, ' ').trim();
+  if (text.length < 3 || text.length > 400) return {ok: false, err: 'bad_text'};
+  var no = '', where = '', pn = Number(b.pno);
+  if (isFinite(pn) && pn > 0) {
+    points_(false).forEach(function (p) { if (p.no === pn) { no = p.no; where = p.name; } });
+  }
+  var spot = type === 'Issue' && b.spot === true;
+  var now = Date.now(), ts = now, cid = String(b.cid || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 24);
+  if (b.queued) { var c0 = Number(b.clientTs); if (c0 && c0 <= now + 60000 && now - c0 < 72 * 3600000) ts = c0; }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sf = shiftAt_(ts), rows = obsRows_(300), photoFail = false, i;
+    if (cid) for (i = 0; i < rows.length; i++) if (rows[i].id === cid && rows[i].guard === me.name) return {ok: true, dup: true, id: cid, mine: obsState_(me).mine};
+    var id = cid || Utilities.getUuid().slice(0, 8), url = '';
+    if (b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
+      try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', 'OBS_' + sf.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + type + '_' + me.name + '.jpg')).getUrl(); }
+      catch (e) { photoFail = true; }
+    }
+    obsSheet_().appendRow([id, ymdhms_(ts), sf.date, sf.code, me.name, type, cat, no, where, text, url, spot ? 'Yes' : (type === 'Issue' ? 'No' : ''), type === 'Positive' ? 'Positive' : (spot ? 'Closed on spot' : 'Open'), '', '', '', ts]);
+    return {ok: true, id: id, photoFail: photoFail, mine: obsState_(me).mine};
+  } finally { lock.releaseLock(); }
+}
+/* Danru / Shift Supervisor / Admin: open issues (oldest first) and the latest closed ones. */
+function obsList_() {
+  var rows = obsRows_(800), open = rows.filter(function (o) { return o.type === 'Issue' && o.status === 'Open'; });
+  var done = rows.filter(function (o) { return o.type === 'Issue' && o.status !== 'Open'; }).slice(-15).reverse();
+  function pub(o) { return {id: o.id, t: o.t, shift: o.shift, guard: o.guard, cat: o.cat, no: o.no, where: o.where, text: o.text, photo: o.photo, spot: o.spot, status: o.status, by: o.by, at: o.at, note: o.note}; }
+  return {ok: true, open: open.map(pub), closed: done.map(pub)};
+}
+function obsClose_(b, by) {
+  var id = String(b.id || ''), note = String(b.note || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!id) return {ok: false, err: 'bad_obs'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var rows = obsRows_(1500), hit = null;
+    rows.forEach(function (o) { if (o.id === id) hit = o; });
+    if (!hit || hit.type !== 'Issue') return {ok: false, err: 'bad_obs'};
+    if (hit.status !== 'Open') return {ok: false, err: 'already_closed'};
+    var sh = obsSheet_();
+    sh.getRange(hit.row, 13, 1, 4).setValues([['Closed', by, ymdhms_(Date.now()), note]]);
+    return {ok: true};
+  } finally { lock.releaseLock(); }
+}
+/* Planned guards (not Danru) who finished a shift without recording any observation. Only shifts after OBS_FROM count; only while a minimum is set. */
+function obsMissing_(fromD, to) {
+  var out = [], min = obsMin_(), now = Date.now(), starts = {P: 7, S: 15, M: 23}, from0 = String(cfg_('OBS_FROM', '2026-10-24'));
+  if (!min) return out;
+  var cnt = {}, dr = {};
+  obsRows_(0).forEach(function (o) { if (o.type) { var k = o.date + '|' + o.shift + '|' + o.guard.toLowerCase(); cnt[k] = (cnt[k] || 0) + 1; } });
+  guardsAll_().forEach(function (g) { if (g.danru) dr[g.name.toLowerCase()] = 1; });
+  var dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), n = 0;
+  for (; dd <= end && n < 31; dd += 86400000, n++) {
+    var ds = new Date(dd).toISOString().slice(0, 10);
+    if (ds < from0) continue;
+    Object.keys(starts).forEach(function (code) {
+      var st = Date.UTC(new Date(dd).getUTCFullYear(), new Date(dd).getUTCMonth(), new Date(dd).getUTCDate(), starts[code] - 7, 0, 0);
+      if (now < st + 8 * 3600000) return;
+      roster_(ds, code).forEach(function (r) {
+        [r.guard, r.buddy].forEach(function (nm) {
+          if (nm && !dr[nm.toLowerCase()] && (cnt[ds + '|' + code + '|' + nm.toLowerCase()] || 0) < min) out.push({date: ds, shift: code, guard: nm, duty: r.duty});
+        });
+      });
+    });
+  }
+  return out.slice(0, 200);
+}
+function obsSummary_(fromD, to) {
+  var by = {}, open = 0;
+  guards_().forEach(function (g) { if (!g.danru) by[g.name] = {guard: g.name, total: 0, pos: 0, iss: 0, photos: 0, spot: 0, open: 0}; });
+  obsRows_(0).forEach(function (o) {
+    if (!o.type) return;
+    if (o.type === 'Issue' && o.status === 'Open') open++;
+    if (o.date < fromD || o.date > to) return;
+    var x = by[o.guard] || (by[o.guard] = {guard: o.guard, total: 0, pos: 0, iss: 0, photos: 0, spot: 0, open: 0});
+    x.total++; if (o.type === 'Positive') x.pos++; else { x.iss++; if (o.spot) x.spot++; if (o.status === 'Open') x.open++; }
+    if (o.photo) x.photos++;
+  });
+  var guards = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.total - a.total || a.guard.localeCompare(b.guard); });
+  var openList = obsList_().open.slice(0, 50);
+  return {guards: guards, open: open, openList: openList, missing: obsMissing_(fromD, to), min: obsMin_()};
+}
+function obsDailyHtml_(L, y) {
+  try {
+    var rows = obsRows_(0).filter(function (o) { return o.type && o.date === y; }), pos = 0, iss = 0, ph = 0, spot = 0;
+    rows.forEach(function (o) { if (o.type === 'Positive') pos++; else { iss++; if (o.spot) spot++; } if (o.photo) ph++; });
+    var open = obsList_().open, miss = obsMissing_(y, y);
+    var en = L === 'en';
+    var h = '<p style="margin:12px 0 2px"><b>' + (en ? 'Security observations' : 'Observasi keamanan') + '</b>: ' + rows.length + ' (' + pos + (en ? ' positive, ' : ' positif, ') + iss + (en ? ' issues, ' : ' temuan, ') + spot + (en ? ' closed on the spot, ' : ' ditutup di tempat, ') + ph + (en ? ' photos)' : ' foto)') + '</p>';
+    if (open.length) { h += '<p style="margin:6px 0 2px">' + (en ? 'Open issues waiting for the Danru' : 'Temuan terbuka menunggu Danru') + ': ' + open.length + '</p><ul style="margin:0">'; open.slice(0, 10).forEach(function (o) { h += '<li>' + esc_(o.t.slice(5, 16)) + ' ' + esc_(o.guard) + ': ' + esc_(o.cat) + ' - ' + esc_(o.text) + '</li>'; }); h += '</ul>'; }
+    if (miss.length) { h += '<p style="margin:6px 0 2px">' + (en ? 'Shifts with no observation' : 'Shift tanpa observasi') + ':</p><ul style="margin:0">'; miss.slice(0, 30).forEach(function (m) { h += '<li>' + esc_(m.guard) + ' (' + SHIFTS[m.shift] + ')</li>'; }); h += '</ul>'; }
+    return h;
+  } catch (e) { return ''; }
+}
+
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -892,6 +1046,8 @@ function team_(a, b) {
     if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
     return timesheet_('a_' + a.slice(2), b, adm ? 'Admin' : me.name);
   }
+  if (a === 'd_obs_list') return obsList_();
+  if (a === 'd_obs_close') return obsClose_(b, adm ? 'Admin' : me.name);
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
   if (a === 'd_clock') {
     var tg = find(b.name);
@@ -1029,7 +1185,7 @@ function admin_(a, b) {
     var coveredSum = rows.reduce(function (t, x) { return t + x.covered; }, 0);
     var outG = Object.keys(OG).map(function (k) { var x = OG[k]; return {guard: x.guard, n: x.n, avgDist: Math.round(x.dist / x.n), avgAcc: Math.round(x.acc / x.n)}; }).sort(function (x, y) { return y.n - x.n; }).slice(0, 10);
     var outP = Object.keys(OP).map(function (k) { var x = OP[k]; return {no: x.no, name: x.name, n: x.n, guards: Object.keys(x.who).length, avgDist: Math.round(x.dist / x.n)}; }).sort(function (x, y) { return y.n - x.n; }).slice(0, 10);
-    return {ok: true, outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
+    return {ok: true, obs: obsSummary_(fromD, to), outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
   }
   if (a === 'a_ts_get' || a === 'a_ts_save' || a === 'a_ts_all' || a === 'a_ts_saveall' || a === 'a_ts_reset') return timesheet_(a, b, 'Admin');
@@ -1114,7 +1270,12 @@ function awardCrit_() {
     minDays: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_DAYS', '0')) || 0)),
     maxIssues: mi === '' || !isFinite(Number(mi)) ? null : Math.max(0, Math.round(Number(mi))),
     issueFlags: cfg_('AWARD_ISSUE_FLAGS', 'SUSPECT_GPS,TOO_FAST,PHOTO_FAIL,NO_PHOTO').split(',').map(function (x) { return x.trim(); }).filter(String),
-    excludeDanru: cfg_('AWARD_EXCLUDE_DANRU', 'yes').toLowerCase() !== 'no'
+    excludeDanru: cfg_('AWARD_EXCLUDE_DANRU', 'yes').toLowerCase() !== 'no',
+    minObs: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_OBS', '0')) || 0)),
+    minPos: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_POS', '0')) || 0)),
+    minIss: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_ISS', '0')) || 0)),
+    minOPhotos: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_OPHOTOS', '0')) || 0)),
+    minSpot: Math.max(0, Math.round(Number(cfg_('AWARD_MIN_SPOT', '0')) || 0))
   };
 }
 function awardStats_(month) {
@@ -1131,10 +1292,19 @@ function awardStats_(month) {
     if (r[16]) o.photos++;
     if (fl.some(function (f) { return c.issueFlags.indexOf(f) >= 0; })) o.issues++;
   });
+  /* Observations of the month: count, positive : issues, photos, issues closed on the spot. */
+  var ob = {};
+  try { obsRows_(0).forEach(function (o) {
+    if (!o.type || o.date.slice(0, 7) !== month || !eligible[o.guard]) return;
+    var x = ob[o.guard] || (ob[o.guard] = {obs: 0, pos: 0, iss: 0, ophotos: 0, spot: 0});
+    x.obs++; if (o.type === 'Positive') x.pos++; else { x.iss++; if (o.spot) x.spot++; }
+    if (o.photo) x.ophotos++;
+  }); } catch (e1) {}
   var rows = Object.keys(by).map(function (k) {
-    var o = by[k], days = Object.keys(o.days).length;
-    var q = o.scans >= c.minScans && days >= c.minDays && (c.maxIssues == null || o.issues <= c.maxIssues) && o.scans > 0;
-    return {guard: o.guard, scans: o.scans, days: days, issues: o.issues, photos: o.photos, q: q};
+    var o = by[k], days = Object.keys(o.days).length, x = ob[k] || {obs: 0, pos: 0, iss: 0, ophotos: 0, spot: 0};
+    var q = o.scans >= c.minScans && days >= c.minDays && (c.maxIssues == null || o.issues <= c.maxIssues) && o.scans > 0 &&
+      x.obs >= c.minObs && x.pos >= c.minPos && x.iss >= c.minIss && x.ophotos >= c.minOPhotos && x.spot >= c.minSpot;
+    return {guard: o.guard, scans: o.scans, days: days, issues: o.issues, photos: o.photos, obs: x.obs, pos: x.pos, iss: x.iss, ophotos: x.ophotos, spot: x.spot, q: q};
   }).sort(function (x, y) { return y.scans - x.scans || x.guard.localeCompare(y.guard); });
   return {criteria: c, rows: rows};
 }
@@ -1148,7 +1318,7 @@ function awardPublic_() {
 function award_(a, b) {
   var month = String(b.month || '');
   if (a === 'a_award_set') {
-    ['minScans:AWARD_MIN_SCANS', 'minDays:AWARD_MIN_DAYS'].forEach(function (p) {
+    ['minScans:AWARD_MIN_SCANS', 'minDays:AWARD_MIN_DAYS', 'minObs:AWARD_MIN_OBS', 'minPos:AWARD_MIN_POS', 'minIss:AWARD_MIN_ISS', 'minOPhotos:AWARD_MIN_OPHOTOS', 'minSpot:AWARD_MIN_SPOT'].forEach(function (p) {
       var k = p.split(':'), v = b[k[0]];
       if (v != null && v !== '') { v = Math.round(Number(v)); if (!(v >= 0 && v <= 100000)) throw new Error('bad_number'); setCfg_(k[1], String(v)); }
     });
@@ -1326,7 +1496,7 @@ function dailySummary() {
   }
   var top = pts.filter(function (p) { return missCount[p.id]; }).sort(function (a, b) { return missCount[b.id] - missCount[a.id]; }).slice(0, 10);
   var foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
-  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq)) + foot;
-  var fq = hideGps_(flagList), hq = both_(dailyHtml_('en', y, tr, top, missCount, fq, phTaken, phReq), dailyHtml_('id', y, tr, top, missCount, fq, phTaken, phReq)) + foot;
+  var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq) + obsDailyHtml_('en', y), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq) + obsDailyHtml_('id', y)) + foot;
+  var fq = hideGps_(flagList), hq = both_(dailyHtml_('en', y, tr, top, missCount, fq, phTaken, phReq) + obsDailyHtml_('en', y), dailyHtml_('id', y, tr, top, missCount, fq, phTaken, phReq) + obsDailyHtml_('id', y)) + foot;
   sendTo_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h, hq);
 }
