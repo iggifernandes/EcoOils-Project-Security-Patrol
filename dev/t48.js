@@ -14,7 +14,7 @@ ok(m.call({action:'obs',gp:'123456',type:'Issue',cat:'Other',text:'abc def'}).er
 const r1=m.call({action:'obs',gp:G.pin,type:'Positive',cat:'Good practice',pno:5,text:'Contractor wearing full PPE at warehouse',photo:ph,cid:'c1'});
 ok(r1.ok&&r1.mine===1,'positive recorded with photo, count 1');
 const r2=m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Unsafe condition',pno:13,text:'Oil leak near the DTP drain',cid:'c2'});
-const r3=m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Fence / perimeter',text:'Gap in fence, I tied it up',spot:true,photo:ph,cid:'c3'});
+const r3=m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Fence / perimeter',text:'Gap in fence, I tied it up',spot:true,act:'Tied the gap with wire',photo:ph,cid:'c3'});
 ok(r2.ok&&r3.ok&&r3.mine===3,'issues recorded, count 3');
 ok(m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Unsafe condition',pno:13,text:'Oil leak near the DTP drain',cid:'c2'}).dup===true&&m.sheets.Observations.rows.length===4,'re-sent observation is not written twice');
 const rows=m.sheets.Observations.rows;
@@ -28,9 +28,9 @@ const l1=m.call({action:'d_obs_list',gp:D});
 ok(l1.ok&&l1.open.length===1&&l1.open[0].guard==='Obs Guard'&&l1.closed.length===1,'Danru list: 1 open, 1 closed on the spot');
 ok(m.call({action:'d_obs_list',gp:G.pin}).err==='auth','a guard cannot open the close list');
 ok(m.call({action:'d_obs_close',gp:G.pin,id:'c2'}).err==='auth','a guard cannot close an issue');
-ok(m.call({action:'d_obs_close',gp:D,id:'c1'}).err==='bad_obs','a positive cannot be closed');
+ok(m.call({action:'d_obs_close',gp:D,id:'c1',note:'x ok'}).err==='bad_obs','a positive cannot be closed');
 ok(m.call({action:'d_obs_close',gp:D,id:'c2',note:'Drain cleaned, leak fixed'}).ok,'Danru closes the issue with a note');
-ok(m.call({action:'d_obs_close',gp:D,id:'c2'}).err==='already_closed','closing twice is refused');
+ok(m.call({action:'d_obs_close',gp:D,id:'c2',note:'again'}).err==='already_closed','closing twice is refused');
 ok(rows[2][12]==='Closed'&&rows[2][13]==='Rendi Irawan'&&/leak fixed/.test(rows[2][15]),'row shows who closed it and the note');
 ok(m.call({action:'state',gp:D}).obs.open===0,'open count back to 0');
 // --- scans so guards appear in the award table, then award criteria ---

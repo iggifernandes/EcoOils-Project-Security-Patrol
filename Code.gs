@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.37';
+var VERSION = 'v1.38';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -951,6 +951,8 @@ function obsSave_(b, me) {
     points_(false).forEach(function (p) { if (p.no === pn) { no = p.no; where = p.name; } });
   }
   var spot = type === 'Issue' && b.spot === true;
+  var act = String(b.act || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (spot && act.length < 3) return {ok: false, err: 'need_action'};
   var now = Date.now(), ts = now, cid = String(b.cid || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 24);
   if (b.queued) { var c0 = Number(b.clientTs); if (c0 && c0 <= now + 60000 && now - c0 < 72 * 3600000) ts = c0; }
   var lock = LockService.getScriptLock();
@@ -963,7 +965,7 @@ function obsSave_(b, me) {
       try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', 'OBS_' + sf.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + type + '_' + me.name + '.jpg')).getUrl(); }
       catch (e) { photoFail = true; }
     }
-    obsSheet_().appendRow([id, ymdhms_(ts), sf.date, sf.code, me.name, type, cat, no, where, text, url, spot ? 'Yes' : (type === 'Issue' ? 'No' : ''), type === 'Positive' ? 'Positive' : (spot ? 'Closed on spot' : 'Open'), '', '', '', ts]);
+    obsSheet_().appendRow([id, ymdhms_(ts), sf.date, sf.code, me.name, type, cat, no, where, text, url, spot ? 'Yes' : (type === 'Issue' ? 'No' : ''), type === 'Positive' ? 'Positive' : (spot ? 'Closed on spot' : 'Open'), spot ? me.name : '', spot ? ymdhms_(ts) : '', spot ? act : '', ts]);
     return {ok: true, id: id, photoFail: photoFail, mine: obsState_(me).mine};
   } finally { lock.releaseLock(); }
 }
@@ -977,6 +979,7 @@ function obsList_() {
 function obsClose_(b, by) {
   var id = String(b.id || ''), note = String(b.note || '').replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!id) return {ok: false, err: 'bad_obs'};
+  if (note.length < 3) return {ok: false, err: 'need_note'};
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1229,6 +1232,45 @@ function admin_(a, b) {
       if (dt >= from && dt <= to) rows.push({t: r2[1] instanceof Date ? ymdhms_(Number(r2[17])) : String(r2[1]), round: String(r2[3]), guard: String(r2[4]), no: r2[7], name: String(r2[8]), gps: String(r2[14]), dist: r2[13], acc: r2[12], flags: String(r2[15]), photo: String(r2[16] || '')});
     });
     return {ok: true, rows: rows.slice(-2000)};
+  }
+  if (a === 'a_missed') {
+    /* Trends of missed points: a point is missed in a round when nobody scanned it in that round. Weather-hold rounds are excused. */
+    var mTo = String(b.to || ymdhms_(Date.now()).slice(0, 10)), mFrom = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(mFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(mTo) || mFrom > mTo) return {ok: false, err: 'bad_date'};
+    var mNow = Date.now(), mHeld = 0, mRounds = [], md = Date.parse(mFrom + 'T00:00:00Z'), mEnd = Date.parse(mTo + 'T00:00:00Z'), mc = 0;
+    for (; md <= mEnd && mc < 92; md += 86400000, mc++) {
+      var mds = new Date(md).toISOString().slice(0, 10);
+      for (var mi = 0; mi < ROUNDS.length; mi++) { var mr = roundBy_(mds, mi); if (mr.end <= mNow) { if (roundHeld_(mr)) mHeld++; else mRounds.push({date: mds, idx: mi, label: mr.label, seen: {}, nScans: 0}); } }
+    }
+    var mIdx = {}; mRounds.forEach(function (r) { mIdx[r.date + '|' + r.idx] = r; });
+    var mSh = sh_('Scans'), mLast = mSh.getLastRow();
+    if (mLast >= 2) mSh.getRange(2, 1, mLast - 1, 18).getValues().forEach(function (r3) {
+      var wh = rowWhen_(r3);
+      if (wh.idx < 0) return;
+      var rr2 = mIdx[wh.date + '|' + wh.idx];
+      if (!rr2) return;
+      rr2.seen[String(r3[6])] = 1; rr2.nScans++;
+    });
+    var mPts = points_(true), MP = {}, MD = {}, MS = {}, MZ = {}, MG = {0: 'Morning', 1: 'Morning', 2: 'Morning', 3: 'Afternoon', 4: 'Afternoon', 5: 'Afternoon', 6: 'Night', 7: 'Night', 8: 'Night'}, MSH = {Morning: {missed: 0, rounds: 0}, Afternoon: {missed: 0, rounds: 0}, Night: {missed: 0, rounds: 0}}, detail = [], totMiss = 0, withMiss = 0, empty = 0;
+    mPts.forEach(function (p) { MP[p.id] = {no: p.no, name: p.name, zone: p.zone || '', hi: p.hi, missed: 0, rounds: mRounds.length}; });
+    for (var q = 0; q < ROUNDS.length; q++) MS[q] = {idx: q, label: rlabel_(q), missed: 0, rounds: 0};
+    mRounds.forEach(function (r) {
+      var miss = mPts.filter(function (p) { return !r.seen[p.id]; });
+      var day = MD[r.date] || (MD[r.date] = {date: r.date, missed: 0, rounds: 0, withMiss: 0});
+      day.rounds++; MS[r.idx].rounds++; MSH[MG[r.idx]].rounds++;
+      if (miss.length) { day.missed += miss.length; day.withMiss++; withMiss++; MS[r.idx].missed += miss.length; MSH[MG[r.idx]].missed += miss.length; totMiss += miss.length; }
+      if (!r.nScans) empty++;
+      miss.forEach(function (p) { MP[p.id].missed++; var z = p.zone || '-'; MZ[z] = (MZ[z] || 0) + 1; });
+      detail.push({date: r.date, idx: r.idx, label: r.label, shift: MG[r.idx], done: mPts.length - miss.length, total: mPts.length, scans: r.nScans, missed: miss.map(function (p) { return {no: p.no, name: p.name, hi: !!p.hi, zone: p.zone || ''}; })});
+    });
+    var possible = mRounds.length * mPts.length;
+    var byPoint = Object.keys(MP).map(function (k) { var o = MP[k]; o.pct = o.rounds ? Math.round(100 * o.missed / o.rounds) : 0; return o; }).sort(function (x, y) { return y.missed - x.missed || x.no - y.no; });
+    return {ok: true, from: mFrom, to: mTo, rounds: mRounds.length, held: mHeld, points: mPts.length, possible: possible, missed: totMiss, roundsWithMiss: withMiss, emptyRounds: empty,
+      pct: possible ? Math.round(1000 * totMiss / possible) / 10 : 0,
+      byDay: Object.keys(MD).sort().map(function (k) { return MD[k]; }), bySlot: Object.keys(MS).map(function (k) { return MS[k]; }),
+      byShift: ['Morning', 'Afternoon', 'Night'].map(function (k) { return {shift: k, missed: MSH[k].missed, rounds: MSH[k].rounds}; }),
+      byZone: Object.keys(MZ).map(function (k) { return {zone: k, missed: MZ[k]}; }).sort(function (x, y) { return y.missed - x.missed; }),
+      byPoint: byPoint, detail: detail.reverse()};
   }
   if (a === 'a_stats') {
     var to = String(b.to || ymdhms_(Date.now()).slice(0, 10)), fromD = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
