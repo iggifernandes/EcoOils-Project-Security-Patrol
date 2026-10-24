@@ -20,6 +20,8 @@ ok(rep.points.find(p=>p.no===2).review===false,'point 2 (one guard, poor GPS) no
 ok(!rep.points.some(p=>p.no===6)&&rep.skipped.includes('6'),'shaded point 6 is never counted and is listed as not checked');
 const dg=m.call({action:'d_gps',gp:D});
 ok(dg.ok&&dg.totals.outside===7&&dg.totals.noGps===0&&dg.guards.every(g=>g.noGps===0),'Danru version hides the no-GPS count');
+ok(dg.points.every(p=>p.review===false),'Danru data carries no review flag');
+ok(m.call({action:'d_gps',pin:ADM}).points.length>0,'sanity: admin call works');
 ok(m.call({action:'d_gps',gp:G1.pin}).err==='auth','a guard cannot open the GPS check');
 ok(m.call({action:'d_gps',pin:ADM,days:30}).ok,'Admin PIN can open it');
 // weekly email
@@ -28,7 +30,9 @@ m.ctx.mails.length=0;m.ctx.weeklyGps();
 const mo=m.ctx.mails.find(x=>x.to==='owner@example.com'),md=m.ctx.mails.find(x=>/danru@example.com/.test(x.to));
 ok(m.ctx.mails.length===2&&mo&&md&&/squad@example.com/.test(md.to),'two emails: owner, and the Danru list');
 ok(/7 outside/.test(mo.subject)&&/Scans without GPS: 1/.test(mo.htmlBody)&&!/without GPS/.test(md.htmlBody),'owner email shows no-GPS count, Danru email does not');
-ok(/REVIEW THE POINT/.test(md.htmlBody)&&/PERIKSA TITIK/.test(md.htmlBody)&&/Gps One/.test(md.htmlBody),'Danru email: guards, review flag, English and Bahasa');
+ok(/Gps One/.test(md.htmlBody)&&/Cara membaca|Pemeriksaan GPS mingguan/.test(md.htmlBody)&&/Weekly GPS check/.test(md.htmlBody),'Danru email: guards and points, English and Bahasa');
+ok(!/REVIEW THE POINT|PERIKSA TITIK|How to read|Cara membaca|talk to|Many guards outside/.test(md.htmlBody),'Danru email has NO review flag and NO advice');
+ok(/REVIEW THE POINT/.test(mo.htmlBody)&&/PERIKSA TITIK/.test(mo.htmlBody)&&/How to read/.test(mo.htmlBody)&&/Cara membaca/.test(mo.htmlBody),'owner email has the review flag and the advice, English and Bahasa');
 ok(!/other@example.com/.test(md.to)&&!/danru@example.com/.test(mo.to),'recipients not mixed');
 // trigger definition
 const src=require('fs').readFileSync('../Code.gs','utf8');
@@ -50,13 +54,13 @@ ok(/onWeekDay\(ScriptApp\.WeekDay\.SUNDAY\)\.atHour\(18\)/.test(src),'weekly tri
  ok(await pd.locator('#bGps').isVisible(),'Danru sees the GPS check button');
  await pd.click('#bGps');await pd.waitForSelector('#gpDays');
  const tx=await pd.locator('#gpsBody').innerText();
- ok(/Gps One/.test(tx)&&/Gps Three/.test(tx)&&/Review the point/i.test(tx)&&/Workshop/.test(tx)===false,'Danru screen: guards and the review note');
+ ok(/Gps One/.test(tx)&&/Gps Three/.test(tx)&&!/Review the point|talk to that guard/i.test(tx)&&/Workshop/.test(tx)===false,'Danru screen: guards and points, no review note or advice');
  ok(/\b7\b/.test(await pd.locator('#gpsBody .cnt.r').innerText())&&/\b9\b/.test(await pd.locator('#gpsBody .cnt.d').innerText()),'counts 7 outside, 9 checked');
  ok(!/without gps|no gps/i.test(tx),'no-GPS count is not shown to the Danru');
  await pd.selectOption('#gpDays','30');await pd.waitForSelector('#gpDays');
  ok(await pd.locator('#gpDays').inputValue()==='30','period switch to 30 days works');
  await pd.click('#lID');await pd.waitForTimeout(400);
- ok(/Periksa titik/i.test(await pd.locator('#gpsBody').innerText()),'Bahasa text');
+ ok(/Per petugas/i.test(await pd.locator('#gpsBody').innerText())&&!/Periksa titik/i.test(await pd.locator('#gpsBody').innerText()),'Bahasa text, still no advice');
  ok(await pd.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow at 360 px');
  await pd.click('#gpBack');await pd.waitForSelector('#vPatrol:not(.hidden)');
  ok(pd.errs.length===0&&pg.errs.length===0,'no page errors '+pd.errs.concat(pg.errs).join('|'));

@@ -201,7 +201,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.34';
+var VERSION='v1.35';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -988,9 +988,9 @@ function gpsLoad(){
     gl.forEach(function(g){h+='<div class="pt"><b>'+esc(g.guard)+' &middot; '+g.outside+' '+esc(tr('gpsOf'))+' '+g.checked+' ('+g.pct+'%)</b><small>'+esc(tr('gpsGood'))+': '+g.strong+' &middot; '+g.avgDist+' '+esc(tr('gpsAway'))+'</small></div>';});
     if(!gl.length)h+='<p class="note">'+esc(tr('gpsNone'))+'</p>';
     h+='<div class="zh">'+esc(tr('gpsPoints'))+'</div>';
-    r.points.slice(0,20).forEach(function(p){h+='<div class="pt'+(p.review?' hi':'')+'"><b>'+p.no+'. '+esc(p.name)+' &middot; '+p.outside+' '+esc(tr('gpsOf'))+' '+p.checked+' ('+p.pct+'%)</b><small>'+p.guards+' &middot; '+p.avgDist+' '+esc(tr('gpsAway'))+(p.review?'<br><span class="fl">'+esc(tr('gpsReview'))+'</span>':'')+'</small></div>';});
+    r.points.slice(0,20).forEach(function(p){h+='<div class="pt"><b>'+p.no+'. '+esc(p.name)+' &middot; '+p.outside+' '+esc(tr('gpsOf'))+' '+p.checked+' ('+p.pct+'%)</b><small>'+p.guards+' &middot; '+p.avgDist+' '+esc(tr('gpsAway'))+'</small></div>';});
     if(!r.points.length)h+='<p class="note">'+esc(tr('gpsNone'))+'</p>';
-    h+='<p class="note">'+esc(tr('gpsHow'))+'</p><button class="btn ghost" id="gpBack" type="button">'+esc(tr('back'))+'</button>';
+    h+='<button class="btn ghost" id="gpBack" type="button">'+esc(tr('back'))+'</button>';
     $('gpsBody').innerHTML=h;
   }).catch(function(){$('gpsBody').innerHTML='<h1>'+esc(tr('gpsTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
 }

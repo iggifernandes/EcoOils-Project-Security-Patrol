@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.34';
+var VERSION = 'v1.35';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1044,7 +1044,7 @@ function obsDailyHtml_(L, y) {
    Only scans where GPS was really checked count (gps OK or OUTSIDE). Points in Config GPS_SKIP (shaded / tall structure / upper floors) are never checked, so they cannot be OUTSIDE.
    'Good GPS' = OUTSIDE with a fix of 20 m accuracy or better: hard to explain by the phone alone.
    A point where several different guards are OUTSIDE is flagged 'review the point' (position, radius or shade), not a guard problem.
-   Recipients: the owner (first NOTIFY_EMAIL address) gets everything; Config DANRU_EMAIL (comma list) gets the same OUTSIDE tables without the no-GPS count.
+   Recipients: the owner (first NOTIFY_EMAIL address) gets everything, including the no-GPS count, the REVIEW THE POINT flag and the 'how to read' advice (owner decision 24 Oct: those are discussed together with the owner, not sent to the Danru); Config DANRU_EMAIL (comma list) gets the same OUTSIDE counts by guard and by point, nothing else.
    Scheduled Sunday about 18:00 Jakarta (setupTriggers) so the Danru has it for the Monday morning discussion; it covers Monday to Sunday of that week (the last 7 days including today). The Danru can also open it on the phone (d_gps, last 7/14/30 days). */
 function gpsWeek_(fromD, to) {
   var sh = sh_('Scans'), last = sh.getLastRow(), G = {}, P = {}, tot = {checked: 0, outside: 0, strong: 0, noGps: 0};
@@ -1086,11 +1086,11 @@ function gpsWeekHtml_(L, rep, owner) {
   } else h += '<p style="margin:0">' + (en ? 'No scan was outside.' : 'Tidak ada pemindaian di luar.') + '</p>';
   h += '<p style="margin:12px 0 2px"><b>' + (en ? 'By point' : 'Per titik') + '</b></p>';
   if (rep.points.length) {
-    h += '<table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + (en ? 'Point' : 'Titik') + '</th><th>' + (en ? 'Outside' : 'Di luar') + '</th><th>' + (en ? 'Checked' : 'Diperiksa') + '</th><th>%</th><th>' + (en ? 'Guards' : 'Petugas') + '</th><th></th></tr>';
-    rep.points.slice(0, 20).forEach(function (p) { h += '<tr><td>' + p.no + '. ' + esc_(p.name) + '</td><td align="right">' + p.outside + '</td><td align="right">' + p.checked + '</td><td align="right">' + p.pct + '</td><td align="right">' + p.guards + '</td><td>' + (p.review ? (en ? 'REVIEW THE POINT (several guards: position, radius or shade)' : 'PERIKSA TITIK (banyak petugas: posisi, radius atau teduh)') : '') + '</td></tr>'; });
+    h += '<table border="1" cellpadding="4" style="border-collapse:collapse"><tr><th>' + (en ? 'Point' : 'Titik') + '</th><th>' + (en ? 'Outside' : 'Di luar') + '</th><th>' + (en ? 'Checked' : 'Diperiksa') + '</th><th>%</th><th>' + (en ? 'Guards' : 'Petugas') + '</th>' + (owner ? '<th></th>' : '') + '</tr>';
+    rep.points.slice(0, 20).forEach(function (p) { h += '<tr><td>' + p.no + '. ' + esc_(p.name) + '</td><td align="right">' + p.outside + '</td><td align="right">' + p.checked + '</td><td align="right">' + p.pct + '</td><td align="right">' + p.guards + '</td>' + (owner ? '<td>' + (p.review ? (en ? 'REVIEW THE POINT (several guards: position, radius or shade)' : 'PERIKSA TITIK (banyak petugas: posisi, radius atau teduh)') : '') + '</td>' : '') + '</tr>'; });
     h += '</table>';
   } else h += '<p style="margin:0">-</p>';
-  h += '<p style="margin:10px 0 0;color:#555">' + (en ? 'How to read: one guard outside at many points = look at that guard. Many guards outside at one point = the point needs a new position, a bigger radius, or a place on the shaded list.' : 'Cara membaca: satu petugas di luar di banyak titik = periksa petugas itu. Banyak petugas di luar di satu titik = titik perlu posisi baru, radius lebih besar, atau masuk daftar area teduh.') + '</p>';
+  if (owner) h += '<p style="margin:10px 0 0;color:#555">' + (en ? 'How to read: one guard outside at many points = look at that guard. Many guards outside at one point = the point needs a new position, a bigger radius, or a place on the shaded list.' : 'Cara membaca: satu petugas di luar di banyak titik = periksa petugas itu. Banyak petugas di luar di satu titik = titik perlu posisi baru, radius lebih besar, atau masuk daftar area teduh.') + '</p>';
   return h;
 }
 function weeklyGps() {
@@ -1127,7 +1127,7 @@ function team_(a, b) {
   if (a === 'd_gps') {
     var days = Math.max(1, Math.min(31, parseInt(b.days, 10) || 7)), gto = ymdhms_(Date.now()).slice(0, 10), gfrom = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10);
     var gr = gpsWeek_(gfrom, gto);
-    gr.totals.noGps = 0; gr.guards.forEach(function (g) { g.noGps = 0; });
+    gr.totals.noGps = 0; gr.guards.forEach(function (g) { g.noGps = 0; }); gr.points.forEach(function (p) { p.review = false; }); /* the reading advice and the review flag are for the owner only */
     gr.ok = true; gr.days = days;
     return gr;
   }
