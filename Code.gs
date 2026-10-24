@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.36';
+var VERSION = 'v1.37';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1568,6 +1568,35 @@ function roundCheck() {
   var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + foot;
   var fq = hideGps_(flagged), hq = (missed.length || fq.length) ? both_(roundHtml_('en', r, pts, missed, hi, fq, photos), roundHtml_('id', r, pts, missed, hi, fq, photos)) + foot : '';
   sendTo_(subj, h, hq);
+}
+/* One-off catch-up for the Danru: every round that ended after CATCHUP_FROM (Config, Jakarta time, default 2026-10-23 20:00) up to now, missed points only (no GPS flags, no photo checks). Run it from the editor; it sends to DANRU_EMAIL (else the other NOTIFY_EMAIL addresses). */
+function missedCatchUp() {
+  var from = String(cfg_('CATCHUP_FROM', '2026-10-23 20:00')).trim(), m = from.match(/^(\d{4}-\d\d-\d\d)[ T](\d\d):(\d\d)/);
+  if (!m) { Logger.log('CATCHUP_FROM must look like 2026-10-23 20:00'); return; }
+  var fromMs = Date.parse(m[1] + 'T' + m[2] + ':' + m[3] + ':00Z') - OFF, now = Date.now(), pts = points_(true);
+  var base = Date.parse(roundAt_(now).opDate + 'T00:00:00Z'), parts = {en: '', id: ''}, n = 0, tot = 0;
+  for (var k = -4; k <= 0; k++) {
+    var d = new Date(base + k * 86400000).toISOString().slice(0, 10);
+    for (var i = 0; i < ROUNDS.length; i++) {
+      var r = roundBy_(d, i);
+      if (r.end <= fromMs || r.end > now) continue;
+      n++;
+      if (roundHeld_(r)) continue;
+      var dn = doneMap_(r), missed = pts.filter(function (p) { return !dn[p.id]; });
+      if (!missed.length) continue;
+      tot += missed.length;
+      var hi = missed.filter(function (p) { return p.hi; });
+      parts.en += roundHtml_('en', r, pts, missed, hi, [], []);
+      parts.id += roundHtml_('id', r, pts, missed, hi, [], []);
+    }
+  }
+  var to = String(cfg_('DANRU_EMAIL', '')).split(',').map(function (x) { return x.trim(); }).filter(String);
+  if (!to.length) to = cfg_('NOTIFY_EMAIL', '').split(',').slice(1).map(function (x) { return x.trim(); }).filter(String);
+  if (!to.length) { Logger.log('No Danru address: add DANRU_EMAIL to Config'); return; }
+  var head = '<p><b>Missed points since / Titik terlewat sejak ' + from + ' (' + n + ' rounds / putaran)</b></p>';
+  var body = tot ? parts.en + '<hr style="margin:18px 0;border:0;border-top:2px solid #999">' + parts.id : '<p>No missed points in these rounds. / Tidak ada titik terlewat pada putaran ini.</p>';
+  MailApp.sendEmail({to: to.join(','), subject: 'Missed points since / Titik terlewat sejak ' + from + ': ' + tot, htmlBody: '<div style="font-family:Arial,sans-serif;font-size:14px">' + head + body + '</div><p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>'});
+  Logger.log('Sent to ' + to.join(',') + ': ' + n + ' rounds, ' + tot + ' missed points');
 }
 function dailyHtml_(L, y, tr, top, missCount, flagList, phTaken, phReq) {
   var T = TXT[L];
