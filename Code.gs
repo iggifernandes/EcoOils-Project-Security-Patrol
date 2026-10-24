@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.39';
+var VERSION = 'v1.40';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1540,11 +1540,15 @@ function hideGps_(list) {
   return out;
 }
 function sendTo_(subject, htmlFull, htmlQuiet) {
+  var lst = function (k) { return String(cfg_(k, '')).split(',').map(function (x) { return x.trim(); }).filter(String); };
   var all = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my').split(',').map(function (x) { return x.trim(); }).filter(String);
   if (!all.length) return;
-  if (!quiet_() || all.length < 2 || htmlQuiet === undefined) { MailApp.sendEmail({to: all.join(','), subject: subject, htmlBody: htmlFull}); return; }
+  var seen = {}, rest = [];
+  seen[all[0].toLowerCase()] = 1;
+  all.slice(1).concat(lst('DANRU_EMAIL')).forEach(function (a) { var k = a.toLowerCase(); if (!seen[k]) { seen[k] = 1; rest.push(a); } }); /* the Danru gets the round and daily emails too */
+  if (!quiet_() || htmlQuiet === undefined) { MailApp.sendEmail({to: [all[0]].concat(rest).join(','), subject: subject, htmlBody: htmlFull}); return; }
   MailApp.sendEmail({to: all[0], subject: subject, htmlBody: htmlFull});
-  if (htmlQuiet) MailApp.sendEmail({to: all.slice(1).join(','), subject: subject, htmlBody: htmlQuiet});
+  if (htmlQuiet && rest.length) MailApp.sendEmail({to: rest.join(','), subject: subject, htmlBody: htmlQuiet});
 }
 function send_(subject, html) {
   var to = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my');
@@ -1626,12 +1630,13 @@ function roundCheck() {
   if (roundHeld_(r)) return;
   var pts = points_(true), d = doneMap_(r);
   var missed = pts.filter(function (p) { return !d[p.id]; }), flagged = flagged_(r), photos = photoChecks_(r, pts);
-  if (!missed.length && !flagged.length) return;
+  var allClear = String(cfg_('ROUND_ALL_CLEAR', 'yes')).toLowerCase() !== 'no'; /* owner 24 Oct: also send an email when every point was scanned */
+  if (!missed.length && !flagged.length && !allClear) return;
   var hi = missed.filter(function (p) { return p.hi; });
-  var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : '') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
+  var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : ' - all done / semua selesai') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
   var foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
   var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + foot;
-  var fq = hideGps_(flagged), hq = (missed.length || fq.length) ? both_(roundHtml_('en', r, pts, missed, hi, fq, photos), roundHtml_('id', r, pts, missed, hi, fq, photos)) + foot : '';
+  var fq = hideGps_(flagged), hq = (missed.length || fq.length || allClear) ? both_(roundHtml_('en', r, pts, missed, hi, fq, photos), roundHtml_('id', r, pts, missed, hi, fq, photos)) + foot : '';
   sendTo_(subj, h, hq);
 }
 /* One-off catch-up for the Danru: every round that ended after CATCHUP_FROM (Config, Jakarta time, default 2026-10-23 20:00) up to now, missed points only (no GPS flags, no photo checks). Run it from the editor; it sends to DANRU_EMAIL (else the other NOTIFY_EMAIL addresses). */
