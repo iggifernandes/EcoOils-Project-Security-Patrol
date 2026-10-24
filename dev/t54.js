@@ -1,0 +1,15 @@
+const m=require('./mock.js');
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+const sent=[];m.ctx.MailApp.sendEmail=o=>{if(/bad@/.test(o.to))throw new Error('Invalid email: '+o.to);sent.push(o);};
+m.ctx.setCfg_('NOTIFY_EMAIL','owner@example.com, danru@example.com');m.ctx.setCfg_('DANRU_EMAIL','danru@example.com,bad@example.com');
+const n0=m.ctx.logs.length;
+m.ctx.mailCheck();
+const L=m.ctx.logs.slice(n0).join('\n');
+ok(sent.length===2&&sent[0].to==='owner@example.com'&&sent[1].to==='danru@example.com','one separate test email per distinct address (no duplicates): '+sent.map(x=>x.to));
+ok(/Sent OK to owner@example.com/.test(L)&&/Sent OK to danru@example.com/.test(L),'log shows each success');
+ok(/FAILED to bad@example.com: Invalid email/.test(L),'a failing address is named in the log and does not stop the others');
+ok(/NOTIFY_EMAIL.*owner@example.com \| danru@example.com/.test(L)&&/DANRU_EMAIL.*danru@example.com \| bad@example.com/.test(L),'log lists both recipient lists');
+ok(/GPS_QUIET: yes/.test(L)&&/Triggers:/.test(L)&&/Emails left today/.test(L),'log shows GPS_QUIET, triggers and quota');
+m.ctx.setCfg_('DANRU_EMAIL','');sent.length=0;const n1=m.ctx.logs.length;m.ctx.mailCheck();
+ok(/NOT SET/.test(m.ctx.logs.slice(n1).join('\n')),'missing DANRU_EMAIL is called out');
+console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);

@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.38';
+var VERSION = 'v1.39';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -178,6 +178,29 @@ function setupTriggers() {
   ScriptApp.newTrigger('dailySummary').timeBased().atHour(7).nearMinute(10).everyDays(1).inTimezone(TZ).create();
   ScriptApp.newTrigger('weeklyGps').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(18).nearMinute(0).inTimezone(TZ).create();
   Logger.log('Triggers created: 1 weekly GPS report on Sunday about 18:00 (for the Monday morning discussion with the Danru), 9 round checks, 5 minutes after each round ends (10:05, 12:05, 14:05, 18:05, 20:05, 22:05, 02:05, 04:05, 06:05 Jakarta time) and 1 daily summary at about 07:10.');
+}
+/* Delivery check, run from the editor. Logs who is on the lists, the daily mail quota left, the installed triggers, then sends ONE plain test email to EACH address separately, so a failing address shows by name in the log. */
+function mailCheck() {
+  var lst = function (k) { return String(cfg_(k, '')).split(',').map(function (x) { return x.trim(); }).filter(String); };
+  var all = lst('NOTIFY_EMAIL'), dr = lst('DANRU_EMAIL'), q = 'unknown';
+  try { q = MailApp.getRemainingDailyQuota(); } catch (e) { q = 'unknown (' + e.message + ')'; }
+  Logger.log('NOTIFY_EMAIL (first = full copy, others = copy without GPS flags, none if nothing to report): ' + all.join(' | '));
+  Logger.log('DANRU_EMAIL (weekly GPS + catch-up): ' + (dr.join(' | ') || 'NOT SET'));
+  Logger.log('GPS_QUIET: ' + (quiet_() ? 'yes' : 'no') + '. Emails left today: ' + q);
+  var tc = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) { var h = t.getHandlerFunction(); tc[h] = (tc[h] || 0) + 1; });
+  Logger.log('Triggers: ' + (Object.keys(tc).map(function (h) { return h + ' x' + tc[h]; }).join(', ') || 'NONE, run setupTriggers'));
+  Logger.log('Last round checked by roundCheck: ' + (props_().getProperty('LAST_RC') || 'never'));
+  var seen = {};
+  all.concat(dr).forEach(function (a) {
+    var k = a.toLowerCase();
+    if (seen[k]) return;
+    seen[k] = 1;
+    try {
+      MailApp.sendEmail({to: a, subject: 'Patrol app delivery test / Uji pengiriman ' + VERSION, htmlBody: '<p>This is a delivery test from the EcoOils Mentari Security Patrol app. If you can read this, emails reach <b>' + esc_(a) + '</b>. If it was in Spam, mark it Not spam.</p><p>Ini uji pengiriman dari aplikasi Patroli Keamanan EcoOils Mentari. Jika Anda membaca ini, email sampai ke <b>' + esc_(a) + '</b>. Jika masuk Spam, tandai Bukan spam.</p>'});
+      Logger.log('Sent OK to ' + a);
+    } catch (e) { Logger.log('FAILED to ' + a + ': ' + e.message); }
+  });
 }
 function testEmail() { send_('Patrol app test email / Email uji coba', '<p>This is a test from the EcoOils Mentari Security Patrol app ' + VERSION + '. If you can read this, missed-point summaries will reach you.</p><hr><p>Ini adalah email uji coba dari aplikasi Patroli Keamanan EcoOils Mentari ' + VERSION + '. Jika Anda dapat membaca ini, ringkasan titik yang terlewat akan sampai kepada Anda.</p>'); }
 
