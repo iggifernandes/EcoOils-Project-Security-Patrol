@@ -32,6 +32,8 @@ h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
 input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
+#vPatrol.pv #bScan,#vPatrol.pv #bObs,#vPatrol.pv #bObsL,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
+#pvBar{border-color:var(--amber);background:var(--ban);position:sticky;top:48px;z-index:4}
 textarea{min-height:90px;resize:vertical;line-height:1.4}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 .btn{display:block;width:100%;background:var(--green);color:var(--text);border:1px solid var(--green);border-radius:var(--r);padding:12px 15px;min-height:44px;font-weight:600;font-size:16px;cursor:pointer;margin-top:12px;transition:background .15s}
@@ -120,6 +122,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vPatrol" class="hidden">
+  <div class="card hidden" id="pvBar"><div id="pvTxt"></div><button class="btn sm" id="pvRef" type="button"></button><button class="btn sm" id="pvExit" type="button"></button></div>
   <div class="card">
     <div class="round"><div><b id="rLabel"></b><br><span id="who"></span></div><div style="text-align:right"><span id="lTime"></span><div id="left">--:--</div></div></div>
     <div class="counts"><div class="cnt d"><b id="nDone">0</b><span id="lDone"></span></div><div class="cnt r"><b id="nRem">0</b><span id="lRem"></span></div></div>
@@ -178,7 +181,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vAdmin" class="hidden">
-  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aTeam" type="button">Team</button></div>
+  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -201,7 +204,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.35';
+var VERSION='v1.36';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -240,6 +243,7 @@ function pad(n){return (n<10?'0':'')+n;}
 function fmtT(ms){return new Date(ms+7*3600000).toISOString().slice(11,16);}
 function fmtLeft(s){s=Math.max(0,Math.floor(s));var h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+':':'')+pad(m)+':'+pad(s%60);}
 ls('sp_team',null);ls('sp_guard',null);
+var PV={on:false};
 var S={pin:ls('sp_gpin')||'',guard:ls('sp_gname')||'',state:null,off:0,tab:'rem',queue:[],loading:false,online:true};
 try{S.queue=JSON.parse(ls('sp_q')||'[]');}catch(e){S.queue=[];}
 try{S.pq=JSON.parse(ls('sp_pq')||'[]');}catch(e){S.pq=[];}
@@ -255,6 +259,7 @@ function api(body,ms){
 }
 function dropLogin(msg){S.pin='';S.guard='';S.state=null;ls('sp_gpin',null);ls('sp_gname',null);ls('sp_state',null);showSetup(msg||'');}
 function loadState(quiet){
+  if(PV.on)return pvLoad();
   if(!API_URL||!S.pin)return Promise.resolve(false);
   S.loading=true;
   return api({action:'state',gp:S.pin}).then(function(r){
@@ -268,6 +273,7 @@ function loadState(quiet){
   });
 }
 function flush(){
+  if(PV.on)return Promise.resolve();
   if(!(S.queue.length||S.pq.length)||!API_URL||(S.flushing&&Date.now()-S.flushAt<90000))return Promise.resolve();
   S.flushing=true;S.flushAt=Date.now();
   var lim=Date.now()-36*3600000;S.queue=S.queue.filter(function(x){return x.ts>lim;});saveQ();S.pq=S.pq.filter(function(x){return x.ts>lim;});savePQ();
@@ -338,7 +344,7 @@ function applyLang(){
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
   if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();
-  render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
+  pvBar();render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function curTheme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';}
 function setTheme(t){
@@ -548,8 +554,8 @@ function result(pt,r,note){
 var A={pin:'',tab:'live',pts:[],cal:null};
 function aApi(b){b.pin=A.pin;return api(b);}
 function aTab(t){
-  A.tab=t;['Stats','Live','Hist','Cal','Set','Plan','Award','Ts','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
-  PL.on=false;var f={stats:aStats,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,team:aTeam}[t];f();
+  A.tab=t;['Stats','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  PL.on=false;var f={stats:aStats,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -880,6 +886,7 @@ function clockInside(c){
   return ckDist(p.lat,p.lng,c.gate.lat,c.gate.lng)<=c.gate.r+Math.min(p.acc||0,30);
 }
 function clockRender(){
+  if(PV.on){ckStop();var pb=$('clockBox');if(pb)pb.innerHTML='';return;}
   var box=$('clockBox'),st=S.state;if(!box||!st||$('vPatrol').classList.contains('hidden')){ckStop();return;}
   var c=st.clock,h='',now=nowMs();
   if(!c){box.innerHTML='';return;}
@@ -1112,6 +1119,59 @@ $('obsLBody').addEventListener('click',function(e){
   }
 });
 $('bObsL').addEventListener('click',obsListOpen);
+
+/* ===== Admin: view a guard's screen (read-only simulation) ===== */
+Object.assign(T.en,{pvAs:'Viewing as',pvNote:'Read-only. Nothing here is scanned, sent or changed.',pvClose:'Close view',pvRefresh:'Refresh',pvUpd:'Updated'});
+Object.assign(T.id,{pvAs:'Melihat sebagai',pvNote:'Hanya lihat. Tidak ada yang dipindai, dikirim atau diubah.',pvClose:'Tutup tampilan',pvRefresh:'Muat ulang',pvUpd:'Diperbarui'});
+function pvBar(){
+  var b=$('pvBar');if(!b)return;
+  b.classList.toggle('hidden',!PV.on);
+  if(PV.on)setHtml($('pvTxt'),'<b>'+esc(tr('pvAs'))+' '+esc(PV.name)+'</b><br><small class="note">'+esc(tr('pvNote'))+(PV.at?' '+esc(tr('pvUpd'))+' '+esc(fmtT(PV.at))+' WIB.':'')+'</small>');
+  $('pvRef').textContent=tr('pvRefresh');$('pvExit').textContent=tr('pvClose');
+}
+function pvApply(r){
+  S.state=r;S.guard=PV.name;S.off=r.now-Date.now();PV.at=r.now;PV.list=r.guards||PV.list;
+  $('vPatrol').classList.add('pv');pvBar();render();
+}
+function pvLoad(){
+  if(!PV.on)return Promise.resolve(false);
+  return aApi({action:'a_view',name:PV.name}).then(function(r){
+    if(!PV.on)return false;
+    if(r&&r.ok){pvApply(r);return true;}
+    if(r&&r.err==='pin'){pvExit();aLogout();}
+    return false;
+  }).catch(function(){return false;});
+}
+function pvOpen(name){
+  if(PV.on)return;
+  aApi({action:'a_view',name:name}).then(function(r){
+    if(!r||!r.ok){if(r&&r.err==='pin'){aLogout();return;}if($('pvMsg'))$('pvMsg').textContent='Could not open: '+((r&&r.err)||'no connection');return;}
+    PV={on:true,name:name,at:r.now,list:r.guards,saved:{state:S.state,guard:S.guard,off:S.off,tab:S.tab}};
+    S.tab='rem';
+    $('tRem').classList.add('on');$('tDone').classList.remove('on');$('tMap').classList.remove('on');
+    show('vPatrol');pvApply(r);
+  }).catch(function(){if($('pvMsg'))$('pvMsg').textContent='No connection.';});
+}
+function pvExit(){
+  if(!PV.on)return;
+  var sv=PV.saved;PV={on:false};
+  S.state=sv.state;S.guard=sv.guard;S.off=sv.off;S.tab=sv.tab;
+  $('vPatrol').classList.remove('pv');$('pvBar').classList.add('hidden');
+  show('vAdmin');aTab('view');
+}
+function aView(){
+  $('aBody').innerHTML='<p><span class="sp"></span></p>';
+  aApi({action:'a_view'}).then(function(r){
+    if(!r.ok){return aErr(r);}
+    var h='<div class="card"><b>Guard view</b><p class="note">See exactly what a guard sees on his phone: rounds, done and remaining, map, observations counter, shift plan and the award card. Read-only: you cannot scan, clock in, record an observation or change the team from here. It refreshes every 45 seconds.</p>';
+    h+='<label for="pvSel">Show the screen of</label><select id="pvSel"><option value="">Choose...</option>'+r.guards.map(function(g){return '<option value="'+esc(g.name)+'">'+esc(g.name)+' ('+esc(g.role)+')</option>';}).join('')+'</select>';
+    h+='<button class="btn" id="pvGo" type="button">Open guard screen</button><div class="note" id="pvMsg"></div></div>';
+    $('aBody').innerHTML=h;
+  }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+$('aBody').addEventListener('click',function(e){if(e.target&&e.target.id==='pvGo'&&A.tab==='view'){var n=$('pvSel').value;if(!n){$('pvMsg').textContent='Choose a name first.';return;}pvOpen(n);}});
+$('pvExit').addEventListener('click',pvExit);
+$('pvRef').addEventListener('click',function(){pvLoad();});
 
 /* ===== Best Guard of the month ===== */
 var MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1363,7 +1423,7 @@ $('pinForm').addEventListener('submit',function(e){
   }).catch(function(){$('pinErr').textContent='No connection.';});
 });
 $('aStats').addEventListener('click',function(){aTab('stats');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
-$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
+$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aView').addEventListener('click',function(){aTab('view');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});
 window.addEventListener('offline',function(){S.online=false;render();});

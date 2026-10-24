@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.35';
+var VERSION = 'v1.36';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1272,6 +1272,16 @@ function admin_(a, b) {
     var outP = Object.keys(OP).map(function (k) { var x = OP[k]; return {no: x.no, name: x.name, n: x.n, guards: Object.keys(x.who).length, avgDist: Math.round(x.dist / x.n)}; }).sort(function (x, y) { return y.n - x.n; }).slice(0, 10);
     return {ok: true, obs: obsSummary_(fromD, to), outside: {guards: outG, points: outP}, heldRounds: heldN, videos: videoRows_(fromD, to), clock: clk, clockMissing: cmiss, from: fromD, to: to, rounds: n, points: rows, guards: Object.keys(G).map(function (k) { return G[k]; }).sort(function (x, y) { return y.scans - x.scans; }),
       totals: {scans: total, pct: n && rows.length ? Math.round(100 * coveredSum / (n * rows.length)) : 0, calibrated: rows.filter(function (x) { return x.cal; }).length, points: rows.length, noGps: rows.reduce(function (t, x) { return t + x.noGps; }, 0), issues: rows.reduce(function (t, x) { return t + x.issues; }, 0)}};
+  }
+  if (a === 'a_view') {
+    /* Read-only 'view as': the same state a guard's phone gets, for the Admin screen. Nothing is written. */
+    var vl = guards_().map(function (g) { return {name: g.name, role: g.role, danru: g.danru}; });
+    if (!b.name) return {ok: true, guards: vl};
+    var vt = null, vk = String(b.name).trim().toLowerCase();
+    guards_().forEach(function (g) { if (g.name.toLowerCase() === vk) vt = g; });
+    if (!vt) return {ok: false, err: 'unknown_guard'};
+    var vs = state_(vt); vs.guards = vl;
+    return vs;
   }
   if (a === 'a_ts_get' || a === 'a_ts_save' || a === 'a_ts_all' || a === 'a_ts_saveall' || a === 'a_ts_reset') return timesheet_(a, b, 'Admin');
   if (a === 'a_ts_danru') { setCfg_('TS_DANRU', b.on === true ? 'yes' : 'no'); return {ok: true, danruOn: b.on === true}; }
