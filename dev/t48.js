@@ -48,7 +48,7 @@ m.call({action:'a_award_set',pin:ADM,minSpot:2});
 ok(m.call({action:'a_award_get',pin:ADM,month:mo}).rows.find(x=>x.guard==='Obs Guard').q===false,'raising the on-the-spot minimum disqualifies');
 m.call({action:'a_award_set',pin:ADM,minObs:0,minPos:0,minIss:0,minOPhotos:0,minSpot:0});
 // --- admin stats ---
-const today=m.ctx.ymdhms_(Date.now()).slice(0,10);
+const today=m.ctx.shiftAt_(Date.now()).date; /* shift date: after midnight the night shift still belongs to the day before */
 const st=m.call({action:'a_stats',pin:ADM,from:today,to:today});
 const og=st.obs.guards.find(x=>x.guard==='Obs Guard');
 ok(og&&og.total===3&&og.pos===1&&og.iss===2&&og.photos===2&&og.spot===1&&og.open===0,'Admin Stats: per-guard observation counts');
