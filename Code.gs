@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.41';
+var VERSION = 'v1.42';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -17,6 +17,9 @@ var HEAD = {
   Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Observations: ['Obs ID', 'Time (WIB)', 'Date', 'Shift', 'Guard', 'Type', 'Category', 'Point No', 'Location', 'Description', 'Photo', 'Closed on spot', 'Status', 'Closed by', 'Closed at (WIB)', 'Close note', 'Time ms'],
+  HKChecks: ['Check ID', 'Time (WIB)', 'Date', 'Shift', 'Inspector', 'Items', 'Not OK', 'Note', 'Time ms'],
+  HKActions: ['Action ID', 'Check ID', 'Created (WIB)', 'Date', 'Shift', 'Item', 'Finding', 'Status', 'Done by', 'Done at (WIB)', 'Done note', 'Verified by', 'Verified at (WIB)', 'Verify note', 'Created ms'],
+  Equip: ['Check ID', 'Time (WIB)', 'Date', 'Shift', 'Checked by', 'Item', 'Expected', 'Found', 'Condition', 'Note', 'Time ms'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
   Staff: ['Guard', 'NPK'],
@@ -494,7 +497,7 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -503,6 +506,8 @@ function route_(b) {
   if (a === 'clockin') return clockIn_(b, me);
   if (a === 'video') return videoSave_(b, me);
   if (a === 'obs') return obsSave_(b, me);
+  if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : hkList_();
+  if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : hkDone_(b, me);
   return scan_(b, me);
 }
 function state_(me) {
@@ -510,7 +515,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me)
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_()}
   };
 }
 function planNow_() {
@@ -1161,6 +1166,149 @@ function weeklyGps() {
   if (dr.length) MailApp.sendEmail({to: dr.join(','), subject: subj, htmlBody: both_(gpsWeekHtml_('en', rep, false), gpsWeekHtml_('id', rep, false)) + foot});
 }
 
+/* ---------- Security building check (Danru / Shift Supervisor inspect, guards act) and equipment check (owner 26 Oct 2026) ---------- */
+var HK_DEFAULT = [
+  ['Floor swept and mopped', 'Lantai disapu dan dipel'], ['Desks and tables clear and tidy', 'Meja bersih dan rapi'], ['Waste bins emptied, no overflow', 'Tempat sampah dikosongkan, tidak meluap'],
+  ['Toilet and washbasin clean', 'Toilet dan wastafel bersih'], ['Pantry area clean, no food left out', 'Area pantry bersih, tidak ada sisa makanan'], ['Uniforms, bags and lockers tidy', 'Seragam, tas dan loker rapi'],
+  ['Equipment stored in its place', 'Peralatan disimpan pada tempatnya'], ['Logbooks and registers in place and up to date', 'Buku log dan register ada dan terbarui'], ['Windows, doors and locks in order', 'Jendela, pintu dan kunci dalam kondisi baik'],
+  ['Lights, fans and AC working', 'Lampu, kipas dan AC berfungsi'], ['Entrance and walkway clear, no trip hazard', 'Pintu masuk dan jalan bebas hambatan'], ['No pests or bad smell', 'Tidak ada hama atau bau tidak sedap']];
+var EQ_DEFAULT = [
+  ['Handheld radios', 'Radio genggam', 0], ['Torches', 'Senter', 0], ['Spare batteries', 'Baterai cadangan', 0], ['First aid kit', 'Kotak P3K', 1], ['Fire extinguisher (security building)', 'APAR (pos keamanan)', 1],
+  ['Key box and key register', 'Kotak kunci dan register kunci', 1], ['Visitor and vehicle logbook', 'Buku tamu dan kendaraan', 1], ['CCTV monitor working', 'Monitor CCTV berfungsi', 1], ['Raincoats', 'Jas hujan', 0], ['Mobile phones for patrol', 'Ponsel patroli', 0]];
+/* Config HK_ITEMS = 'English|Bahasa;English|Bahasa' and EQUIP_ITEMS = 'English|Bahasa|expected number;...' (expected 0 = just count what is there) replace the defaults. */
+function hkItems_() {
+  var v = String(cfg_('HK_ITEMS', '')).trim(), out = [];
+  if (v) v.split(';').forEach(function (x) { var p = x.split('|'); if (p[0].trim()) out.push([p[0].trim(), (p[1] || p[0]).trim()]); });
+  return (out.length ? out : HK_DEFAULT).map(function (x, i) { return {i: i, en: x[0], id: x[1]}; });
+}
+function eqItems_() {
+  var v = String(cfg_('EQUIP_ITEMS', '')).trim(), out = [];
+  if (v) v.split(';').forEach(function (x) { var p = x.split('|'); if (p[0].trim()) out.push([p[0].trim(), (p[1] || p[0]).trim(), Math.max(0, parseInt(p[2], 10) || 0)]); });
+  return (out.length ? out : EQ_DEFAULT).map(function (x, i) { return {i: i, en: x[0], id: x[1], exp: x[2]}; });
+}
+function lazy_(name) {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName(name);
+  if (!sh) { sh = s.insertSheet(name); sh.appendRow(HEAD[name]); sh.setFrozenRows(1); sh.getRange(1, 1, 1, HEAD[name].length).setFontWeight('bold'); }
+  return sh;
+}
+function txt_(v, n) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n); }
+function hkActs_() {
+  var sh = lazy_('HKActions'), last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 15).getValues().map(function (r, i) {
+    return {row: i + 2, id: String(r[0]), check: String(r[1]), at: String(r[2]), date: String(r[3]), shift: String(r[4]), item: String(r[5]), finding: String(r[6]), status: String(r[7]), doneBy: String(r[8]), doneAt: String(r[9]), doneNote: String(r[10]), vBy: String(r[11]), vAt: String(r[12]), vNote: String(r[13])};
+  });
+}
+function hkPub_(a) { return {id: a.id, at: a.at, date: a.date, shift: a.shift, item: a.item, finding: a.finding, status: a.status, doneBy: a.doneBy, doneAt: a.doneAt, doneNote: a.doneNote, vBy: a.vBy, vAt: a.vAt, vNote: a.vNote}; }
+/* open cleaning actions waiting for the guards (cheap: only the status column is read) */
+function hkOpenCount_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('HKActions');
+  if (!s || s.getLastRow() < 2) return 0;
+  var n = 0;
+  s.getRange(2, 8, s.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0] === 'Open') n++; });
+  return n;
+}
+function hkGet_() {
+  var items = hkItems_(), cs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('HKChecks'), last = null;
+  if (cs && cs.getLastRow() >= 2) { var r = cs.getRange(cs.getLastRow(), 1, 1, 9).getValues()[0]; last = {id: String(r[0]), at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4]), items: Number(r[5]), notOk: Number(r[6]), note: String(r[7])}; }
+  return {ok: true, items: items, last: last, open: hkOpenCount_()};
+}
+function hkSave_(b, by) {
+  var items = hkItems_(), rows = b.rows;
+  if (!rows || rows.length !== items.length) return {ok: false, err: 'hk_all'};
+  var bad = [], note = txt_(b.note, 300);
+  for (var i = 0; i < items.length; i++) {
+    var r = rows[i];
+    if (!r || (r.ok !== true && r.ok !== false)) return {ok: false, err: 'hk_all'};
+    if (r.ok === false && txt_(r.note, 300).length < 3) return {ok: false, err: 'hk_note'};
+    if (r.ok === false) bad.push({item: items[i].en, note: txt_(r.note, 300)});
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now(), sf = shiftAt_(now), id = Utilities.getUuid().slice(0, 8), t = ymdhms_(now);
+    lazy_('HKChecks').appendRow([id, t, sf.date, sf.code, by, items.length, bad.length, note, now]);
+    var ash = lazy_('HKActions');
+    bad.forEach(function (x, k) { ash.appendRow([id + '-' + (k + 1), id, t, sf.date, sf.code, x.item, x.note, 'Open', '', '', '', '', '', '', now]); });
+    return {ok: true, id: id, notOk: bad.length};
+  } finally { lock.releaseLock(); }
+}
+function hkList_() {
+  var all = hkActs_().map(hkPub_);
+  return {ok: true, open: all.filter(function (a) { return a.status === 'Open'; }), done: all.filter(function (a) { return a.status === 'Done'; }), verified: all.filter(function (a) { return a.status === 'Verified'; }).slice(-10).reverse()};
+}
+/* a guard reports what he did about an open cleaning action */
+function hkDone_(b, me) {
+  var id = String(b.id || ''), note = txt_(b.note, 300);
+  if (note.length < 3) return {ok: false, err: 'hk_donenote'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = null;
+    hkActs_().forEach(function (a) { if (a.id === id) hit = a; });
+    if (!hit) return {ok: false, err: 'bad_obs'};
+    if (hit.status !== 'Open') return {ok: false, err: 'already_closed'};
+    lazy_('HKActions').getRange(hit.row, 8, 1, 4).setValues([['Done', me.name, ymdhms_(Date.now()), note]]);
+    return {ok: true, open: hkOpenCount_()};
+  } finally { lock.releaseLock(); }
+}
+/* Danru / Shift Supervisor verifies a finished action, or re-opens it (note required when re-opening) */
+function hkVerify_(b, by) {
+  var id = String(b.id || ''), note = txt_(b.note, 300), reopen = b.ok === false;
+  if (reopen && note.length < 3) return {ok: false, err: 'hk_note'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = null;
+    hkActs_().forEach(function (a) { if (a.id === id) hit = a; });
+    if (!hit) return {ok: false, err: 'bad_obs'};
+    if (hit.status !== 'Done') return {ok: false, err: 'already_closed'};
+    var sh = lazy_('HKActions');
+    if (reopen) { sh.getRange(hit.row, 8, 1, 7).setValues([['Open', '', '', '', by, ymdhms_(Date.now()), 'Re-opened: ' + note]]); }
+    else sh.getRange(hit.row, 8, 1, 7).setValues([['Verified', hit.doneBy, hit.doneAt, hit.doneNote, by, ymdhms_(Date.now()), note]]);
+    return {ok: true};
+  } finally { lock.releaseLock(); }
+}
+function eqLatest_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Equip');
+  if (!sh || sh.getLastRow() < 2) return {meta: null, rows: {}};
+  var n = sh.getLastRow(), st = Math.max(2, n - 399), rows = sh.getRange(st, 1, n - st + 1, 11).getValues(), id = String(rows[rows.length - 1][0]), out = {}, meta = null;
+  rows.forEach(function (r) { if (String(r[0]) === id) { out[String(r[5])] = {found: r[7], cond: String(r[8]), note: String(r[9])}; meta = {id: id, at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4])}; } });
+  return {meta: meta, rows: out};
+}
+function eqGet_() {
+  var items = eqItems_(), lt = eqLatest_();
+  items.forEach(function (x) { x.last = lt.rows[x.en] || null; });
+  return {ok: true, items: items, last: lt.meta};
+}
+function eqSave_(b, by) {
+  var items = eqItems_(), rows = b.rows;
+  if (!rows || rows.length !== items.length) return {ok: false, err: 'eq_all'};
+  var out = [], issues = 0;
+  for (var i = 0; i < items.length; i++) {
+    var r = rows[i] || {}, found = Number(r.found), cond = String(r.cond || ''), note = txt_(r.note, 200);
+    if (['OK', 'Damaged', 'Missing'].indexOf(cond) < 0 || !isFinite(found) || found < 0 || found > 999) return {ok: false, err: 'eq_all'};
+    var short = items[i].exp > 0 && found < items[i].exp;
+    if ((cond !== 'OK' || short) && note.length < 3) return {ok: false, err: 'eq_note'};
+    if (cond !== 'OK' || short) issues++;
+    out.push([items[i].en, items[i].exp, Math.floor(found), cond, note]);
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now(), sf = shiftAt_(now), id = Utilities.getUuid().slice(0, 8), t = ymdhms_(now), sh = lazy_('Equip');
+    out.forEach(function (x) { sh.appendRow([id, t, sf.date, sf.code, by, x[0], x[1], x[2], x[3], x[4], now]); });
+    return {ok: true, id: id, issues: issues};
+  } finally { lock.releaseLock(); }
+}
+/* Admin overview: recent building checks, actions and equipment problems */
+function chkOverview_() {
+  var cs = lazy_('HKChecks'), n = cs.getLastRow(), checks = [];
+  if (n >= 2) cs.getRange(Math.max(2, n - 29), 1, Math.min(30, n - 1), 9).getValues().forEach(function (r) { checks.push({id: String(r[0]), at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4]), items: Number(r[5]), notOk: Number(r[6]), note: String(r[7])}); });
+  var acts = hkActs_().map(hkPub_), eq = eqGet_(), prob = [];
+  eq.items.forEach(function (x) { var l = x.last; if (l && (l.cond !== 'OK' || (x.exp > 0 && Number(l.found) < x.exp))) prob.push({item: x.en, exp: x.exp, found: l.found, cond: l.cond, note: l.note}); });
+  return {ok: true, checks: checks.reverse(), open: acts.filter(function (a) { return a.status === 'Open'; }), done: acts.filter(function (a) { return a.status === 'Done'; }), verified: acts.filter(function (a) { return a.status === 'Verified'; }).slice(-10).reverse(), eqLast: eq.last, eqProblems: prob, eqItems: eq.items.length};
+}
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -1189,6 +1337,12 @@ function team_(a, b) {
     gr.ok = true; gr.days = days;
     return gr;
   }
+  if (a === 'd_hk_get') return hkGet_();
+  if (a === 'd_hk_save') return hkSave_(b, adm ? 'Admin' : me.name);
+  if (a === 'd_hk_list') return hkList_();
+  if (a === 'd_hk_verify') return hkVerify_(b, adm ? 'Admin' : me.name);
+  if (a === 'd_eq_get') return eqGet_();
+  if (a === 'd_eq_save') return eqSave_(b, adm ? 'Admin' : me.name);
   if (a === 'd_obs_list') return obsList_();
   if (a === 'd_obs_close') return obsClose_(b, adm ? 'Admin' : me.name);
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
@@ -1327,6 +1481,7 @@ function admin_(a, b) {
       byZone: Object.keys(MZ).map(function (k) { return {zone: k, missed: MZ[k]}; }).sort(function (x, y) { return y.missed - x.missed; }),
       byPoint: byPoint, detail: detail.reverse()};
   }
+  if (a === 'a_chk') return chkOverview_();
   if (a === 'a_stats') {
     var to = String(b.to || ymdhms_(Date.now()).slice(0, 10)), fromD = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fromD) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || fromD > to) return {ok: false, err: 'bad_date'};
