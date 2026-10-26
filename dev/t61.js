@@ -24,17 +24,17 @@ ok(g.ok&&g.ready&&g.pass.vehicle==='BK 1234 XY'&&g.images.signed.length===1&&stu
 ok(m.call({action:'gate_get',gp:G.pin,ref:'MGP-2610-0003'}).ready===false,'a pass with no signed copy is not ready');
 ok(m.call({action:'gate_get',gp:G.pin,ref:'MGP-2610-9999'}).err==='notfound','unknown pass');
 // release rules
-ok(m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0001',decision:'release',checks:{signed:true,plate:true,items:true}}).err==='need_checks','release needs all four checks');
+ok(m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0001',decision:'release',checks:{signed:true,plate:true,items:true}}).err==='need_checks','release needs all five checks');
 ok(m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0001',decision:'reject',reason:'  '}).err==='need_reason','reject needs a reason');
 ok(!stub.fetches.some(f=>f.action==='b_release'),'nothing sent to the gate pass system for refused requests');
-const rel=m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0001',decision:'release',by:'Someone Else',role:'Danru',checks:{signed:true,plate:true,items:true,vehicle:true},lat:3.13,lng:99.35,acc:9});
+const rel=m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0001',decision:'release',by:'Someone Else',role:'Danru',checks:{signed:true,plate:true,items:true,vehicle:true,idc:true},lat:3.13,lng:99.35,acc:9});
 ok(rel.ok&&rel.status==='Released','released');
 const sent=stub.fetches.filter(f=>f.action==='b_release')[0];
 ok(sent.by==='Gate Guard'&&sent.role!=='Danru','the guard name and role come from the PIN, not from what the phone says: '+sent.by+' / '+sent.role);
 const gs=m.sheets.GatePass;
 ok(gs&&gs.rows.length===2&&gs.rows[1][1]==='MGP-2610-0001'&&gs.rows[1][2]==='RELEASED'&&gs.rows[1][3]==='Gate Guard'&&gs.rows[1][8]===3.13,'Patroli keeps its own GatePass record with guard, time and location');
 ok(m.call({action:'gate_list',gp:G.pin}).n===1,'cache cleared after release: list refreshed');
-const again=m.call({action:'gate_release',gp:dp['Rendi Irawan'],ref:'MGP-2610-0001',decision:'release',checks:{signed:true,plate:true,items:true,vehicle:true}});
+const again=m.call({action:'gate_release',gp:dp['Rendi Irawan'],ref:'MGP-2610-0001',decision:'release',checks:{signed:true,plate:true,items:true,vehicle:true,idc:true}});
 ok(!again.ok&&again.err==='already_released'&&again.by==='Gate Guard','second release refused, shows who released it');
 ok(m.sheets.GatePass.rows.length===2,'refused release is not logged as a release');
 const rj=m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0002',decision:'reject',reason:'Quantity does not match'});
@@ -42,7 +42,7 @@ ok(rj.ok&&rj.status==='Rejected'&&m.sheets.GatePass.rows[2][2]==='REJECTED'&&m.s
 // failures
 stub.down=true;m.ctx.CacheService.getScriptCache().remove('gate_pend');
 ok(m.call({action:'gate_list',gp:G.pin}).err==='gate_down'&&m.call({action:'gate_get',gp:G.pin,ref:'MGP-2610-0002'}).err==='gate_down','gate pass system down: clear error, no crash');
-ok(m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0002',decision:'release',checks:{signed:true,plate:true,items:true,vehicle:true}}).err==='gate_down','release is NOT recorded when the system is down');
+ok(m.call({action:'gate_release',gp:G.pin,ref:'MGP-2610-0002',decision:'release',checks:{signed:true,plate:true,items:true,vehicle:true,idc:true}}).err==='gate_down','release is NOT recorded when the system is down');
 stub.down=false;
 m.props.GATEPASS_SECRET='wrong';
 ok(!m.call({action:'gate_list',gp:G.pin}).ok,'wrong secret: gate pass system refuses, Patroli reports an error');

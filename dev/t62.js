@@ -38,10 +38,10 @@ const SEC='s3cr3t-1234';const stub=mkStub(SEC);m.ctx.UrlFetchApp={fetch:(u,o)=>s
  ok(/READY FOR RELEASE CHECK/.test(t)&&/BK 1234 XY/.test(t)&&/Pipe 6in/.test(t)&&/Budi Santoso/.test(t),'pass screen shows banner, vehicle, driver and items');
  ok((await pg.locator('.gimg').count())===5,'signed copy + 4 vehicle photos are shown');
  ok(await pg.locator('#gRelease').isDisabled(),'Release is disabled until all checks are ticked');
- const cks=pg.locator('[data-gck]');ok((await cks.count())===4,'four checks');
+ const cks=pg.locator('[data-gck]');ok((await cks.count())===5,'five checks');
  for(let i=0;i<3;i++)await cks.nth(i).check();
  ok(await pg.locator('#gRelease').isDisabled(),'still disabled with 3 of 4');
- await pg.locator('[data-gck]').nth(3).check();
+ await pg.locator('[data-gck]').nth(3).check();await pg.locator('[data-gck]').nth(4).check();
  ok(!(await pg.locator('#gRelease').isDisabled()),'enabled with all 4');
  await pg.screenshot({path:'/tmp/pat_pass.png',fullPage:true});
  await pg.locator('.gimg').first().click();ok(await pg.locator('#gzModal').isVisible(),'tap on a photo zooms it');await pg.locator('#gzModal').click();ok(!(await pg.locator('#gzModal').isVisible()),'tap again closes the zoom');

@@ -17,7 +17,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const url=await window.qrFor();const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');const im=new Image();im.onload=()=>{setInterval(()=>{x.fillStyle='#fff';x.fillRect(0,0,640,480);x.drawImage(im,120,40,400,400);},100)};im.src=url;return c.captureStream(10);};});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- ok(await pg.locator('#ver').innerText()==='v1.44','version v1.8');
+ ok(await pg.locator('#ver').innerText()==='v1.45','version v1.8');
  await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await waitPat(pg);
  // scan point 2: photo wanted (all points) -> take photo
  which=2;await pg.click('#bScan');await pg.waitForSelector('#phIn',{state:'attached',timeout:15000});

@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.44';
+var VERSION = 'v1.45';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -514,7 +514,7 @@ function route_(b) {
   if (a === 'gate_release') return gateRelease_(b, me);
   return scan_(b, me);
 }
-/* ---------- Material Gate Pass release (v1.44) ----------
+/* ---------- Material Gate Pass release (v1.45) ----------
    The Gate Pass app (separate repo, separate Sheet and Apps Script) holds the passes. A guard releases a vehicle here, after checking it against the
    uploaded signed copy and the paper original. Patroli calls the Gate Pass backend server to server (UrlFetchApp) with a shared secret.
    Script properties (Project Settings > Script properties, never in the code): GATEPASS_URL = the Gate Pass web app URL (ends in /exec), GATEPASS_SECRET = BRIDGE_SECRET from the Gate Pass showCodes.
@@ -559,7 +559,7 @@ function gateRelease_(b, me) {
   var ref = gateRef_(b.ref), dec = String(b.decision || ''), why = String(b.reason || '').replace(/\s+/g, ' ').trim().slice(0, 300), ck = b.checks || {};
   if (!ref) return {ok: false, err: 'bad_ref'};
   if (dec !== 'release' && dec !== 'reject') return {ok: false, err: 'bad_decision'};
-  if (dec === 'release' && !(ck.signed === true && ck.plate === true && ck.items === true && ck.vehicle === true)) return {ok: false, err: 'need_checks'};
+  if (dec === 'release' && !(ck.signed === true && ck.plate === true && ck.items === true && ck.vehicle === true && ck.idc === true)) return {ok: false, err: 'need_checks'};
   if (dec === 'reject' && why.length < 3) return {ok: false, err: 'need_reason'};
   var r = gateCall_({action: 'b_release', ref: ref, by: me.name, role: me.role, decision: dec, reason: why, lat: num_(b.lat), lng: num_(b.lng), acc: num_(b.acc), checks: ck});
   CacheService.getScriptCache().remove('gate_pend');
