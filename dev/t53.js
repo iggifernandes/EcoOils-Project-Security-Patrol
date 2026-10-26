@@ -36,7 +36,7 @@ ok(!/\d{6}/.test(JSON.stringify(r).replace(/\d{4}-\d{2}-\d{2}/g,'')),'missed: no
   await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));return pg;
  }
  let pg=await sess();
- await pg.fill('#gpin',G.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(700);
+ await pg.fill('#gpin',G.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(700);
  await pg.click('#bObs');await pg.waitForSelector('#vObs:not(.hidden)');
  await pg.click('#obIss');
  ok(!(await pg.locator('#obAct').count()),'no action box until the tick');
@@ -55,7 +55,7 @@ ok(!/\d{6}/.test(JSON.stringify(r).replace(/\d{4}-\d{2}-\d{2}/g,'')),'missed: no
  // Danru: cannot close without a comment
  m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Fence / perimeter',text:'Needs a Danru close',cid:'a9'});
  let pd=await sess();
- await pd.fill('#gpin',D);await pd.click('#bGpin');await pd.waitForSelector('#vPatrol:not(.hidden)');await pd.waitForTimeout(700);
+ await pd.fill('#gpin',D);await pd.click('#bGpin');await waitPat(pd);await pd.waitForTimeout(700);
  await pd.click('#bObsL');await pd.waitForSelector('[data-close]');
  pd.dlg='';await pd.click('[data-close]');await pd.waitForTimeout(300);
  ok(/close-out comment/i.test(pd.dlg||'')&&m.sheets.Observations.rows.find(r=>r[0]==='a9')[12]==='Open','Danru: close without a comment is blocked on the phone');

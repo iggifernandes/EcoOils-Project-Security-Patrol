@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.42';
+var VERSION = 'v1.43';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -506,8 +506,8 @@ function route_(b) {
   if (a === 'clockin') return clockIn_(b, me);
   if (a === 'video') return videoSave_(b, me);
   if (a === 'obs') return obsSave_(b, me);
-  if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : hkList_();
-  if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : hkDone_(b, me);
+  if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkList_() : {ok: false, err: 'not_duty'});
+  if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkDone_(b, me) : {ok: false, err: 'not_duty'});
   return scan_(b, me);
 }
 function state_(me) {
@@ -515,7 +515,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_()}
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_(), mine: hkMay_(me)}
   };
 }
 function planNow_() {
@@ -1201,6 +1201,19 @@ function hkActs_() {
 }
 function hkPub_(a) { return {id: a.id, at: a.at, date: a.date, shift: a.shift, item: a.item, finding: a.finding, status: a.status, doneBy: a.doneBy, doneAt: a.doneAt, doneNote: a.doneNote, vBy: a.vBy, vAt: a.vAt, vNote: a.vNote}; }
 /* open cleaning actions waiting for the guards (cheap: only the status column is read) */
+/* Cleaning of the security building is the duty of the guard on Gate duty (Config HK_DUTY, default 'Gate 1') in the current shift plan, plus his buddy. If nobody is planned on that duty, every guard may act so nothing gets stuck. */
+function hkMay_(me) {
+  if (me.danru) return false;
+  try {
+    var sf = shiftAt_(Date.now()), duty = String(cfg_('HK_DUTY', 'Gate 1')).trim().toLowerCase(), k = String(me.name).toLowerCase(), any = false, mine = false;
+    roster_(sf.date, sf.code).forEach(function (r) {
+      if (String(r.duty).trim().toLowerCase() !== duty) return;
+      any = true;
+      if (r.guard.toLowerCase() === k || (r.buddy && r.buddy.toLowerCase() === k)) mine = true;
+    });
+    return any ? mine : true;
+  } catch (e) { return true; }
+}
 function hkOpenCount_() {
   var s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('HKActions');
   if (!s || s.getLastRow() < 2) return 0;
@@ -1309,6 +1322,41 @@ function chkOverview_() {
   eq.items.forEach(function (x) { var l = x.last; if (l && (l.cond !== 'OK' || (x.exp > 0 && Number(l.found) < x.exp))) prob.push({item: x.en, exp: x.exp, found: l.found, cond: l.cond, note: l.note}); });
   return {ok: true, checks: checks.reverse(), open: acts.filter(function (a) { return a.status === 'Open'; }), done: acts.filter(function (a) { return a.status === 'Done'; }), verified: acts.filter(function (a) { return a.status === 'Verified'; }).slice(-10).reverse(), eqLast: eq.last, eqProblems: prob, eqItems: eq.items.length};
 }
+/* ---------- Command dashboard for Danru / Shift Supervisors (first screen) ---------- */
+/* Finished, non-held rounds between two dates: points nobody scanned = missed. Reads only the tail of Scans. */
+function missedRange_(fromD, toD) {
+  var now = Date.now(), rounds = [], held = 0, idx = {}, d = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(toD + 'T00:00:00Z'), c = 0;
+  for (; d <= end && c < 31; d += 86400000, c++) {
+    var ds = new Date(d).toISOString().slice(0, 10);
+    for (var i = 0; i < ROUNDS.length; i++) { var r = roundBy_(ds, i); if (r.end <= now) { if (roundHeld_(r)) held++; else { var o = {date: ds, idx: i, label: r.label, end: r.end, seen: {}}; rounds.push(o); idx[ds + '|' + i] = o; } } }
+  }
+  var sh = sh_('Scans'), last = sh.getLastRow();
+  if (last >= 2) { var st = Math.max(2, last - 3999); sh.getRange(st, 1, last - st + 1, 18).getValues().forEach(function (r3) { var wh = rowWhen_(r3); if (wh.idx < 0) return; var o = idx[wh.date + '|' + wh.idx]; if (o) o.seen[String(r3[6])] = 1; }); }
+  var pts = points_(true), missed = 0, withMiss = 0;
+  rounds.forEach(function (o) { var m = pts.filter(function (p) { return !o.seen[p.id]; }); o.total = pts.length; o.done = pts.length - m.length; o.missed = m.length; if (m.length) { missed += m.length; withMiss++; } });
+  rounds.sort(function (a, b) { return a.end - b.end; });
+  var possible = rounds.length * pts.length;
+  return {rounds: rounds, held: held, missed: missed, withMiss: withMiss, possible: possible, pct: possible ? Math.round(1000 * missed / possible) / 10 : 0};
+}
+function dash_() {
+  var now = Date.now(), r = roundAt_(now), pts = points_(true), done = doneMap_(r), op = r.opDate;
+  var rem = pts.filter(function (p) { return !done[p.id]; }).map(function (p) { return {no: p.no, name: p.name, hi: !!p.hi}; });
+  var from7 = new Date(Date.parse(op + 'T00:00:00Z') - 6 * 86400000).toISOString().slice(0, 10);
+  var w = missedRange_(from7, op), today = w.rounds.filter(function (x) { return x.date === op; });
+  var tm = today.reduce(function (t, x) { return t + x.missed; }, 0), twm = today.filter(function (x) { return x.missed; }).length;
+  var lastR = w.rounds.length ? w.rounds[w.rounds.length - 1] : null;
+  var oo = obsList_(), hk = hkList_(), eq = eqGet_(), prob = 0;
+  eq.items.forEach(function (x) { var l = x.last; if (l && (l.cond !== 'OK' || (x.exp > 0 && Number(l.found) < x.exp))) prob++; });
+  var cm = []; try { cm = clockMissing_(op, op); } catch (e) {}
+  var gps = null; try { var g = gpsWeek_(from7, op); gps = {checked: g.totals.checked, outside: g.totals.outside, pct: g.totals.pct}; } catch (e2) {}
+  var oldest = oo.open.length ? oo.open[oo.open.length - 1] : null;
+  return {ok: true, now: now, round: {label: r.label, upcoming: !!r.upcoming, end: r.end, start: r.start, done: pts.length - rem.length, total: pts.length}, remaining: rem.slice(0, 40),
+    last: lastR ? {date: lastR.date, label: lastR.label, done: lastR.done, total: lastR.total, missed: lastR.missed} : null,
+    today: {rounds: today.length, missed: tm, withMiss: twm, possible: today.length * pts.length, pct: today.length ? Math.round(1000 * tm / (today.length * pts.length)) / 10 : 0},
+    week: {rounds: w.rounds.length, held: w.held, missed: w.missed, withMiss: w.withMiss, pct: w.pct, perDay: (function () { var m = {}; w.rounds.forEach(function (x) { var d = m[x.date] || (m[x.date] = {date: x.date, missed: 0, rounds: 0}); d.missed += x.missed; d.rounds++; }); return Object.keys(m).sort().map(function (k) { return m[k]; }); })()},
+    issues: {open: oo.open.length, oldest: oldest ? oldest.t : ''}, clean: {open: hk.open.length, done: hk.done.length}, equip: {problems: prob, last: eq.last ? eq.last.date : ''},
+    clock: {missing: cm.length, who: cm.slice(0, 8).map(function (x) { return x.guard + ' (' + x.shift + ')'; })}, gps: gps, hold: holdPublic_()};
+}
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -1337,6 +1385,7 @@ function team_(a, b) {
     gr.ok = true; gr.days = days;
     return gr;
   }
+  if (a === 'd_dash') return dash_();
   if (a === 'd_hk_get') return hkGet_();
   if (a === 'd_hk_save') return hkSave_(b, adm ? 'Admin' : me.name);
   if (a === 'd_hk_list') return hkList_();

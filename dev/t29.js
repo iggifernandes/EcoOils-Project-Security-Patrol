@@ -13,7 +13,7 @@ const fixed=Date.UTC(2026,9,19,0,5,0);const realNow=Date.now;
  await ctx.addInitScript(t=>{const R=Date.now;Date.now=()=>t+(R()-window.__t0);window.__t0=R();},fixed);
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(1500);
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(1500);
  let t=await pg.locator('#clockBox').innerText();
  ok(await pg.locator('#bClock').count()===0&&/guard house/i.test(t),'far from the gate: no Clock in button, neutral hint: '+t.replace(/\n/g,' '));
  ok(!/gps/i.test(t),'hint says nothing about GPS');

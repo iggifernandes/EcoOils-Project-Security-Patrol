@@ -16,7 +16,7 @@ let fails=0;const ok=(c,msg)=>{console.log((c?'PASS ':'FAIL ')+msg);if(!c)fails+
  },{qrUrl});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- ok(await pg.locator('#ver').innerText()==='v1.42','version v1.8 top right');
+ ok(await pg.locator('#ver').innerText()==='v1.43','version v1.8 top right');
  ok(await pg.locator('#gpin').isVisible(),'pin screen shown first');
  ok(!(await pg.locator('#guard').count()),'no name picker any more');
  // wrong pin
@@ -25,7 +25,7 @@ let fails=0;const ok=(c,msg)=>{console.log((c?'PASS ':'FAIL ')+msg);if(!c)fails+
  // bahasa toggle
  await pg.click('#lID');ok((await pg.locator('#lGpin').innerText())==='PIN pribadi Anda','BI toggle on login');await pg.click('#lEN');
  // login as danru
- await pg.fill('#gpin',rendi);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',rendi);await pg.click('#bGpin');await waitPat(pg);
  ok((await pg.locator('#who').innerText())==='Rendi Irawan','patrol shows guard name from pin');
  ok(await pg.locator('#bTeamOpen').isVisible(),'danru sees Team button');
  // scan via fake camera
@@ -36,7 +36,7 @@ let fails=0;const ok=(c,msg)=>{console.log((c?'PASS ':'FAIL ')+msg);if(!c)fails+
  ok((await pg.locator('#nDone').innerText())==='1','done counter 1 after scan');
  await pg.click('#resBody [data-act=close]');
  // persistence across reload
- await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.reload();await waitPat(pg);
  ok((await pg.locator('#who').innerText())==='Rendi Irawan','reload keeps login, no re-entry');
  // team tab
  await pg.click('#bTeamOpen');await pg.waitForSelector('#tmName');
@@ -55,10 +55,10 @@ let fails=0;const ok=(c,msg)=>{console.log((c?'PASS ':'FAIL ')+msg);if(!c)fails+
  await pg.fill('#tmQ','budi');await pg.waitForTimeout(200);ok((await pg.locator('.mem').count())===1,'search filters');
  // BI inside team
  await pg.click('#lID');await pg.waitForTimeout(500);ok((await pg.locator('#tBack').innerText())==='Kembali','BI in team view');await pg.click('#lEN');await pg.waitForTimeout(300);
- await pg.click('#tBack');
+ await pg.click('#tBack');await pg.click('#dtPat');
  // logout, login as ordinary guard
  await pg.click('#bChange');await pg.waitForSelector('#gpin');
- await pg.fill('#gpin',budi2);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',budi2);await pg.click('#bGpin');await waitPat(pg);
  ok((await pg.locator('#who').innerText())==='Budi Santoso','new guard logs in with danru-issued pin');
  ok(await pg.locator('#bTeamOpen').isHidden(),'ordinary guard has no Team button');
  // offline queue with pin

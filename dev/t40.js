@@ -24,7 +24,7 @@ const buf=PNG.sync.write(png);
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
  await pg.evaluate(()=>{window.__printed=0;window.print=function(){window.__printed++;};});
- await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await waitPat(pg);
  await pg.waitForSelector('#bTsOpen:not(.hidden)',{timeout:8000});
  ok(await pg.locator('#bTsOpen').isVisible(),'Danru sees the Timesheet button');
  ok((await pg.locator('#aTs').isVisible())===false,'Admin tabs stay hidden');
@@ -50,7 +50,7 @@ const buf=PNG.sync.write(png);
  ok(!/Crew One/.test(pen.join('|')),'guard name not in the signature boxes');
  await pg.click('#tsSigX');await pg.waitForFunction(()=>!localStorage.getItem('sp_sig'));
  ok((await pg.locator('#tsSigBox img').count())===0,'signature can be removed');
- await pg.click('#tsBack');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.click('#tsBack');await waitPat(pg);
  // Bahasa toggle keeps working on the new screen
  ok(errs.length===0,'no page errors '+errs.join('|'));
  await b.close();console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

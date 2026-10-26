@@ -18,7 +18,7 @@ ok(!('lat' in p1)&&!('lng' in p1)&&!JSON.stringify(st).includes('3.1310'),'no ra
   await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:'))return r.fallback();r.abort();});
   const pg=await ctx.newPage();pg.errs=[];pg.on('pageerror',e=>pg.errs.push(String(e)));
   await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
-  await pg.fill('#gpin',pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(800);return pg;
+  await pg.fill('#gpin',pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(800);return pg;
  }
  let pg=await sess(g.pin);
  await pg.click('#tMap');await pg.waitForSelector('#lmSvg');

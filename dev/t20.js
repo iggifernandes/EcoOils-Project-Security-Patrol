@@ -22,19 +22,19 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  const g=m.call({action:'d_add',gp:Dn,name:'Ui Guard One'});const g2=m.call({action:'d_add',gp:Dn,name:'Ui Guard Two'});
  ['P','S','M'].forEach(c=>m.call({action:'d_plan_set',gp:Dn,date:now.date,shift:c,rows:[{duty:'Gate 1',guard:'Ui Guard One',buddy:c==='M'?'Ui Guard Two':''}]}));
  // Danru: Team badge shows Shift Supervisor for Rendi, Danru for Irsan
- await pg.fill('#gpin',Dn);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(400);
+ await pg.fill('#gpin',Dn);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(400);
  const card=await pg.locator('#planCard').innerText();
  ok(card.includes('Morning')&&card.includes('Afternoon')&&card.includes('Night')&&card.includes('now'),'patrol screen shows all three shifts, current marked: '+card.replace(/\n/g,' | '));
  await pg.click('#bTeamOpen');await pg.waitForSelector('.mem');
  const tm=await pg.locator('#teamBody').innerText();
  ok(/Rendi Irawan[\s\S]{0,40}Shift Supervisor/.test(tm),'Rendi shown as Shift Supervisor');
  ok(/Muhammad Irsan[\s\S]{0,30}Danru/.test(tm),'Irsan shown as Danru');
- await pg.click('#tBack');
+ await pg.click('#tBack');await pg.click('#dtPat');
  // Danru plan screen has the overview
  await pg.click('#bPlanOpen');await pg.waitForSelector('#plDate');
  const pt=await pg.locator('#planBody').innerText();
  ok(pt.includes('All shifts')&&pt.includes('Ui Guard One')&&pt.includes('Ui Guard Two'),'plan screen shows the all-shifts overview with the buddy');
- await pg.click('#pBack');await pg.click('#bChange');
+ await pg.click('#pBack');await pg.click('#dtPat');await pg.click('#bChange');
  // Admin has a Plan tab
  await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
  await pg.click('#aPlan');await pg.waitForSelector('#plDate',{timeout:8000});

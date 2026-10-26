@@ -13,7 +13,7 @@ const G=m.call({action:'d_add',gp:D,name:'Tidy Guard'});
   const pg=await ctx.newPage();pg.errs=[];pg.on('pageerror',e=>pg.errs.push(String(e)));pg.on('dialog',d=>{pg.dlg=d.message();d.accept();});
   await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));return pg;
  }
- const login=async(pg,pin)=>{await pg.fill('#gpin',pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(700);};
+ const login=async(pg,pin)=>{await pg.fill('#gpin',pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(700);};
  // supervisor
  let pd=await sess();await login(pd,D);
  ok(await pd.locator('#bHk').isVisible()&&await pd.locator('#bEq').isVisible()&&!(await pd.locator('#bHkA').isVisible()),'supervisor sees Building check + Equipment, not Cleaning actions');
@@ -42,11 +42,11 @@ const G=m.call({action:'d_add',gp:D,name:'Tidy Guard'});
  ok(/Waiting for the supervisor/i.test(await pg.locator('#hkaBody').innerText()),'finished action waits for verification');
  await pg.click('#lID');ok(/tindakan kebersihan/i.test(await pg.locator('#hkaBody').innerText()),'Bahasa on the guard screen');
  // supervisor verifies
- await pd.click('#hkBack');await pd.click('#bHk');await pd.waitForSelector('#hkTA');await pd.click('#hkTA');await pd.waitForSelector('[data-vf]');
+ await pd.click('#dtHk');await pd.waitForSelector('#hkTA');await pd.click('#hkTA');await pd.waitForSelector('[data-vf]');
  await pd.click('[data-vf]');await pd.waitForFunction(()=>!document.querySelector('[data-vf]'),null,{timeout:5000});
  ok(m.sheets.HKActions.rows.some(r=>r[7]==='Verified'),'verified');
  // equipment
- await pd.click('#hkBack');await pd.click('#bEq');await pd.waitForSelector('[data-eqf="0"]');
+ await pd.click('#dtEq');await pd.waitForSelector('[data-eqf="0"]');
  ok(await pd.locator('[data-eqf]').count()===10,'10 equipment lines');
  await pd.fill('[data-eqf="3"]','0');
  await pd.click('#eqSave');

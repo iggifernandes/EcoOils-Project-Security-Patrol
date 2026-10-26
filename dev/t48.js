@@ -76,7 +76,7 @@ const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
   await ctx.route('**/*',r=>{const u=r.request().url();if(u.startsWith('file:')||u.includes('script.google.com')||u.startsWith('data:'))return r.fallback();r.abort();});
   const pg=await ctx.newPage();pg.errs=[];pg.on('pageerror',e=>pg.errs.push(String(e)));pg.on('dialog',d=>d.accept());
   await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
-  await pg.fill('#gpin',pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(800);return pg;
+  await pg.fill('#gpin',pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(800);return pg;
  }
  let pg=await sess(U.pin);
  ok(await pg.locator('#bObs').isVisible()&&!(await pg.locator('#bObsL').isVisible()),'guard sees Observation, not the Danru list');
@@ -101,7 +101,7 @@ const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
  ok(await pg.locator('#obText').inputValue()===''&&await pg.locator('#obIss.on').count()===0,'a new form starts empty');
  await pg.click('#obPos');await pg.fill('#obText','Gate guard checking every vehicle');await pg.click('#obSend');await pg.waitForSelector('#obAgain');
  ok(/Observation recorded/.test(await pg.locator('#obsBody').innerText()),'positive result');
- await pg.click('#obHome');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.click('#obHome');await waitPat(pg);
  ok(/2 \/ 1/.test(await pg.locator('#bObs').innerText())&&(await pg.locator('#obsNote').innerText()).trim()==='','counter shows 2 / 1 and the reminder is gone');
  await pg.click('#lID');await pg.waitForTimeout(200);
  ok(/Observasi/.test(await pg.locator('#bObs').innerText()),'Bahasa button');
@@ -118,7 +118,7 @@ const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
  await pg.context().unroute('**/script.google.com/**');
  await pg.context().route('**/script.google.com/**',async r=>{const body=r.request().postData();const out=m.ctx.doPost({postData:{contents:body}}).s;await r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:out});});
  await pg.evaluate(()=>window.dispatchEvent(new Event('focus')));await pg.click('#obHome');await pg.waitForTimeout(500);
- await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(1500);
+ await pg.reload();await waitPat(pg);await pg.waitForTimeout(1500);
  ok(m.sheets.Observations.rows.length===nBefore+1&&/east gate/.test(m.sheets.Observations.rows[nBefore][9]),'queued observation sent when the connection is back');
  // Danru
  const pd=await sess(D);

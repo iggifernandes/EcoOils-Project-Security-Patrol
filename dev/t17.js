@@ -20,12 +20,12 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  const ids={};
  for(const n of ['Plan Gate One','Plan Gate Two','Plan Patrol Three']){const r=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:n});ids[n]=r.pin}
  // guard login: no plan, no buttons
- await pg.fill('#gpin',ids['Plan Gate One']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',ids['Plan Gate One']);await pg.click('#bGpin');await waitPat(pg);
  ok(await pg.locator('#bPlanOpen').isHidden(),'plain guard does not see Shift plan button');
  ok((await pg.locator('#planCard').innerText())==='','no plan card when no plan');
  await pg.click('#bChange');
  // danru
- await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await waitPat(pg);
  ok(await pg.locator('#bPlanOpen').isVisible(),'Danru sees Shift plan button');
  ok((await pg.locator('#bPlanOpen').innerText())==='Shift plan','button text EN');
  await pg.click('#bPlanOpen');await pg.waitForSelector('#plDate',{timeout:8000});
@@ -57,10 +57,10 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  await pg.click('#lID');await pg.waitForTimeout(300);
  ok((await pg.locator('#planBody').innerText()).includes('Simpan rencana'),'plan screen switches to Bahasa Indonesia');
  await pg.click('#lEN');
- await pg.click('#pBack');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.click('#pBack');await waitPat(pg);
  await pg.click('#bChange');
  // guard now sees the card with his duty
- await pg.fill('#gpin',ids['Plan Gate One']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ await pg.fill('#gpin',ids['Plan Gate One']);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(500);
  const card=await pg.locator('#planCard').innerText();
  ok(GAP||(card.includes('Gate 1')&&card.includes('Plan Gate One')),'guard sees his duty on the plan card: '+card.replace(/\n/g,' | '));
  ok(errs.length===0,'no page errors '+errs.join(';'));

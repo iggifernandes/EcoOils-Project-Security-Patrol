@@ -18,7 +18,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
  let sent=null;pg.on('request',r=>{try{const b=JSON.parse(r.postData()||'{}');if(b.photo&&b.photo.length>100)sent=b.photo;}catch(e){}});
- await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
+ await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await waitPat(pg);
  which=2;await pg.click('#bScan');await pg.waitForSelector('#phIn',{state:'attached',timeout:15000});
  const big=new PNG({width:640,height:480});for(let y=0;y<480;y++)for(let x=0;x<640;x++){const i=(y*640+x)*4;big.data[i]=40+(x%90);big.data[i+1]=90+(y%80);big.data[i+2]=60;big.data[i+3]=255}
  const bigBuf=PNG.sync.write(big);

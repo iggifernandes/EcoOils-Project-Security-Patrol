@@ -15,7 +15,7 @@ global.IP={success:true,country_code:'NL',timezone:{id:'Europe/Amsterdam'}};
  await ctx.addInitScript(({qrUrl})=>{navigator.mediaDevices.getUserMedia=function(){const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');const im=new Image();im.onload=()=>{setInterval(()=>{x.fillStyle='#fff';x.fillRect(0,0,640,480);x.drawImage(im,120,40,400,400);},100)};im.src=qrUrl;return Promise.resolve(c.captureStream(10));};},{qrUrl});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(500);
  await pg.click('#bScan');await pg.waitForSelector('#vpnRe',{timeout:15000});
  ok(true,'VPN (foreign IP) blocks the scan');
  ok(await pg.locator('#scanModal.hidden').count()===1,'camera did not open');

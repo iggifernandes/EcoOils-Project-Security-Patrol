@@ -11,7 +11,7 @@ const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Lock Guard'});
  await ctx.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async function(){const c=document.createElement('canvas');c.width=480;c.height=270;const x=c.getContext('2d');let n=0;setInterval(()=>{x.fillStyle='hsl('+(n++*9%360)+',70%,50%)';x.fillRect(0,0,480,270);},60);return c.captureStream(15);};});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(1500);
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(1500);
  const n0=global.NS;
  await pg.evaluate(()=>{window.dispatchEvent(new Event('focus'));});await pg.waitForTimeout(1200);
  ok(global.NS>n0,'unlocking the phone (focus) refreshes the state at once: '+n0+' -> '+global.NS);
