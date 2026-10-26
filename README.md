@@ -23,7 +23,7 @@ Do NOT upload Code.gs (it goes into Google Sheets) or qr-sheet.html (print it fr
 - Flagged scans (outside radius, no GPS, etc.) still count as done and are marked in history.
 - To drop a point: set Active = No in the Points sheet.
 
-- Gate pass (v1.45): Project Settings > Script properties: GATEPASS_URL (Gate Pass web app URL) and GATEPASS_SECRET (BRIDGE_SECRET from the Gate Pass showCodes). Run gateCheck once, then Deploy > New version. Never put the secret in the code.
+- Gate pass (v1.46): Project Settings > Script properties: GATEPASS_URL (Gate Pass web app URL) and GATEPASS_SECRET (BRIDGE_SECRET from the Gate Pass showCodes). Run gateCheck once, then Deploy > New version. Never put the secret in the code.
 - Adding a point later: add a row in the Points sheet (next free number in No and Seq, Active = Yes), then type 'number, name' in the Extra box on qr-sheet.html and print.
 
 Note: the UA/UC form is NOT changed. A normal phone scanning a sticker opens the form as it is today; the ?loc= part of the address is ignored by the form.

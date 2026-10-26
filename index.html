@@ -87,6 +87,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .scroll{overflow-x:auto}
 .fl{color:var(--text);font-weight:600;text-decoration:underline}
 .modal{position:fixed;inset:0;background:rgba(35,31,32,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.gzb{min-width:46px;min-height:46px;border-radius:999px;border:1px solid #fff8;background:#0008;color:#fff;font:600 22px Jost,Arial,sans-serif;cursor:pointer}
 .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;width:100%;max-width:400px;max-height:92vh;overflow:auto}
 #scanModal{padding:0;background:#000;flex-direction:column}
 #cam{width:100%;max-height:75vh;object-fit:cover;background:#000}
@@ -204,7 +205,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <video id="cam" playsinline muted></video><div class="frame"></div><canvas id="cv" class="hidden"></canvas>
   <div style="padding:14px;text-align:center;width:100%"><div id="scanMsg" class="note" style="font-size:15px;color:#fff"></div><button class="btn ghost" id="scanX" type="button"></button></div>
 </div>
-<div class="modal hidden" id="gzModal" style="padding:8px;background:#000;z-index:30"><img id="gzImg" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
+<div class="modal hidden" id="gzModal" style="padding:0;background:#000;z-index:30;flex-direction:column"><div style="position:absolute;top:0;left:0;right:0;display:flex;gap:8px;justify-content:flex-end;padding:10px;z-index:2"><button type="button" class="gzb" id="gzOut" aria-label="Zoom out">&minus;</button><button type="button" class="gzb" id="gzIn" aria-label="Zoom in">+</button><button type="button" class="gzb" id="gzRs">1:1</button><button type="button" class="gzb" id="gzX" aria-label="Close">&times;</button></div><div id="gzSt" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none"><img id="gzImg" alt="" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center;user-select:none"></div></div>
 <div class="modal hidden" id="resModal"><div class="box" id="resBody"></div></div>
 <div class="modal hidden" id="pinModal"><form class="box" id="pinForm" autocomplete="off">
   <h1 style="margin-top:0">Admin</h1>
@@ -218,7 +219,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.45';
+var VERSION='v1.46';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -1419,7 +1420,7 @@ $('bObsL').addEventListener('click',obsListOpen);
 Object.assign(T.en,{obsActLbl:'What did you do to fix it? (required)',obsActPh:'Describe the action you took',obsActNeed:'Describe the action you took to fix it.',err_need_action:'Describe the action taken to fix the issue.',err_need_note:'Write what was done to close this issue.',obsNeedNote:'Write the close-out comment first (what was done).',obsNotePh2:'Close-out comment: what was done (required)',obsActWas:'Action taken',
  aMiss:'Missed',msTitle:'Missed points: trends and detail'});
 Object.assign(T.id,{obsActLbl:'Apa yang Anda lakukan untuk memperbaikinya? (wajib)',obsActPh:'Jelaskan tindakan yang Anda ambil',obsActNeed:'Jelaskan tindakan yang Anda ambil untuk memperbaikinya.',err_need_action:'Jelaskan tindakan yang diambil untuk memperbaiki temuan.',err_need_note:'Tulis apa yang dilakukan untuk menutup temuan ini.',obsNeedNote:'Tulis dulu komentar penutupan (apa yang dilakukan).',obsNotePh2:'Komentar penutupan: apa yang dilakukan (wajib)',obsActWas:'Tindakan yang diambil'});
-/* ===== Material Gate Pass: release a vehicle (v1.45) ===== */
+/* ===== Material Gate Pass: release a vehicle (v1.46) ===== */
 var GT={list:null,n:0,at:0,ref:'',data:null,chk:{},busy:false,view:'list',rej:false,done:null,err:''};
 function gateOn(){return !!(S.state&&S.state.gate);}
 function gateLabel(){var b=$('bGate');if(!b)return;b.textContent=tr('gateBtn')+(GT.list?' ('+GT.n+')':'');}
@@ -1452,11 +1453,11 @@ function gateDraw(){
     h+='<div class="card" style="border:2px solid '+(ready?'var(--green)':'var(--bad)')+';text-align:center"><div style="font-size:20px;font-weight:600;color:'+(ready?'var(--text)':'var(--bad)')+'">'+esc(ready?tr('gateReady'):tr('gateNot'))+'</div>';
     if(!ready){var wk='gate_'+d.why;h+='<div>'+esc(tr(wk))+(d.why==='already_released'?' '+esc(p.decidedBy)+' · '+esc(p.decidedAt):'')+'</div>';}
     h+='</div>';
-    h+='<div class="card"><div style="font-size:22px;font-weight:300;letter-spacing:.06em;text-align:center">'+esc(p.ref)+'</div><table><tr><th>'+esc(tr('gateCompany'))+'</th><td>'+esc(p.company)+'</td></tr><tr><th>'+esc(tr('gateVehicle'))+'</th><td><b>'+esc(p.vehicle)+'</b></td></tr><tr><th>'+esc(tr('gateDriver'))+'</th><td>'+esc(p.carrier)+'<br>ID '+esc(p.icNo)+'</td></tr><tr><th>'+esc(tr('gatePurpose'))+'</th><td>'+esc(p.purpose+'. '+(p.purpose==='A'?tr('gatePurA'):tr('gatePurB')))+'<br>'+esc(p.purposeText)+'</td></tr><tr><th>'+esc(tr('gateIcRep'))+'</th><td>'+esc(p.icRep)+(p.icPos?', '+esc(p.icPos):'')+'</td></tr><tr><th>'+esc(tr('gateDept'))+'</th><td>'+esc(p.dept)+'</td></tr>'+(p.validUntil?'<tr><th>'+esc(tr('gateUntil'))+'</th><td>'+esc(fmtDTk(p.validUntil)+' WIB')+'</td></tr>':'')+'</table></div>';
+    h+='<div class="card"><div style="font-size:22px;font-weight:300;letter-spacing:.06em;text-align:center">'+esc(p.ref)+'</div><table><tr><th>'+esc(tr('gateCompany'))+'</th><td>'+esc(p.company)+'</td></tr><tr><th>'+esc(tr('gateVehicle'))+'</th><td><b>'+esc(p.vehicle)+'</b></td></tr><tr><th>'+esc(tr('gateDriver'))+'</th><td>'+esc(p.carrier)+'<br>ID '+esc(p.icNo)+'</td></tr><tr><th>'+esc(tr('gatePurpose'))+'</th><td>'+esc(p.purpose+'. '+(p.purpose==='A'?tr('gatePurA'):tr('gatePurB')))+'<br>'+esc(p.purposeText)+'</td></tr><tr><th>'+esc(tr('gateIcRep'))+'</th><td>'+esc(p.icRep)+(p.icPos?', '+esc(p.icPos):'')+(p.icPhone?'<br><a href="tel:'+esc(String(p.icPhone).replace(/[^+0-9]/g,''))+'">'+esc(p.icPhone)+'</a>':'')+'</td></tr><tr><th>'+esc(tr('gateDept'))+'</th><td>'+esc(p.dept)+'</td></tr>'+(p.validUntil?'<tr><th>'+esc(tr('gateUntil'))+'</th><td>'+esc(fmtDTk(p.validUntil)+' WIB')+'</td></tr>':'')+'</table></div>';
     h+='<div class="zh">'+esc(tr('gateItems'))+' ('+p.items.length+')</div><div class="scroll"><table><tr><th>#</th><th>'+esc(tr('gateItem'))+'</th><th>'+esc(tr('gateQty'))+'</th></tr>'+p.items.map(function(it,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(it.item)+'</td><td><b>'+esc(it.qty+(it.unit?' '+it.unit:''))+'</b></td></tr>';}).join('')+'</table></div>';
     var im=d.images||{};
     h+='<div class="zh">'+esc(tr('gateSigned'))+'</div>'+((im.signed||[]).length?(im.signed||[]).map(function(u,i){return u?'<img class="gimg" data-gz="signed'+i+'" alt="" src="'+u+'" style="width:100%;border:1px solid var(--line);border-radius:8px;margin-top:6px">':'';}).join(''):'<p class="err">'+esc(tr('gate_no_signed_copy'))+'</p>');
-    h+='<div class="zh">'+esc(tr('gateViews'))+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+['front','top','left','right'].map(function(v){return '<div><small class="note">'+esc(tr('gph_'+v))+'</small>'+(im[v]?'<img class="gimg" data-gz="'+v+'" alt="" src="'+im[v]+'" style="width:100%;border:1px solid var(--line);border-radius:8px">':'')+'</div>';}).join('')+'</div>';
+    h+='<div class="zh">'+esc(tr('gateViews'))+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+['front','load','top','left','right'].filter(function(v){return im[v]!==undefined;}).map(function(v){return '<div><small class="note">'+esc(tr('gph_'+v))+'</small>'+(im[v]?'<img class="gimg" data-gz="'+v+'" alt="" src="'+im[v]+'" style="width:100%;border:1px solid var(--line);border-radius:8px">':'')+'</div>';}).join('')+'</div>';
     if(ready){
       h+='<div class="zh">'+esc(tr('gateChecks'))+'</div>';
       ['signed','plate','items','vehicle','idc'].forEach(function(k,i){h+='<label class="remember" style="align-items:flex-start"><input type="checkbox" data-gck="'+k+'"'+(GT.chk[k]?' checked':'')+'><span>'+esc(tr('gateC'+(i+1)))+'</span></label>';});
@@ -1500,7 +1501,7 @@ function gateDecide(dec){
 $('gateBody').addEventListener('click',function(e){
   var t=e.target;if(!t)return;
   var z=t.getAttribute&&t.getAttribute('data-gz');
-  if(z){$('gzImg').src=t.src;$('gzModal').classList.remove('hidden');return;}
+  if(z){GZ.s=1;GZ.x=0;GZ.y=0;gzApply();$('gzImg').src=t.src;$('gzModal').classList.remove('hidden');return;}
   var o=t.closest&&t.closest('[data-gopen]');if(o){gateLoadRef(o.getAttribute('data-gopen'));return;}
   var id=t.id;
   if(id==='gHome'){showPatrol();}
@@ -1513,19 +1514,28 @@ $('gateBody').addEventListener('click',function(e){
   else if(id==='gRejGo'){gateDecide('reject');}
 });
 $('gateBody').addEventListener('change',function(e){var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-gck');if(k){GT.chk[k]=!!e.target.checked;GT.err='';gateDraw();}});
-$('gzModal').addEventListener('click',function(){$('gzModal').classList.add('hidden');$('gzImg').src='';});
+var GZ={s:1,x:0,y:0,pt:{},d0:0,s0:1};
+function gzApply(){if(GZ.s<=1){GZ.s=1;GZ.x=0;GZ.y=0;}$('gzImg').style.transform='translate('+GZ.x+'px,'+GZ.y+'px) scale('+GZ.s+')';}
+function gzSet(s){GZ.s=Math.max(1,Math.min(6,s));gzApply();}
+function gzClose(){$('gzModal').classList.add('hidden');$('gzImg').src='';GZ.pt={};GZ.s=1;gzApply();}
+$('gzIn').addEventListener('click',function(){gzSet(GZ.s*1.5);});$('gzOut').addEventListener('click',function(){gzSet(GZ.s/1.5);});$('gzRs').addEventListener('click',function(){gzSet(1);});$('gzX').addEventListener('click',gzClose);
+$('gzSt').addEventListener('wheel',function(e){e.preventDefault();gzSet(GZ.s*(e.deltaY<0?1.2:1/1.2));},{passive:false});
+$('gzSt').addEventListener('dblclick',function(){gzSet(GZ.s>1?1:2.5);});
+$('gzSt').addEventListener('pointerdown',function(e){try{$('gzSt').setPointerCapture(e.pointerId);}catch(x){}GZ.pt[e.pointerId]={x:e.clientX,y:e.clientY};var k=Object.keys(GZ.pt);if(k.length===2){var a=GZ.pt[k[0]],b=GZ.pt[k[1]];GZ.d0=Math.hypot(a.x-b.x,a.y-b.y);GZ.s0=GZ.s;}});
+$('gzSt').addEventListener('pointermove',function(e){var p=GZ.pt[e.pointerId];if(!p)return;var k=Object.keys(GZ.pt);if(k.length===2){GZ.pt[e.pointerId]={x:e.clientX,y:e.clientY};var a=GZ.pt[k[0]],b=GZ.pt[k[1]],dd=Math.hypot(a.x-b.x,a.y-b.y);if(GZ.d0>0)gzSet(GZ.s0*dd/GZ.d0);}else if(GZ.s>1){GZ.x+=e.clientX-p.x;GZ.y+=e.clientY-p.y;GZ.pt[e.pointerId]={x:e.clientX,y:e.clientY};gzApply();}});
+['pointerup','pointercancel'].forEach(function(n){$('gzSt').addEventListener(n,function(e){delete GZ.pt[e.pointerId];});});
 $('bGate').addEventListener('click',gateOpen);
 Object.assign(T.en,{gateBtn:'Gate pass',gateTitle:'Material gate pass',gateScan:'Scan pass QR',gateManual:'Or type the reference number',gateOpenBtn:'Open',gatePending:'Waiting for release',gateNone:'No passes waiting for release.',gateReady:'READY FOR RELEASE CHECK',gateNot:'DO NOT RELEASE',
  gate_no_signed_copy:'The signed copy has not been uploaded yet.',gate_already_released:'Already released:',gate_expired:'This pass has expired.',gate_rejected:'This pass was rejected.',gate_cancelled:'This pass was cancelled.',
  gateCompany:'Company',gateVehicle:'Vehicle',gateDriver:'Person taking out',gatePurpose:'Purpose',gatePurA:'Rejected items back to supplier',gatePurB:"Contractor's own material",gateIcRep:'IC rep',gateDept:'EcoOils dept',gateUntil:'Valid until',gateItems:'Items',gateItem:'Item',gateQty:'Qty',
- gateSigned:'Signed copy (compare with the paper original in the driver\'s hand)',gateViews:'Vehicle photos (compare with the vehicle at the gate)',gph_front:'Front',gph_top:'Top',gph_left:'Left side',gph_right:'Right side',gateChecks:'Your checks',
+ gateSigned:'Signed copy (compare with the paper original in the driver\'s hand)',gateViews:'Vehicle photos (compare with the vehicle at the gate)',gph_front:'Front of vehicle',gph_load:'Material in the truck',gph_top:'Top',gph_left:'Left side',gph_right:'Right side',gateChecks:'Your checks',
  gateC1:'The signed paper in the driver\'s hand matches the signed copy above (details and all signatures)',gateC2:'The number plate matches the vehicle number',gateC3:'The items and quantities on the vehicle match the list',gateC4:'I have physically checked the vehicle',gateC5:'The KTP or SIM number on the pass matches the card the driver shows me',
  gateRelease:'Release vehicle',gateReject:'Reject pass',gateReason:'Reason for rejecting (required)',gateRejectGo:'Confirm reject',gateReleased:'Vehicle released. Recorded under your name.',gateRejectedOk:'Pass rejected. Recorded under your name.',gateBackList:'Back to pass list',gateBadRef:'This is not a gate pass QR code.',gateNoNet:'No connection. Nothing was saved. Do not release until it is saved.',
  err_g_gate_down:'Cannot reach the gate pass system. Try again. Do not release without a verified pass.',err_g_gate_off:'The gate pass link is not set up yet.',err_g_notfound:'Pass not found. Do not release.',err_g_bad_ref:'Not a valid pass reference.',err_g_already_released:'Already released.',err_g_expired:'This pass has expired. Do not release.',err_g_not_ready:'This pass is not ready for release.',err_g_need_checks:'Tick all four checks first.',err_g_need_reason:'Write the reason.'});
 Object.assign(T.id,{gateBtn:'Surat jalan material',gateTitle:'Surat jalan material',gateScan:'Pindai QR surat',gateManual:'Atau ketik nomor referensi',gateOpenBtn:'Buka',gatePending:'Menunggu pelepasan',gateNone:'Tidak ada surat yang menunggu pelepasan.',gateReady:'SIAP DIPERIKSA UNTUK DILEPAS',gateNot:'JANGAN DILEPAS',
  gate_no_signed_copy:'Salinan bertanda tangan belum diunggah.',gate_already_released:'Sudah dilepas:',gate_expired:'Surat ini sudah kedaluwarsa.',gate_rejected:'Surat ini ditolak.',gate_cancelled:'Surat ini dibatalkan.',
  gateCompany:'Perusahaan',gateVehicle:'Kendaraan',gateDriver:'Pembawa',gatePurpose:'Tujuan',gatePurA:'Barang ditolak kembali ke pemasok',gatePurB:'Material milik kontraktor sendiri',gateIcRep:'Perwakilan IC',gateDept:'Dept EcoOils',gateUntil:'Berlaku sampai',gateItems:'Barang',gateItem:'Barang',gateQty:'Jumlah',
- gateSigned:'Salinan bertanda tangan (bandingkan dengan surat asli di tangan pengemudi)',gateViews:'Foto kendaraan (bandingkan dengan kendaraan di gerbang)',gph_front:'Depan',gph_top:'Atas',gph_left:'Sisi kiri',gph_right:'Sisi kanan',gateChecks:'Pemeriksaan Anda',
+ gateSigned:'Salinan bertanda tangan (bandingkan dengan surat asli di tangan pengemudi)',gateViews:'Foto kendaraan (bandingkan dengan kendaraan di gerbang)',gph_front:'Depan kendaraan',gph_load:'Material di dalam truk',gph_top:'Atas',gph_left:'Sisi kiri',gph_right:'Sisi kanan',gateChecks:'Pemeriksaan Anda',
  gateC1:'Surat asli di tangan pengemudi sama dengan salinan di atas (data dan semua tanda tangan)',gateC2:'Plat nomor sesuai dengan nomor kendaraan',gateC3:'Barang dan jumlah di kendaraan sesuai daftar',gateC4:'Saya sudah memeriksa kendaraan secara fisik',gateC5:'Nomor KTP atau SIM di surat sama dengan kartu yang ditunjukkan pengemudi',
  gateRelease:'Lepas kendaraan',gateReject:'Tolak surat',gateReason:'Alasan menolak (wajib)',gateRejectGo:'Konfirmasi tolak',gateReleased:'Kendaraan dilepas. Tercatat atas nama Anda.',gateRejectedOk:'Surat ditolak. Tercatat atas nama Anda.',gateBackList:'Kembali ke daftar surat',gateBadRef:'Ini bukan QR surat jalan material.',gateNoNet:'Tidak ada koneksi. Tidak ada yang tersimpan. Jangan lepas sebelum tersimpan.',
  err_g_gate_down:'Sistem surat jalan tidak terjangkau. Coba lagi. Jangan lepas tanpa surat yang terverifikasi.',err_g_gate_off:'Tautan surat jalan belum diatur.',err_g_notfound:'Surat tidak ditemukan. Jangan dilepas.',err_g_bad_ref:'Nomor referensi tidak valid.',err_g_already_released:'Sudah dilepas.',err_g_expired:'Surat ini kedaluwarsa. Jangan dilepas.',err_g_not_ready:'Surat ini belum siap dilepas.',err_g_need_checks:'Centang keempat pemeriksaan dulu.',err_g_need_reason:'Tulis alasannya.'});
