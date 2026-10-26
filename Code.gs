@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.40';
+var VERSION = 'v1.42';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -17,6 +17,7 @@ var HEAD = {
   Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Observations: ['Obs ID', 'Time (WIB)', 'Date', 'Shift', 'Guard', 'Type', 'Category', 'Point No', 'Location', 'Description', 'Photo', 'Closed on spot', 'Status', 'Closed by', 'Closed at (WIB)', 'Close note', 'Time ms'],
+  GatePass: ['Time (WIB)', 'Pass ref', 'Decision', 'Guard', 'Role', 'Company', 'Vehicle', 'Reason', 'Lat', 'Lng', 'Acc m', 'Checklist', 'Time ms'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
   Staff: ['Guard', 'NPK'],
@@ -462,7 +463,7 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -471,14 +472,80 @@ function route_(b) {
   if (a === 'clockin') return clockIn_(b, me);
   if (a === 'video') return videoSave_(b, me);
   if (a === 'obs') return obsSave_(b, me);
+  if (a === 'gate_list') return gateList_();
+  if (a === 'gate_get') return gateGet_(b);
+  if (a === 'gate_release') return gateRelease_(b, me);
   return scan_(b, me);
 }
+/* ---------- Material Gate Pass release (v1.42) ----------
+   The Gate Pass app (separate repo, separate Sheet and Apps Script) holds the passes. A guard releases a vehicle here, after checking it against the
+   uploaded signed copy and the paper original. Patroli calls the Gate Pass backend server to server (UrlFetchApp) with a shared secret.
+   Script properties (Project Settings > Script properties, never in the code): GATEPASS_URL = the Gate Pass web app URL (ends in /exec), GATEPASS_SECRET = BRIDGE_SECRET from the Gate Pass showCodes.
+   Run gateCheck() once from the editor: it asks Google for the permission to call another web address and tests the link. */
+function gateOn_() { var p = props_(); return !!(p.getProperty('GATEPASS_URL') && p.getProperty('GATEPASS_SECRET')); }
+function gateCall_(payload) {
+  var p = props_(), url = p.getProperty('GATEPASS_URL'), sec = p.getProperty('GATEPASS_SECRET');
+  if (!url || !sec) return {ok: false, err: 'gate_off'};
+  payload.secret = sec;
+  try {
+    var res = UrlFetchApp.fetch(url, {method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify(payload), muteHttpExceptions: true, followRedirects: true});
+    return JSON.parse(res.getContentText());
+  } catch (e) { return {ok: false, err: 'gate_down'}; }
+}
+function gateRef_(s) { var m = /MGP-(?:[A-Z0-9]{2,8}-)?\d{4}-\d{3,}/i.exec(String(s || '')); return m ? m[0].toUpperCase() : ''; }
+/* pending list is cached 30 s so 25 phones polling do not each call the other script */
+function gateList_() {
+  var c = CacheService.getScriptCache(), v = c.get('gate_pend');
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  var r = gateCall_({action: 'b_list'});
+  if (r && r.ok) c.put('gate_pend', JSON.stringify(r), 30);
+  return r && r.ok ? r : {ok: false, err: r && r.err === 'gate_off' ? 'gate_off' : 'gate_down'};
+}
+function gateGet_(b) {
+  var ref = gateRef_(b.ref);
+  if (!ref) return {ok: false, err: 'bad_ref'};
+  var r = gateCall_({action: 'b_get', ref: ref});
+  if (!r || !r.ok) return {ok: false, err: r && (r.err === 'notfound' || r.err === 'gate_off') ? r.err : 'gate_down'};
+  return r;
+}
+function gateSheet_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('GatePass');
+  if (!sh) {
+    sh = s.insertSheet('GatePass');
+    sh.appendRow(HEAD.GatePass);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEAD.GatePass.length).setFontWeight('bold');
+  }
+  return sh;
+}
+function gateRelease_(b, me) {
+  var ref = gateRef_(b.ref), dec = String(b.decision || ''), why = String(b.reason || '').replace(/\s+/g, ' ').trim().slice(0, 300), ck = b.checks || {};
+  if (!ref) return {ok: false, err: 'bad_ref'};
+  if (dec !== 'release' && dec !== 'reject') return {ok: false, err: 'bad_decision'};
+  if (dec === 'release' && !(ck.signed === true && ck.plate === true && ck.items === true && ck.vehicle === true)) return {ok: false, err: 'need_checks'};
+  if (dec === 'reject' && why.length < 3) return {ok: false, err: 'need_reason'};
+  var r = gateCall_({action: 'b_release', ref: ref, by: me.name, role: me.role, decision: dec, reason: why, lat: num_(b.lat), lng: num_(b.lng), acc: num_(b.acc), checks: ck});
+  CacheService.getScriptCache().remove('gate_pend');
+  if (!r) return {ok: false, err: 'gate_down'};
+  if (!r.ok) return {ok: false, err: r.err || 'gate_down', by: r.by || '', at: r.at || '', status: r.status || ''};
+  var now = Date.now();
+  gateSheet_().appendRow([ymdhms_(now), ref, dec === 'release' ? 'RELEASED' : 'REJECTED', me.name, me.role, r.company || '', r.vehicle || '', why, num_(b.lat) == null ? '' : num_(b.lat), num_(b.lng) == null ? '' : num_(b.lng), num_(b.acc) == null ? '' : Math.round(num_(b.acc)), dec === 'release' ? 'signed copy, plate, items, vehicle checked' : '', now]);
+  return {ok: true, status: r.status, at: r.at, ref: ref};
+}
+/* Run once from the editor after setting the two script properties. Asks for the permission to call the Gate Pass web app and logs the result. */
+function gateCheck() {
+  if (!gateOn_()) { Logger.log('Set the script properties GATEPASS_URL and GATEPASS_SECRET first (Project Settings > Script properties).'); return; }
+  var r = gateCall_({action: 'b_list'});
+  if (r && r.ok) Logger.log('Gate Pass reachable. Passes waiting for release: ' + r.n);
+  else Logger.log('Gate Pass NOT reachable or secret wrong: ' + JSON.stringify(r));
+}
+
 function state_(me) {
   var now = Date.now(), r = roundAt_(now);
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me)
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), gate: gateOn_()
   };
 }
 function planNow_() {

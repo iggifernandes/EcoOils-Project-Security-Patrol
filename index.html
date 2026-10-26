@@ -32,7 +32,7 @@ h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
 input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
-#vPatrol.pv #bScan,#vPatrol.pv #bObs,#vPatrol.pv #bObsL,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
+#vPatrol.pv #bScan,#vPatrol.pv #bObs,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
 #pvBar{border-color:var(--amber);background:var(--ban);position:sticky;top:48px;z-index:4}
 textarea{min-height:90px;resize:vertical;line-height:1.4}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -135,6 +135,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <div class="note" id="pend"></div>
   <button class="btn ghost hidden" id="bObs" type="button"></button>
   <button class="btn ghost hidden" id="bObsL" type="button"></button>
+  <button class="btn ghost hidden" id="bGate" type="button"></button>
   <div id="obsNote"></div>
   <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
   <button class="btn ghost hidden" id="bPlanOpen" type="button"></button>
@@ -155,6 +156,8 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 <section id="vObs" class="hidden"><div id="obsBody"></div></section>
 
 <section id="vObsL" class="hidden"><div id="obsLBody"></div></section>
+
+<section id="vGate" class="hidden"><div id="gateBody"></div></section>
 
 <section id="vVid" class="hidden">
   <button class="btn ghost" id="vBack" type="button"></button>
@@ -191,6 +194,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <video id="cam" playsinline muted></video><div class="frame"></div><canvas id="cv" class="hidden"></canvas>
   <div style="padding:14px;text-align:center;width:100%"><div id="scanMsg" class="note" style="font-size:15px;color:#fff"></div><button class="btn ghost" id="scanX" type="button"></button></div>
 </div>
+<div class="modal hidden" id="gzModal" style="padding:8px;background:#000;z-index:30"><img id="gzImg" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
 <div class="modal hidden" id="resModal"><div class="box" id="resBody"></div></div>
 <div class="modal hidden" id="pinModal"><form class="box" id="pinForm" autocomplete="off">
   <h1 style="margin-top:0">Admin</h1>
@@ -204,7 +208,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.40';
+var VERSION='v1.42';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -343,7 +347,7 @@ function applyLang(){
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
-  if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();
+  if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();else if(!$('vGate').classList.contains('hidden'))gateDraw();
   pvBar();render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function curTheme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';}
@@ -356,7 +360,7 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vGate'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function startUp(){
@@ -380,7 +384,7 @@ function pendSet(){
 function setHtml(el,h){if(el&&el._h!==h){el._h=h;el.innerHTML=h;}}
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();gateBtns();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -1176,6 +1180,117 @@ $('bObsL').addEventListener('click',obsListOpen);
 Object.assign(T.en,{obsActLbl:'What did you do to fix it? (required)',obsActPh:'Describe the action you took',obsActNeed:'Describe the action you took to fix it.',err_need_action:'Describe the action taken to fix the issue.',err_need_note:'Write what was done to close this issue.',obsNeedNote:'Write the close-out comment first (what was done).',obsNotePh2:'Close-out comment: what was done (required)',obsActWas:'Action taken',
  aMiss:'Missed',msTitle:'Missed points: trends and detail'});
 Object.assign(T.id,{obsActLbl:'Apa yang Anda lakukan untuk memperbaikinya? (wajib)',obsActPh:'Jelaskan tindakan yang Anda ambil',obsActNeed:'Jelaskan tindakan yang Anda ambil untuk memperbaikinya.',err_need_action:'Jelaskan tindakan yang diambil untuk memperbaiki temuan.',err_need_note:'Tulis apa yang dilakukan untuk menutup temuan ini.',obsNeedNote:'Tulis dulu komentar penutupan (apa yang dilakukan).',obsNotePh2:'Komentar penutupan: apa yang dilakukan (wajib)',obsActWas:'Tindakan yang diambil'});
+/* ===== Material Gate Pass: release a vehicle (v1.42) ===== */
+var GT={list:null,n:0,at:0,ref:'',data:null,chk:{},busy:false,view:'list',rej:false,done:null,err:''};
+function gateOn(){return !!(S.state&&S.state.gate);}
+function gateLabel(){var b=$('bGate');if(!b)return;b.textContent=tr('gateBtn')+(GT.list?' ('+GT.n+')':'');}
+function gateBtns(){
+  var b=$('bGate');if(!b)return;var on=gateOn();b.classList.toggle('hidden',!on);if(!on)return;
+  gateLabel();if(!PV.on&&Date.now()-GT.at>40000)gateBadge();
+}
+function gateBadge(){
+  GT.at=Date.now();
+  api({action:'gate_list',gp:S.pin}).then(function(r){if(r&&r.ok){GT.list=r.list;GT.n=r.n;gateLabel();if(!$('vGate').classList.contains('hidden')&&GT.view==='list'&&!(document.activeElement&&document.activeElement.id==='gRef'))gateDraw();}},function(){});
+}
+function gErr(c){var k='err_g_'+c;return (T[lang]&&T[lang][k])||T.en[k]||errText(c);}
+function gateOpen(){GT.view='list';GT.done=null;GT.err='';show('vGate');gateDraw();gateBadge();}
+function gateDraw(){
+  var b=$('gateBody'),h='<h1>'+esc(tr('gateTitle'))+'</h1>',keepRef=$('gRef')?$('gRef').value:'';
+  if(GT.view==='list'){
+    h+='<button class="btn" id="gScan" type="button">'+esc(tr('gateScan'))+'</button>';
+    h+='<label for="gRef">'+esc(tr('gateManual'))+'</label><div style="display:flex;gap:8px"><input id="gRef" placeholder="MGP-GSB-2610-0001" autocapitalize="characters" autocomplete="off" value="'+esc(keepRef)+'"><button class="btn sm" id="gRefGo" type="button" style="flex:none;margin:0;min-height:44px">'+esc(tr('gateOpenBtn'))+'</button></div>';
+    h+='<div class="err">'+esc(GT.err||'')+'</div>';
+    h+='<div class="zh">'+esc(tr('gatePending'))+(GT.list?' ('+GT.n+')':'')+'</div>';
+    if(GT.list&&!GT.list.length)h+='<div class="card empty"><p class="note">'+esc(tr('gateNone'))+'</p></div>';
+    (GT.list||[]).forEach(function(p){h+='<div class="pt" data-gopen="'+esc(p.ref)+'" style="cursor:pointer"><b>'+esc(p.ref)+'</b><small>'+esc(p.company+' · '+p.vehicle)+'<br>'+esc(p.carrier)+'</small></div>';});
+    h+='<button class="btn ghost" id="gRefresh" type="button">'+esc(tr('pvRefresh'))+'</button><button class="btn ghost" id="gHome" type="button">'+esc(tr('back'))+'</button>';
+  }else if(GT.view==='load'){
+    h+='<p><span class="sp"></span>'+esc(tr('loading'))+'</p>';
+  }else if(GT.view==='done'){
+    h+='<div class="card"><div class="big okc">&#10003;</div><p style="text-align:center"><b>'+esc(GT.done.ref)+'</b><br>'+esc(GT.done.msg)+'</p></div><button class="btn" id="gBackList" type="button">'+esc(tr('gateBackList'))+'</button>';
+  }else{
+    var d=GT.data,p=d.pass,ready=!!d.ready;
+    h+='<div class="card" style="border:2px solid '+(ready?'var(--green)':'var(--bad)')+';text-align:center"><div style="font-size:20px;font-weight:600;color:'+(ready?'var(--text)':'var(--bad)')+'">'+esc(ready?tr('gateReady'):tr('gateNot'))+'</div>';
+    if(!ready){var wk='gate_'+d.why;h+='<div>'+esc(tr(wk))+(d.why==='already_released'?' '+esc(p.decidedBy)+' · '+esc(p.decidedAt):'')+'</div>';}
+    h+='</div>';
+    h+='<div class="card"><div style="font-size:22px;font-weight:300;letter-spacing:.06em;text-align:center">'+esc(p.ref)+'</div><table><tr><th>'+esc(tr('gateCompany'))+'</th><td>'+esc(p.company)+'</td></tr><tr><th>'+esc(tr('gateVehicle'))+'</th><td><b>'+esc(p.vehicle)+'</b></td></tr><tr><th>'+esc(tr('gateDriver'))+'</th><td>'+esc(p.carrier)+'<br>I/C '+esc(p.icNo)+'</td></tr><tr><th>'+esc(tr('gatePurpose'))+'</th><td>'+esc(p.purpose+'. '+(p.purpose==='A'?tr('gatePurA'):tr('gatePurB')))+'<br>'+esc(p.purposeText)+'</td></tr><tr><th>'+esc(tr('gateIcRep'))+'</th><td>'+esc(p.icRep)+(p.icPos?', '+esc(p.icPos):'')+'</td></tr><tr><th>'+esc(tr('gateDept'))+'</th><td>'+esc(p.dept)+'</td></tr>'+(p.validUntil?'<tr><th>'+esc(tr('gateUntil'))+'</th><td>'+esc(fmtDTk(p.validUntil)+' WIB')+'</td></tr>':'')+'</table></div>';
+    h+='<div class="zh">'+esc(tr('gateItems'))+' ('+p.items.length+')</div><div class="scroll"><table><tr><th>#</th><th>'+esc(tr('gateItem'))+'</th><th>'+esc(tr('gateQty'))+'</th></tr>'+p.items.map(function(it,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(it.item)+'</td><td><b>'+esc(it.qty+(it.unit?' '+it.unit:''))+'</b></td></tr>';}).join('')+'</table></div>';
+    var im=d.images||{};
+    h+='<div class="zh">'+esc(tr('gateSigned'))+'</div>'+((im.signed||[]).length?(im.signed||[]).map(function(u,i){return u?'<img class="gimg" data-gz="signed'+i+'" alt="" src="'+u+'" style="width:100%;border:1px solid var(--line);border-radius:8px;margin-top:6px">':'';}).join(''):'<p class="err">'+esc(tr('gate_no_signed_copy'))+'</p>');
+    h+='<div class="zh">'+esc(tr('gateViews'))+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+['front','top','left','right'].map(function(v){return '<div><small class="note">'+esc(tr('gph_'+v))+'</small>'+(im[v]?'<img class="gimg" data-gz="'+v+'" alt="" src="'+im[v]+'" style="width:100%;border:1px solid var(--line);border-radius:8px">':'')+'</div>';}).join('')+'</div>';
+    if(ready){
+      h+='<div class="zh">'+esc(tr('gateChecks'))+'</div>';
+      ['signed','plate','items','vehicle'].forEach(function(k,i){h+='<label class="remember" style="align-items:flex-start"><input type="checkbox" data-gck="'+k+'"'+(GT.chk[k]?' checked':'')+'><span>'+esc(tr('gateC'+(i+1)))+'</span></label>';});
+      h+='<div class="err" id="gErr">'+esc(GT.err||'')+'</div>';
+      var all=GT.chk.signed&&GT.chk.plate&&GT.chk.items&&GT.chk.vehicle;
+      h+='<button class="btn" id="gRelease" type="button"'+(all&&!GT.busy?'':' disabled')+'>'+esc(tr('gateRelease'))+'</button>';
+      if(GT.rej)h+='<label for="gWhy">'+esc(tr('gateReason'))+'</label><textarea id="gWhy" rows="3" maxlength="300"></textarea><button class="btn" id="gRejGo" type="button"'+(GT.busy?' disabled':'')+'>'+esc(tr('gateRejectGo'))+'</button>';
+      else h+='<button class="btn ghost" id="gReject" type="button">'+esc(tr('gateReject'))+'</button>';
+    }else h+='<div class="err" id="gErr">'+esc(GT.err||'')+'</div>';
+    h+='<button class="btn ghost" id="gBackList" type="button">'+esc(tr('gateBackList'))+'</button>';
+  }
+  b.innerHTML=h;
+}
+function fmtDTk(ms){var d=new Date(ms+7*3600000),M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return pad(d.getUTCDate())+' '+M[d.getUTCMonth()]+' '+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());}
+function gateLoadRef(ref){
+  GT.ref=ref;GT.chk={};GT.rej=false;GT.err='';GT.view='load';gateDraw();
+  api({action:'gate_get',gp:S.pin,ref:ref},45000).then(function(r){return r;},function(){return null;}).then(function(r){
+    if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));return;}
+    if(!r||!r.ok){GT.view='list';GT.err=gErr(r?r.err:'gate_down');gateDraw();return;}
+    GT.data=r;GT.view='detail';gateDraw();window.scrollTo(0,0);
+  });
+}
+function gateParse(raw){var m=/MGP-(?:[A-Z0-9]{2,8}-)?\d{4}-\d{3,}/i.exec(String(raw||''));return m?m[0].toUpperCase():'';}
+function gateScan(){
+  openScan(function(raw){var ref=gateParse(raw);if(!ref){GT.view='list';GT.err=tr('gateBadRef');show('vGate');gateDraw();return;}show('vGate');gateLoadRef(ref);});
+}
+function gateDecide(dec){
+  if(GT.busy)return;var why=dec==='reject'?(($('gWhy')&&$('gWhy').value)||'').replace(/\s+/g,' ').trim():'';
+  if(dec==='reject'&&why.length<3){GT.err=gErr('need_reason');gateDraw();return;}
+  GT.busy=true;GT.err='';gateDraw();var eb=$('gErr');if(eb)eb.innerHTML='<span class="sp"></span>'+esc(tr('sending'));
+  getFix().then(function(fix){
+    return api({action:'gate_release',gp:S.pin,ref:GT.ref,decision:dec,reason:why,checks:GT.chk,lat:fix?fix.lat:null,lng:fix?fix.lng:null,acc:fix?fix.acc:null},60000).then(function(r){return r;},function(){return null;});
+  }).then(function(r){
+    GT.busy=false;
+    if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));return;}
+    if(!r){GT.err=tr('gateNoNet');gateDraw();return;}
+    if(!r.ok){GT.err=gErr(r.err)+(r.err==='already_released'&&r.by?' '+r.by+' · '+r.at:'');gateDraw();return;}
+    GT.done={ref:GT.ref,msg:dec==='release'?tr('gateReleased'):tr('gateRejectedOk')};GT.view='done';GT.at=0;gateBadge();gateDraw();window.scrollTo(0,0);
+  });
+}
+$('gateBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  var z=t.getAttribute&&t.getAttribute('data-gz');
+  if(z){$('gzImg').src=t.src;$('gzModal').classList.remove('hidden');return;}
+  var o=t.closest&&t.closest('[data-gopen]');if(o){gateLoadRef(o.getAttribute('data-gopen'));return;}
+  var id=t.id;
+  if(id==='gHome'){showPatrol();}
+  else if(id==='gScan'){gateScan();}
+  else if(id==='gRefresh'){GT.err='';gateBadge();}
+  else if(id==='gRefGo'){var ref=gateParse($('gRef').value);if(!ref){GT.err=tr('gateBadRef');gateDraw();return;}gateLoadRef(ref);}
+  else if(id==='gBackList'){GT.view='list';GT.err='';gateDraw();gateBadge();}
+  else if(id==='gRelease'){gateDecide('release');}
+  else if(id==='gReject'){GT.rej=true;gateDraw();}
+  else if(id==='gRejGo'){gateDecide('reject');}
+});
+$('gateBody').addEventListener('change',function(e){var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-gck');if(k){GT.chk[k]=!!e.target.checked;GT.err='';gateDraw();}});
+$('gzModal').addEventListener('click',function(){$('gzModal').classList.add('hidden');$('gzImg').src='';});
+$('bGate').addEventListener('click',gateOpen);
+Object.assign(T.en,{gateBtn:'Gate pass',gateTitle:'Material gate pass',gateScan:'Scan pass QR',gateManual:'Or type the reference number',gateOpenBtn:'Open',gatePending:'Waiting for release',gateNone:'No passes waiting for release.',gateReady:'READY FOR RELEASE CHECK',gateNot:'DO NOT RELEASE',
+ gate_no_signed_copy:'The signed copy has not been uploaded yet.',gate_already_released:'Already released:',gate_expired:'This pass has expired.',gate_rejected:'This pass was rejected.',gate_cancelled:'This pass was cancelled.',
+ gateCompany:'Company',gateVehicle:'Vehicle',gateDriver:'Person taking out',gatePurpose:'Purpose',gatePurA:'Rejected items back to supplier',gatePurB:"Contractor's own material",gateIcRep:'IC rep',gateDept:'EcoOils dept',gateUntil:'Valid until',gateItems:'Items',gateItem:'Item',gateQty:'Qty',
+ gateSigned:'Signed copy (compare with the paper original in the driver\'s hand)',gateViews:'Vehicle photos (compare with the vehicle at the gate)',gph_front:'Front',gph_top:'Top',gph_left:'Left side',gph_right:'Right side',gateChecks:'Your checks',
+ gateC1:'The signed paper in the driver\'s hand matches the signed copy above (details and all signatures)',gateC2:'The number plate matches the vehicle number',gateC3:'The items and quantities on the vehicle match the list',gateC4:'I have physically checked the vehicle',
+ gateRelease:'Release vehicle',gateReject:'Reject pass',gateReason:'Reason for rejecting (required)',gateRejectGo:'Confirm reject',gateReleased:'Vehicle released. Recorded under your name.',gateRejectedOk:'Pass rejected. Recorded under your name.',gateBackList:'Back to pass list',gateBadRef:'This is not a gate pass QR code.',gateNoNet:'No connection. Nothing was saved. Do not release until it is saved.',
+ err_g_gate_down:'Cannot reach the gate pass system. Try again. Do not release without a verified pass.',err_g_gate_off:'The gate pass link is not set up yet.',err_g_notfound:'Pass not found. Do not release.',err_g_bad_ref:'Not a valid pass reference.',err_g_already_released:'Already released.',err_g_expired:'This pass has expired. Do not release.',err_g_not_ready:'This pass is not ready for release.',err_g_need_checks:'Tick all four checks first.',err_g_need_reason:'Write the reason.'});
+Object.assign(T.id,{gateBtn:'Surat jalan material',gateTitle:'Surat jalan material',gateScan:'Pindai QR surat',gateManual:'Atau ketik nomor referensi',gateOpenBtn:'Buka',gatePending:'Menunggu pelepasan',gateNone:'Tidak ada surat yang menunggu pelepasan.',gateReady:'SIAP DIPERIKSA UNTUK DILEPAS',gateNot:'JANGAN DILEPAS',
+ gate_no_signed_copy:'Salinan bertanda tangan belum diunggah.',gate_already_released:'Sudah dilepas:',gate_expired:'Surat ini sudah kedaluwarsa.',gate_rejected:'Surat ini ditolak.',gate_cancelled:'Surat ini dibatalkan.',
+ gateCompany:'Perusahaan',gateVehicle:'Kendaraan',gateDriver:'Pembawa',gatePurpose:'Tujuan',gatePurA:'Barang ditolak kembali ke pemasok',gatePurB:'Material milik kontraktor sendiri',gateIcRep:'Perwakilan IC',gateDept:'Dept EcoOils',gateUntil:'Berlaku sampai',gateItems:'Barang',gateItem:'Barang',gateQty:'Jumlah',
+ gateSigned:'Salinan bertanda tangan (bandingkan dengan surat asli di tangan pengemudi)',gateViews:'Foto kendaraan (bandingkan dengan kendaraan di gerbang)',gph_front:'Depan',gph_top:'Atas',gph_left:'Sisi kiri',gph_right:'Sisi kanan',gateChecks:'Pemeriksaan Anda',
+ gateC1:'Surat asli di tangan pengemudi sama dengan salinan di atas (data dan semua tanda tangan)',gateC2:'Plat nomor sesuai dengan nomor kendaraan',gateC3:'Barang dan jumlah di kendaraan sesuai daftar',gateC4:'Saya sudah memeriksa kendaraan secara fisik',
+ gateRelease:'Lepas kendaraan',gateReject:'Tolak surat',gateReason:'Alasan menolak (wajib)',gateRejectGo:'Konfirmasi tolak',gateReleased:'Kendaraan dilepas. Tercatat atas nama Anda.',gateRejectedOk:'Surat ditolak. Tercatat atas nama Anda.',gateBackList:'Kembali ke daftar surat',gateBadRef:'Ini bukan QR surat jalan material.',gateNoNet:'Tidak ada koneksi. Tidak ada yang tersimpan. Jangan lepas sebelum tersimpan.',
+ err_g_gate_down:'Sistem surat jalan tidak terjangkau. Coba lagi. Jangan lepas tanpa surat yang terverifikasi.',err_g_gate_off:'Tautan surat jalan belum diatur.',err_g_notfound:'Surat tidak ditemukan. Jangan dilepas.',err_g_bad_ref:'Nomor referensi tidak valid.',err_g_already_released:'Sudah dilepas.',err_g_expired:'Surat ini kedaluwarsa. Jangan dilepas.',err_g_not_ready:'Surat ini belum siap dilepas.',err_g_need_checks:'Centang keempat pemeriksaan dulu.',err_g_need_reason:'Tulis alasannya.'});
+
 /* ===== Admin: view a guard's screen (read-only simulation) ===== */
 Object.assign(T.en,{pvAs:'Viewing as',pvNote:'Read-only. Nothing here is scanned, sent or changed.',pvClose:'Close view',pvRefresh:'Refresh',pvUpd:'Updated'});
 Object.assign(T.id,{pvAs:'Melihat sebagai',pvNote:'Hanya lihat. Tidak ada yang dipindai, dikirim atau diubah.',pvClose:'Tutup tampilan',pvRefresh:'Muat ulang',pvUpd:'Diperbarui'});
