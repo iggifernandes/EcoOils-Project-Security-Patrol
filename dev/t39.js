@@ -39,7 +39,7 @@ m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Sheet Guard'});m.call({action
  ok(hdr==='nowrap','column titles are set to stay on one line');
  // Danru sees the link but no timesheet
  await pg.click('#aOut');await pg.waitForSelector('#vSetup:not(.hidden)');
- await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ await pg.fill('#gpin',dp['Rendi Irawan']);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(500);
  ok(await pg.locator('#lSecApp').isVisible(),'Danru sees the Security app link');
  ok((await pg.locator('#aTs').isVisible())===false&&(await pg.locator('#bTsOpen').isVisible())===false,'Danru does not see the Timesheet until Admin switches it on');
  const dr=m.call({action:'d_ts_get',gp:dp['Rendi Irawan']});ok(dr.ok===false&&dr.err==='ts_off','server refuses Danru timesheet while off');

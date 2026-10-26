@@ -18,7 +18,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
  const Dn=dp['Rendi Irawan'];m.call({action:'d_add',gp:Dn,name:'St Guard'});
- const dayS=new Date(Date.now()+7*3600000).toISOString().slice(0,10);
+ const dayS=m.ctx.roundAt_(Date.now()).date; /* the date of the round the mock clock is in (the mock moves its clock into a round when the real time is between rounds) */
  const sc=m.call({action:'state',gp:Dn});const p1=sc.points[0],p2=sc.points[1];
  const cur=m.ctx.roundAt_(Date.now());
  const add=(pt,fl)=>m.sheets.Scans.rows.push(['x'+Math.random(),dayS+' 08:00:00',dayS,cur.label,'St Guard','Security Guard',pt.id,pt.no,pt.name,pt.zone,'','','','','NO_GPS',fl,'',Date.now()]);

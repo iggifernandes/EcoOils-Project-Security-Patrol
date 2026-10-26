@@ -32,7 +32,7 @@ h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
 input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
-#vPatrol.pv #bScan,#vPatrol.pv #bObs,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
+#vPatrol.pv #bScan,#vPatrol.pv #bObs,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#dTabs.pvh{display:none!important}#vPatrol.pv #bGps,#vPatrol.pv #bHk,#vPatrol.pv #bEq,#vPatrol.pv #bHkA,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
 #pvBar{border-color:var(--amber);background:var(--ban);position:sticky;top:48px;z-index:4}
 textarea{min-height:90px;resize:vertical;line-height:1.4}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -61,6 +61,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .cnt.d b{color:var(--ok)}.cnt.r b{color:var(--text)}
 .bar{height:8px;border-radius:4px;background:var(--bar);overflow:hidden;margin-top:12px}
 .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .15s}
+.kg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.kpi{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--green);border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left;color:var(--text);font:inherit;width:100%}.kpi b{display:block;font-size:26px;font-weight:600;line-height:1.1}.kpi span{display:block;font-size:13px;color:var(--mute)}.kpi.w{border-left-color:var(--amber)}.kpi.r{border-left-color:var(--bad)}.kpi.wide{grid-column:1/3}.dbar{display:flex;align-items:flex-end;gap:4px;height:46px;margin-top:6px}.dbar i{flex:1;background:var(--green);min-height:2px;border-radius:2px 2px 0 0}.dbar i.w{background:var(--amber)}.dbar i.r{background:var(--bad)}.dlab{display:flex;gap:4px;font-size:10px;color:var(--mute)}.dlab em{flex:1;text-align:center;font-style:normal}
+html,body{overscroll-behavior-y:contain}
 .tabs{display:flex;flex-wrap:wrap;gap:0 14px;margin:14px 0 8px;border-bottom:1px solid var(--line)}
 .tabs button{flex:none;background:none;color:var(--mute);border:0;border-bottom:3px solid transparent;border-radius:0;padding:9px 2px;margin-bottom:-1px;font-size:15px;font-weight:400;cursor:pointer;min-height:44px}
 .tabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--green)}
@@ -110,6 +112,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 <main>
 <div id="banner"></div>
 
+<div class="tabs hidden" id="dTabs"><button id="dtDash" type="button"></button><button id="dtPat" type="button"></button><button id="dtIss" type="button"></button><button id="dtHk" type="button"></button><button id="dtEq" type="button"></button></div>
 <section id="vSetup">
   <h1 id="tSetup"></h1>
   <form id="pinBox" autocomplete="off">
@@ -143,6 +146,9 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
   <a class="btn ghost hidden" id="lSecApp" href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">Security app</a>
   <button class="btn ghost hidden" id="bHold" type="button"></button>
   <button class="btn ghost hidden" id="bGps" type="button"></button>
+  <button class="btn ghost hidden" id="bHk" type="button"></button>
+  <button class="btn ghost hidden" id="bEq" type="button"></button>
+  <button class="btn ghost hidden" id="bHkA" type="button"></button>
   <button class="btn ghost" id="bVid" type="button"></button>
   <div id="planCard"></div>
   <div id="awardCard"></div>
@@ -152,6 +158,10 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vGps" class="hidden"><div id="gpsBody"></div></section>
+<section id="vDan" class="hidden"><div id="danBody"></div></section>
+<section id="vHk" class="hidden"><div id="hkBody"></div></section>
+<section id="vEq" class="hidden"><div id="eqBody"></div></section>
+<section id="vHkA" class="hidden"><div id="hkaBody"></div></section>
 
 <section id="vObs" class="hidden"><div id="obsBody"></div></section>
 
@@ -184,7 +194,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vAdmin" class="hidden">
-  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
+  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aChk" type="button">Checks</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -208,7 +218,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.42';
+var VERSION='v1.44';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -347,7 +357,7 @@ function applyLang(){
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
-  if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();else if(!$('vGate').classList.contains('hidden'))gateDraw();
+  dTabsSet(['vDan','vPatrol','vObsL','vHk','vEq'].filter(function(v){return !$('v'+v.slice(1)).classList.contains('hidden');})[0]||'');if(!$('vDan').classList.contains('hidden'))danDraw();else if(!$('vHk').classList.contains('hidden'))hkDraw();else if(!$('vEq').classList.contains('hidden'))eqDraw();else if(!$('vHkA').classList.contains('hidden'))hkaDraw();else if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();else if(!$('vGate').classList.contains('hidden'))gateDraw();
   pvBar();render();if(!$('vPlan').classList.contains('hidden')||(!$('vAdmin').classList.contains('hidden')&&A.tab==='plan'))planDraw();else if(!$('vTeam').classList.contains('hidden'))teamOpen();else if(!$('vAdmin').classList.contains('hidden')&&A.tab==='team')aTab('team');
 }
 function curTheme(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';}
@@ -360,13 +370,15 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vGate'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
+function isDan(){return !!(S.state&&S.state.me&&S.state.me.danru);}
+function showHome(){if(isDan())danOpen();else showPatrol();}
 function startUp(){
   if(!S.pin){showSetup('');return;}
   if(!S.state){try{S.state=JSON.parse(ls('sp_state')||'null');}catch(e){S.state=null;}}
-  showPatrol();loadState().then(function(){flush();});
+  showHome();loadState().then(function(){flush();if(isDan()&&!$('vDan').classList.contains('hidden'))danLoad();});
 }
 
 /* ===== patrol screen ===== */
@@ -384,7 +396,7 @@ function pendSet(){
 function setHtml(el,h){if(el&&el._h!==h){el._h=h;el.innerHTML=h;}}
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();gateBtns();
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();hkBtns();gateBtns();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -558,8 +570,8 @@ function result(pt,r,note){
 var A={pin:'',tab:'live',pts:[],cal:null};
 function aApi(b){b.pin=A.pin;return api(b);}
 function aTab(t){
-  A.tab=t;['Stats','Miss','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
-  PL.on=false;var f={stats:aStats,miss:aMiss,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
+  A.tab=t;['Stats','Miss','Chk','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -681,6 +693,233 @@ function openPin(){$('pin').value='';$('pinErr').textContent='';$('pinModal').cl
 function enterAdmin(){show('vAdmin');aTab('stats');}
 
 
+
+
+/* ===== Security building check (Danru / Shift Supervisor inspect, guards act) and equipment check ===== */
+Object.assign(T.en,{hkBtn:'Building check',eqBtn:'Equipment',hkaBtn:'Cleaning actions',hkTitle:'Security building check',hkNew:'New check',hkActs:'Actions',hkOk:'OK',hkNot:'Not OK',hkNotePh:'What is wrong? (required)',hkOverall:'Overall note (optional)',hkSave:'Save check',hkAllNeed:'Answer every line first.',hkNoteNeed:'Write what is wrong on every Not OK line.',hkSaved:'Check saved. Actions sent to the guards:',hkLast:'Last check',hkBy:'by',hkOpenL:'Open, waiting for the guards',hkDoneL:'Done by the guards, please verify',hkVerL:'Recently verified',hkVerify:'Verify',hkReopen:'Re-open',hkReason:'Reason for re-opening (required)',hkNoOpen:'No open actions.',hkNone:'No check yet.',hkaTitle:'Cleaning actions',hkaDo:'What did you do? (required)',hkaDone:'Done',hkaNone:'No cleaning actions. Thank you.',hkaGate:'Cleaning of the security building is the duty of the guard on Gate duty.',hkaWait:'Waiting for the supervisor to verify',hkaFound:'Found by',hkaNeed:'Describe what you did first.',eqTitle:'Equipment check',eqExp:'expected',eqFound:'Found',eqCond:'Condition',eqNotePh:'Note (required if not OK or short)',eqSave:'Save equipment check',eqNeed:'Fill the number found on every line.',eqNoteNeed:'Write a note on every line that is damaged, missing or short.',eqSaved:'Equipment check saved. Lines with a problem:',eqLast:'Last',eqOK:'OK',eqDam:'Damaged',eqMis:'Missing',hkshP:'Morning',hkshS:'Afternoon',hkshM:'Night'});
+Object.assign(T.id,{hkBtn:'Cek gedung',eqBtn:'Peralatan',hkaBtn:'Tindakan kebersihan',hkTitle:'Cek gedung keamanan',hkNew:'Cek baru',hkActs:'Tindakan',hkOk:'Baik',hkNot:'Tidak baik',hkNotePh:'Apa yang salah? (wajib)',hkOverall:'Catatan umum (opsional)',hkSave:'Simpan cek',hkAllNeed:'Jawab semua baris dulu.',hkNoteNeed:'Tulis masalahnya pada setiap baris Tidak baik.',hkSaved:'Cek disimpan. Tindakan dikirim ke petugas:',hkLast:'Cek terakhir',hkBy:'oleh',hkOpenL:'Terbuka, menunggu petugas',hkDoneL:'Selesai oleh petugas, mohon verifikasi',hkVerL:'Baru diverifikasi',hkVerify:'Verifikasi',hkReopen:'Buka lagi',hkReason:'Alasan membuka lagi (wajib)',hkNoOpen:'Tidak ada tindakan terbuka.',hkNone:'Belum ada cek.',hkaTitle:'Tindakan kebersihan',hkaDo:'Apa yang Anda lakukan? (wajib)',hkaDone:'Selesai',hkaNone:'Tidak ada tindakan kebersihan. Terima kasih.',hkaGate:'Kebersihan gedung keamanan adalah tugas petugas yang bertugas di gerbang.',hkaWait:'Menunggu verifikasi supervisor',hkaFound:'Ditemukan oleh',hkaNeed:'Jelaskan dulu apa yang Anda lakukan.',eqTitle:'Cek peralatan',eqExp:'seharusnya',eqFound:'Ditemukan',eqCond:'Kondisi',eqNotePh:'Catatan (wajib jika tidak baik atau kurang)',eqSave:'Simpan cek peralatan',eqNeed:'Isi jumlah yang ditemukan pada setiap baris.',eqNoteNeed:'Tulis catatan pada setiap baris yang rusak, hilang atau kurang.',eqSaved:'Cek peralatan disimpan. Baris bermasalah:',eqLast:'Terakhir',eqOK:'Baik',eqDam:'Rusak',eqMis:'Hilang',hkshP:'Pagi',hkshS:'Sore',hkshM:'Malam',err_not_duty:'Kebersihan dilakukan oleh petugas yang bertugas di gerbang pada shift ini.',err_hk_all:'Jawab semua baris.',err_hk_note:'Tulis catatan.',err_hk_donenote:'Jelaskan apa yang Anda lakukan.',err_eq_all:'Lengkapi semua baris peralatan.',err_eq_note:'Tulis catatan pada baris bermasalah.'});
+Object.assign(T.en,{err_not_duty:'Cleaning is done by the guard on Gate duty this shift.',err_hk_all:'Answer every line.',err_hk_note:'Write a note.',err_hk_donenote:'Describe what you did.',err_eq_all:'Complete every equipment line.',err_eq_note:'Write a note on the lines with a problem.'});
+var HK={items:[],res:[],note:'',tab:'new',msg:'',err:'',busy:false,last:null,list:null,open:0};
+var EQ={items:[],res:[],last:null,msg:'',err:'',busy:false};
+var HA={list:null,err:'',busy:false};
+function itemL(x){return lang==='id'?(x.id||x.en):x.en;}
+function shL(c){return tr('hksh'+c);}
+function hkBtns(){
+  var st=S.state,me=st&&st.me,dan=!!(me&&me.danru),gd=!!(me&&!me.danru&&st.hk&&st.hk.mine);
+  var a=$('bHk'),b=$('bEq'),c=$('bHkA');if(!a)return;
+  a.classList.toggle('hidden',!dan);b.classList.toggle('hidden',!dan);c.classList.toggle('hidden',!gd);
+  a.textContent=tr('hkBtn');b.textContent=tr('eqBtn');
+  if(gd)c.textContent=tr('hkaBtn')+(st.hk.open?' ('+st.hk.open+')':'');
+}
+/* supervisor: building check */
+function hkOpen(){show('vHk');HK.tab='new';HK.msg='';HK.err='';hkLoad();}
+function hkLoad(){
+  $('hkBody').innerHTML='<h1>'+esc(tr('hkTitle'))+'</h1><p><span class="sp"></span></p>';
+  api({action:'d_hk_get',gp:S.pin}).then(function(r){
+    if(!r||!r.ok){$('hkBody').innerHTML='<h1>'+esc(tr('hkTitle'))+'</h1><p class="err">'+esc(errText(r&&r.err||'server'))+'</p><button class="btn ghost" id="hkBack" type="button">'+esc(tr('back'))+'</button>';return;}
+    HK.items=r.items;HK.last=r.last;HK.open=r.open;HK.res=r.items.map(function(){return {ok:null,note:''};});HK.note='';hkDraw();
+  }).catch(function(){$('hkBody').innerHTML='<h1>'+esc(tr('hkTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
+}
+function hkTabs(){return '<div class="tabs"><button id="hkTN" type="button"'+(HK.tab==='new'?' class="on"':'')+'>'+esc(tr('hkNew'))+'</button><button id="hkTA" type="button"'+(HK.tab==='acts'?' class="on"':'')+'>'+esc(tr('hkActs'))+(HK.open?' ('+HK.open+')':'')+'</button></div>';}
+function hkDraw(){
+  if(!HK.items.length&&HK.tab==='new'){return;}
+  var h='<h1>'+esc(tr('hkTitle'))+'</h1>'+hkTabs();
+  if(HK.tab==='acts'){hkDrawActs(h);return;}
+  var l=HK.last;
+  h+='<div class="card"><small class="note">'+esc(tr('hkLast'))+': '+(l?esc(l.date)+' '+esc(shL(l.shift))+' '+esc(tr('hkBy'))+' '+esc(l.by)+', '+l.notOk+' '+esc(tr('hkNot')):esc(tr('hkNone')))+'</small></div>';
+  HK.items.forEach(function(x,i){var r=HK.res[i];
+    h+='<div class="card"><b>'+(i+1)+'. '+esc(itemL(x))+'</b><div class="tabs" style="margin-top:6px"><button type="button" data-hk="ok" data-i="'+i+'"'+(r.ok===true?' class="on"':'')+'>'+esc(tr('hkOk'))+'</button><button type="button" data-hk="no" data-i="'+i+'"'+(r.ok===false?' class="on"':'')+'>'+esc(tr('hkNot'))+'</button></div>'+(r.ok===false?'<input type="text" data-hkn="'+i+'" maxlength="300" placeholder="'+esc(tr('hkNotePh'))+'" value="'+esc(r.note)+'" style="margin-top:8px">':'')+'</div>';});
+  h+='<label for="hkNote">'+esc(tr('hkOverall'))+'</label><input type="text" id="hkNote" maxlength="300" value="'+esc(HK.note)+'">';
+  h+='<div class="err" id="hkErr">'+esc(HK.err)+'</div>'+(HK.msg?'<div class="card"><p>'+esc(HK.msg)+'</p></div>':'')+'<button class="btn" id="hkSave" type="button"'+(HK.busy?' disabled':'')+'>'+esc(tr('hkSave'))+'</button><button class="btn ghost" id="hkBack" type="button">'+esc(tr('back'))+'</button>';
+  $('hkBody').innerHTML=h;
+}
+function hkDrawActs(head){
+  var h=head;
+  if(!HK.list){h+='<p><span class="sp"></span></p>';$('hkBody').innerHTML=h;api({action:'d_hk_list',gp:S.pin}).then(function(r){if(r&&r.ok){HK.list=r;HK.open=r.open.length;hkDraw();}});return;}
+  var L=HK.list;
+  var line=function(a){return '<small class="note">'+esc(a.date)+' '+esc(shL(a.shift))+': '+esc(a.finding)+'</small>';};
+  h+='<div class="zh">'+esc(tr('hkDoneL'))+' ('+L.done.length+')</div>';
+  L.done.forEach(function(a){h+='<div class="card"><b>'+esc(a.item)+'</b><br>'+line(a)+'<p style="margin:6px 0"><b>'+esc(a.doneBy)+'</b>: '+esc(a.doneNote)+'</p><input type="text" data-vn="'+esc(a.id)+'" maxlength="300" placeholder="'+esc(tr('hkReason'))+'"><button class="btn sm" data-vf="'+esc(a.id)+'" type="button">'+esc(tr('hkVerify'))+'</button><button class="btn sm ghost" data-vr="'+esc(a.id)+'" type="button">'+esc(tr('hkReopen'))+'</button></div>';});
+  h+='<div class="zh">'+esc(tr('hkOpenL'))+' ('+L.open.length+')</div>';
+  L.open.forEach(function(a){h+='<div class="pt hi"><b>'+esc(a.item)+'</b>'+line(a)+(a.vNote?'<small>'+esc(a.vNote)+'</small>':'')+'</div>';});
+  if(!L.open.length)h+='<p class="note">'+esc(tr('hkNoOpen'))+'</p>';
+  h+='<div class="zh">'+esc(tr('hkVerL'))+'</div>';
+  L.verified.forEach(function(a){h+='<div class="pt"><b>'+esc(a.item)+'</b><small>'+esc(a.doneBy)+': '+esc(a.doneNote)+' &middot; '+esc(tr('hkVerify'))+': '+esc(a.vBy)+'</small></div>';});
+  h+='<button class="btn ghost" id="hkBack" type="button">'+esc(tr('back'))+'</button>';
+  $('hkBody').innerHTML=h;
+}
+$('hkBody').addEventListener('input',function(e){var t=e.target,n=t.getAttribute&&t.getAttribute('data-hkn');if(n!==null&&n!==undefined&&n!=='')HK.res[Number(n)].note=t.value;if(t.id==='hkNote')HK.note=t.value;});
+$('hkBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  var k=t.getAttribute&&t.getAttribute('data-hk');
+  if(k){HK.res[Number(t.getAttribute('data-i'))].ok=k==='ok';HK.err='';hkDraw();return;}
+  if(t.id==='hkBack'){showHome();return;}
+  if(t.id==='hkTN'){HK.tab='new';hkDraw();return;}
+  if(t.id==='hkTA'){HK.tab='acts';HK.list=null;hkDraw();return;}
+  var vf=t.getAttribute&&t.getAttribute('data-vf'),vr=t.getAttribute&&t.getAttribute('data-vr');
+  if(vf||vr){var id=vf||vr,inp=$('hkBody').querySelector('input[data-vn="'+id+'"]'),note=inp?inp.value:'';
+    if(vr&&note.replace(/\s+/g,' ').trim().length<3){alert(tr('hkReason'));if(inp)inp.focus();return;}
+    t.disabled=true;api({action:'d_hk_verify',gp:S.pin,id:id,ok:!!vf,note:note}).then(function(r){if(r&&r.ok){HK.list=null;hkDraw();}else{t.disabled=false;alert(errText(r&&r.err||'server'));}}).catch(function(){t.disabled=false;});return;}
+  if(t.id==='hkSave'&&!HK.busy){
+    if(HK.res.some(function(r){return r.ok===null;})){HK.err=tr('hkAllNeed');hkDraw();return;}
+    if(HK.res.some(function(r){return r.ok===false&&r.note.replace(/\s+/g,' ').trim().length<3;})){HK.err=tr('hkNoteNeed');hkDraw();return;}
+    HK.busy=true;HK.err='';hkDraw();
+    api({action:'d_hk_save',gp:S.pin,rows:HK.res.map(function(r,i){return {i:i,ok:r.ok,note:r.note};}),note:HK.note}).then(function(r){
+      HK.busy=false;
+      if(r&&r.ok){var n=r.notOk;hkLoad();HK.msg=tr('hkSaved')+' '+n;setTimeout(function(){HK.msg=tr('hkSaved')+' '+n;hkDraw();},400);loadState(true);}
+      else{HK.err=errText(r&&r.err||'server');hkDraw();}
+    }).catch(function(){HK.busy=false;HK.err=errText('server');hkDraw();});
+  }
+});
+$('bHk').addEventListener('click',hkOpen);
+/* guards: cleaning actions */
+function hkaOpen(){show('vHkA');HA.list=null;HA.err='';hkaLoad();}
+function hkaLoad(){
+  $('hkaBody').innerHTML='<h1>'+esc(tr('hkaTitle'))+'</h1><p><span class="sp"></span></p>';
+  api({action:'hk_list',gp:S.pin}).then(function(r){
+    if(!r||!r.ok){$('hkaBody').innerHTML='<h1>'+esc(tr('hkaTitle'))+'</h1><p class="err">'+esc(errText(r&&r.err||'server'))+'</p><button class="btn ghost" id="hkaBack" type="button">'+esc(tr('back'))+'</button>';return;}
+    HA.list=r;hkaDraw();
+  }).catch(function(){$('hkaBody').innerHTML='<h1>'+esc(tr('hkaTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
+}
+function hkaDraw(){
+  var L=HA.list;if(!L)return;
+  var h='<h1>'+esc(tr('hkaTitle'))+' ('+L.open.length+')</h1><p class="note">'+esc(tr('hkaGate'))+'</p>';
+  L.open.forEach(function(a){h+='<div class="card"><b>'+esc(a.item)+'</b><br><small class="note">'+esc(a.date)+' '+esc(shL(a.shift))+'</small><p style="margin:6px 0">'+esc(a.finding)+'</p>'+(a.vNote?'<p class="note">'+esc(a.vNote)+'</p>':'')+'<input type="text" data-hn="'+esc(a.id)+'" maxlength="300" placeholder="'+esc(tr('hkaDo'))+'" style="margin-top:6px"><button class="btn" data-hd="'+esc(a.id)+'" type="button">'+esc(tr('hkaDone'))+'</button></div>';});
+  if(!L.open.length)h+='<div class="card empty"><p class="note">'+esc(tr('hkaNone'))+'</p></div>';
+  if(L.done.length){h+='<div class="zh">'+esc(tr('hkaWait'))+' ('+L.done.length+')</div>';L.done.forEach(function(a){h+='<div class="pt"><b>'+esc(a.item)+'</b><small>'+esc(a.doneBy)+': '+esc(a.doneNote)+'</small></div>';});}
+  h+='<div class="err" id="hkaErr">'+esc(HA.err)+'</div><button class="btn ghost" id="hkaBack" type="button">'+esc(tr('back'))+'</button>';
+  $('hkaBody').innerHTML=h;
+}
+$('hkaBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  if(t.id==='hkaBack'){showPatrol();return;}
+  var id=t.getAttribute&&t.getAttribute('data-hd');
+  if(id){var inp=$('hkaBody').querySelector('input[data-hn="'+id+'"]'),note=inp?inp.value:'';
+    if(note.replace(/\s+/g,' ').trim().length<3){HA.err=tr('hkaNeed');var er=$('hkaErr');if(er)er.textContent=HA.err;if(inp)inp.focus();return;}
+    t.disabled=true;
+    api({action:'hk_done',gp:S.pin,id:id,note:note}).then(function(r){
+      if(r&&r.ok){HA.err='';if(S.state&&S.state.hk)S.state.hk.open=r.open;hkBtns();hkaLoad();}
+      else{t.disabled=false;HA.err=errText(r&&r.err||'server');var e2=$('hkaErr');if(e2)e2.textContent=HA.err;}
+    }).catch(function(){t.disabled=false;});
+  }
+});
+$('bHkA').addEventListener('click',hkaOpen);
+/* supervisor: equipment check */
+function eqOpen(){show('vEq');EQ.msg='';EQ.err='';eqLoad();}
+function eqLoad(){
+  $('eqBody').innerHTML='<h1>'+esc(tr('eqTitle'))+'</h1><p><span class="sp"></span></p>';
+  api({action:'d_eq_get',gp:S.pin}).then(function(r){
+    if(!r||!r.ok){$('eqBody').innerHTML='<h1>'+esc(tr('eqTitle'))+'</h1><p class="err">'+esc(errText(r&&r.err||'server'))+'</p><button class="btn ghost" id="eqBack" type="button">'+esc(tr('back'))+'</button>';return;}
+    EQ.items=r.items;EQ.last=r.last;EQ.res=r.items.map(function(x){return {found:x.exp>0?String(x.exp):'',cond:'OK',note:''};});eqDraw();
+  }).catch(function(){$('eqBody').innerHTML='<h1>'+esc(tr('eqTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
+}
+function condL(c){return tr(c==='OK'?'eqOK':(c==='Damaged'?'eqDam':'eqMis'));}
+function eqDraw(){
+  if(!EQ.items.length)return;
+  var l=EQ.last,h='<h1>'+esc(tr('eqTitle'))+'</h1><div class="card"><small class="note">'+esc(tr('hkLast'))+': '+(l?esc(l.date)+' '+esc(shL(l.shift))+' '+esc(tr('hkBy'))+' '+esc(l.by):esc(tr('hkNone')))+'</small></div>';
+  EQ.items.forEach(function(x,i){var r=EQ.res[i],lt=x.last;
+    h+='<div class="card"><b>'+esc(itemL(x))+'</b>'+(x.exp>0?' <small class="note">'+esc(tr('eqExp'))+' '+x.exp+'</small>':'')+(lt?'<br><small class="note">'+esc(tr('eqLast'))+': '+esc(String(lt.found))+', '+esc(condL(lt.cond))+(lt.note?' ('+esc(lt.note)+')':'')+'</small>':'')+
+    '<label for="eqf'+i+'">'+esc(tr('eqFound'))+'</label><input type="number" id="eqf'+i+'" min="0" max="999" inputmode="numeric" data-eqf="'+i+'" value="'+esc(r.found)+'">'+
+    '<label for="eqc'+i+'">'+esc(tr('eqCond'))+'</label><select id="eqc'+i+'" data-eqc="'+i+'">'+['OK','Damaged','Missing'].map(function(c){return '<option value="'+c+'"'+(r.cond===c?' selected':'')+'>'+esc(condL(c))+'</option>';}).join('')+'</select>'+
+    '<input type="text" data-eqn="'+i+'" maxlength="200" placeholder="'+esc(tr('eqNotePh'))+'" value="'+esc(r.note)+'" style="margin-top:8px"></div>';});
+  h+='<div class="err" id="eqErr">'+esc(EQ.err)+'</div>'+(EQ.msg?'<div class="card"><p>'+esc(EQ.msg)+'</p></div>':'')+'<button class="btn" id="eqSave" type="button"'+(EQ.busy?' disabled':'')+'>'+esc(tr('eqSave'))+'</button><button class="btn ghost" id="eqBack" type="button">'+esc(tr('back'))+'</button>';
+  $('eqBody').innerHTML=h;
+}
+$('eqBody').addEventListener('input',function(e){var t=e.target;if(!t.getAttribute)return;var f=t.getAttribute('data-eqf'),n=t.getAttribute('data-eqn');if(f!==null)EQ.res[Number(f)].found=t.value;if(n!==null)EQ.res[Number(n)].note=t.value;});
+$('eqBody').addEventListener('change',function(e){var t=e.target,c=t.getAttribute&&t.getAttribute('data-eqc');if(c!==null&&c!==undefined)EQ.res[Number(c)].cond=t.value;});
+$('eqBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  if(t.id==='eqBack'){showHome();return;}
+  if(t.id==='eqSave'&&!EQ.busy){
+    if(EQ.res.some(function(r){return r.found===''||!isFinite(Number(r.found))||Number(r.found)<0;})){EQ.err=tr('eqNeed');eqDraw();return;}
+    if(EQ.res.some(function(r,i){var short=EQ.items[i].exp>0&&Number(r.found)<EQ.items[i].exp;return (r.cond!=='OK'||short)&&r.note.replace(/\s+/g,' ').trim().length<3;})){EQ.err=tr('eqNoteNeed');eqDraw();return;}
+    EQ.busy=true;EQ.err='';eqDraw();
+    api({action:'d_eq_save',gp:S.pin,rows:EQ.res.map(function(r){return {found:Number(r.found),cond:r.cond,note:r.note};})}).then(function(r){
+      EQ.busy=false;
+      if(r&&r.ok){eqLoad();var m=tr('eqSaved')+' '+r.issues;setTimeout(function(){EQ.msg=m;eqDraw();},400);}
+      else{EQ.err=errText(r&&r.err||'server');eqDraw();}
+    }).catch(function(){EQ.busy=false;EQ.err=errText('server');eqDraw();});
+  }
+});
+$('bEq').addEventListener('click',eqOpen);
+/* Admin: checks overview */
+function aChk(){
+  $('aBody').innerHTML='<h1>'+esc(tr('hkTitle'))+'</h1><p><span class="sp"></span></p>';
+  aApi({action:'a_chk'}).then(function(r){
+    if(!r.ok){aErr(r);return;}
+    var h='<h1>Building and equipment checks</h1><div class="counts"><div class="cnt r"><b>'+r.open.length+'</b><span>Open cleaning actions</span></div><div class="cnt d"><b>'+r.done.length+'</b><span>Done, not verified</span></div></div>';
+    h+='<div class="zh">Open actions (waiting for the guards)</div>';
+    r.open.forEach(function(a){h+='<div class="pt hi"><b>'+esc(a.item)+'</b><small>'+esc(a.date)+' '+esc(shL(a.shift))+': '+esc(a.finding)+(a.vNote?' ('+esc(a.vNote)+')':'')+'</small></div>';});
+    if(!r.open.length)h+='<p class="note">None.</p>';
+    h+='<div class="zh">Done by the guards, not yet verified</div>';
+    r.done.forEach(function(a){h+='<div class="pt"><b>'+esc(a.item)+'</b><small>'+esc(a.doneBy)+' '+esc(a.doneAt.slice(5,16))+': '+esc(a.doneNote)+'</small></div>';});
+    if(!r.done.length)h+='<p class="note">None.</p>';
+    h+='<div class="zh">Equipment: problems in the latest check'+(r.eqLast?' ('+esc(r.eqLast.date)+' '+esc(shL(r.eqLast.shift))+' by '+esc(r.eqLast.by)+')':'')+'</div>';
+    r.eqProblems.forEach(function(x){h+='<div class="pt hi"><b>'+esc(x.item)+' &middot; '+esc(condL(x.cond))+'</b><small>found '+esc(String(x.found))+(x.exp?' of '+x.exp:'')+(x.note?': '+esc(x.note):'')+'</small></div>';});
+    if(!r.eqProblems.length)h+='<p class="note">'+(r.eqLast?'No problems.':'No equipment check yet.')+'</p>';
+    h+='<div class="zh">Recent building checks</div>';
+    r.checks.forEach(function(c){h+='<div class="pt'+(c.notOk?' hi':'')+'"><b>'+esc(c.date)+' '+esc(shL(c.shift))+' &middot; '+esc(c.by)+' &middot; '+c.notOk+' not OK of '+c.items+'</b>'+(c.note?'<small>'+esc(c.note)+'</small>':'')+'</div>';});
+    if(!r.checks.length)h+='<p class="note">No building check yet.</p>';
+    h+='<div class="zh">Recently verified</div>';
+    r.verified.forEach(function(a){h+='<div class="pt"><b>'+esc(a.item)+'</b><small>'+esc(a.doneBy)+': '+esc(a.doneNote)+' &middot; verified by '+esc(a.vBy)+'</small></div>';});
+    if(!r.verified.length)h+='<p class="note">None.</p>';
+    $('aBody').innerHTML=h;
+  }).catch(function(){$('aBody').innerHTML='<p class="err">No connection.</p>';});
+}
+
+/* ===== Danru / Shift Supervisor home: tab bar + command dashboard ===== */
+Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
+Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
+var DS={d:null,err:'',busy:false,at:0};
+function dTabsSet(id){
+  var bar=$('dTabs');if(!bar)return;
+  var on=isDan()&&id!=='vSetup'&&id!=='vAdmin'&&id!=='vVid'&&!PV.on;
+  bar.classList.toggle('hidden',!on);if(!on)return;
+  var m={vDan:'dtDash',vPatrol:'dtPat',vObsL:'dtIss',vObs:'dtIss',vHk:'dtHk',vEq:'dtEq'};
+  [['dtDash','dtDash'],['dtPat','dtPat'],['dtIss','dtIss'],['dtHk','dtHk'],['dtEq','dtEq']].forEach(function(x){var b=$(x[0]);b.textContent=tr(x[1]);b.classList.toggle('on',m[id]===x[0]);});
+}
+$('dtDash').addEventListener('click',danOpen);$('dtPat').addEventListener('click',showPatrol);$('dtIss').addEventListener('click',obsListOpen);$('dtHk').addEventListener('click',hkOpen);$('dtEq').addEventListener('click',eqOpen);
+function danOpen(){show('vDan');danDraw();danLoad();}
+function danLoad(){
+  if(DS.busy)return;DS.busy=true;
+  api({action:'d_dash',gp:S.pin}).then(function(r){DS.busy=false;if(r&&r.ok){DS.d=r;DS.err='';DS.at=Date.now();}else DS.err=errText(r&&r.err||'server');danDraw();}).catch(function(){DS.busy=false;DS.err=errText('server');danDraw();});
+}
+function kpi(cls,go,big,lab,sub){return '<button type="button" class="kpi '+cls+'" data-go="'+go+'"><b>'+big+'</b><span>'+esc(lab)+'</span>'+(sub?'<span>'+sub+'</span>':'')+'</button>';}
+function pctCls(p){return p>=10?'r':(p>0?'w':'');}
+function danDraw(){
+  if($('vDan').classList.contains('hidden'))return;
+  var d=DS.d,h='<h1>'+esc(tr('dsTitle'))+'</h1>';
+  if(!d){setHtml($('danBody'),h+(DS.err?'<p class="err">'+esc(DS.err)+'</p>':'<p><span class="sp"></span></p>'));return;}
+  if(d.hold&&d.hold.on)h+='<div class="card" style="border-left:6px solid var(--bad)"><b>'+esc(tr('dsHold'))+'</b></div>';
+  var r=d.round,rem=r.total-r.done;
+  h+='<div class="kg">';
+  h+=kpi(r.upcoming?'':(rem?(rem>r.total/2?'w':''):''),'pat',r.upcoming?'-':r.done+' / '+r.total,tr('dsRound')+' · '+r.label,r.upcoming?esc(tr('dsNoRound')):(rem?rem+' '+esc(tr('dsRem').toLowerCase()):esc(tr('dsAll'))));
+  var l=d.last;h+=kpi(l&&l.missed?(l.missed>=5?'r':'w'):'','miss',l?l.done+' / '+l.total:'-',tr('dsLast')+(l?' · '+l.label:''),l?(l.missed+' '+esc(tr('dsMissed'))):'');
+  h+=kpi(pctCls(d.today.pct),'miss',d.today.pct+'%',tr('dsToday'),d.today.missed+' '+esc(tr('dsOf'))+' '+d.today.possible+' '+esc(tr('dsPts')));
+  h+=kpi(pctCls(d.week.pct),'miss',d.week.pct+'%',tr('dsWeek'),d.week.withMiss+' / '+d.week.rounds+' '+esc(tr('dsRounds')));
+  h+=kpi(d.issues.open?(d.issues.open>=3?'r':'w'):'','iss',d.issues.open,tr('dsIssues'),d.issues.oldest?esc(tr('dsOld'))+' '+esc(String(d.issues.oldest).slice(5,16)):esc(tr('dsNone')));
+  h+=kpi(d.clean.open||d.clean.done?'w':'','hk',d.clean.open,tr('dsClean'),d.clean.done+' '+esc(tr('dsVerify')));
+  h+=kpi(d.equip.problems?'r':'','eq',d.equip.problems,tr('dsEq'),d.equip.last?esc(d.equip.last):esc(tr('dsNone')));
+  h+=kpi(d.clock.missing?'w':'','pat',d.clock.missing,tr('dsClock'),esc(d.clock.who.slice(0,3).join(', ')));
+  if(d.gps)h+=kpi(pctCls(d.gps.pct),'gps',d.gps.outside,tr('dsGps'),d.gps.pct+'% '+esc(tr('dsOf'))+' '+d.gps.checked);
+  h+='</div>';
+  var days=d.week.perDay;
+  if(days.length){var mx=Math.max.apply(null,days.map(function(x){return x.missed;}).concat([1]));
+    h+='<div class="card"><b>'+esc(tr('dsWeek'))+'</b><div class="dbar">'+days.map(function(x){var p=x.rounds?Math.round(1000*x.missed/(x.rounds*Math.max(1,d.round.total)))/10:0;return '<i class="'+pctCls(p)+'" style="height:'+Math.max(4,Math.round(100*x.missed/mx))+'%" title="'+esc(x.date)+': '+x.missed+'"></i>';}).join('')+'</div><div class="dlab">'+days.map(function(x){return '<em>'+esc(x.date.slice(8))+'</em>';}).join('')+'</div></div>';}
+  if(!r.upcoming&&d.remaining.length)h+='<details class="card"><summary><b>'+esc(tr('dsRem'))+' ('+d.remaining.length+')</b></summary>'+d.remaining.map(function(p){return '<div class="note">'+p.no+' · '+esc(p.name)+(p.hi?' ★':'')+'</div>';}).join('')+'</details>';
+  h+=(DS.err?'<p class="err">'+esc(DS.err)+'</p>':'')+'<p class="note">'+esc(tr('dsUpd'))+' '+new Date(DS.at).toTimeString().slice(0,5)+'</p><button class="btn ghost" id="dsRef" type="button">'+esc(tr('dsRefresh'))+'</button><button class="btn ghost" id="dsOut" type="button">'+esc(tr('logout'))+'</button>';
+  setHtml($('danBody'),h);
+}
+$('danBody').addEventListener('click',function(e){
+  var t=e.target;while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute('data-go')||t.id==='dsRef'||t.id==='dsOut')))t=t.parentNode;
+  if(!t||t===this)return;
+  if(t.id==='dsRef'){danLoad();return;}
+  if(t.id==='dsOut'){dropLogin('');return;}
+  var g=t.getAttribute('data-go');
+  if(g==='pat')showPatrol();else if(g==='iss')obsListOpen();else if(g==='hk'){hkOpen();}else if(g==='eq')eqOpen();else if(g==='gps')gpsOpen();
+  else if(g==='miss'){showPatrol();}
+});
+setInterval(function(){if(!$('vDan').classList.contains('hidden')&&document.visibilityState!=='hidden'&&Date.now()-DS.at>44000)danLoad();},15000);
 
 /* ===== Missed points: trends and detail (Admin) ===== */
 var MS2={from:'',to:'',r:null};
@@ -1052,7 +1291,7 @@ function gpsLoad(){
     $('gpsBody').innerHTML=h;
   }).catch(function(){$('gpsBody').innerHTML='<h1>'+esc(tr('gpsTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p>';});
 }
-$('gpsBody').addEventListener('click',function(e){if(e.target&&e.target.id==='gpBack')showPatrol();});
+$('gpsBody').addEventListener('click',function(e){if(e.target&&e.target.id==='gpBack')showHome();});
 $('gpsBody').addEventListener('change',function(e){if(e.target&&e.target.id==='gpDays'){GP.days=Number(e.target.value)||7;gpsLoad();}});
 $('bGps').addEventListener('click',gpsOpen);
 
@@ -1163,7 +1402,7 @@ function obsListLoad(){
 }
 $('obsLBody').addEventListener('click',function(e){
   var t=e.target;if(!t)return;
-  if(t.id==='obLBack'){showPatrol();return;}
+  if(t.id==='obLBack'){showHome();return;}
   var id=t.getAttribute&&t.getAttribute('data-close');
   if(id){
     var inp=$('obsLBody').querySelector('input[data-note="'+id+'"]');
@@ -1180,7 +1419,7 @@ $('bObsL').addEventListener('click',obsListOpen);
 Object.assign(T.en,{obsActLbl:'What did you do to fix it? (required)',obsActPh:'Describe the action you took',obsActNeed:'Describe the action you took to fix it.',err_need_action:'Describe the action taken to fix the issue.',err_need_note:'Write what was done to close this issue.',obsNeedNote:'Write the close-out comment first (what was done).',obsNotePh2:'Close-out comment: what was done (required)',obsActWas:'Action taken',
  aMiss:'Missed',msTitle:'Missed points: trends and detail'});
 Object.assign(T.id,{obsActLbl:'Apa yang Anda lakukan untuk memperbaikinya? (wajib)',obsActPh:'Jelaskan tindakan yang Anda ambil',obsActNeed:'Jelaskan tindakan yang Anda ambil untuk memperbaikinya.',err_need_action:'Jelaskan tindakan yang diambil untuk memperbaiki temuan.',err_need_note:'Tulis apa yang dilakukan untuk menutup temuan ini.',obsNeedNote:'Tulis dulu komentar penutupan (apa yang dilakukan).',obsNotePh2:'Komentar penutupan: apa yang dilakukan (wajib)',obsActWas:'Tindakan yang diambil'});
-/* ===== Material Gate Pass: release a vehicle (v1.42) ===== */
+/* ===== Material Gate Pass: release a vehicle (v1.44) ===== */
 var GT={list:null,n:0,at:0,ref:'',data:null,chk:{},busy:false,view:'list',rej:false,done:null,err:''};
 function gateOn(){return !!(S.state&&S.state.gate);}
 function gateLabel(){var b=$('bGate');if(!b)return;b.textContent=tr('gateBtn')+(GT.list?' ('+GT.n+')':'');}
@@ -1556,7 +1795,7 @@ $('aBody').addEventListener('change',planChange);$('aBody').addEventListener('cl
 $('bPlanOpen').addEventListener('click',function(){planOpen('danru');});
 $('bTsOpen').addEventListener('click',function(){tsOpen('danru');});
 $('tsBack').addEventListener('click',function(){show('vPatrol');});
-$('pBack').addEventListener('click',function(){PL.on=false;showPatrol();});
+$('pBack').addEventListener('click',function(){PL.on=false;showHome();});
 
 /* ===== wiring ===== */
 $('bTheme').addEventListener('click',function(){setTheme(curTheme()==='dark'?'light':'dark');});
@@ -1567,13 +1806,13 @@ $('pinBox').addEventListener('submit',function(e){
   $('setErr').textContent='';$('bGpin').disabled=true;
   api({action:'state',gp:v}).then(function(r){
     $('bGpin').disabled=false;
-    if(r&&r.ok){S.pin=v;ls('sp_gpin',v);S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));showPatrol();flush();}
+    if(r&&r.ok){S.pin=v;ls('sp_gpin',v);S.state=r;S.guard=r.me.name;ls('sp_gname',S.guard);S.off=r.now-Date.now();S.online=true;ls('sp_state',JSON.stringify(r));showHome();flush();}
     else $('setErr').textContent=r&&r.err==='locked'?tr('locked'):tr('badGuardPin');
   }).catch(function(){$('bGpin').disabled=false;$('setErr').textContent='No connection.';});
 });
 $('bChange').addEventListener('click',function(){dropLogin('');});
 $('bTeamOpen').addEventListener('click',teamOpen);
-$('tBack').addEventListener('click',function(){showPatrol();});
+$('tBack').addEventListener('click',function(){showHome();});
 $('bScan').addEventListener('click',function(){vpnGate().then(function(ok){if(ok)openScan(handleCode);});});
 $('scanX').addEventListener('click',closeScan);
 $('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');$('tMap').classList.remove('on');render();});
@@ -1593,7 +1832,7 @@ $('pinForm').addEventListener('submit',function(e){
     else{$('pinErr').textContent=tr('badPin');}
   }).catch(function(){$('pinErr').textContent='No connection.';});
 });
-$('aStats').addEventListener('click',function(){aTab('stats');});$('aMiss').addEventListener('click',function(){aTab('miss');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
+$('aStats').addEventListener('click',function(){aTab('stats');});$('aMiss').addEventListener('click',function(){aTab('miss');});$('aChk').addEventListener('click',function(){aTab('chk');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
 $('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aView').addEventListener('click',function(){aTab('view');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});

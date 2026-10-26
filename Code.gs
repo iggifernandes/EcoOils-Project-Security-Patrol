@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.42';
+var VERSION = 'v1.44';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -18,6 +18,9 @@ var HEAD = {
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Observations: ['Obs ID', 'Time (WIB)', 'Date', 'Shift', 'Guard', 'Type', 'Category', 'Point No', 'Location', 'Description', 'Photo', 'Closed on spot', 'Status', 'Closed by', 'Closed at (WIB)', 'Close note', 'Time ms'],
   GatePass: ['Time (WIB)', 'Pass ref', 'Decision', 'Guard', 'Role', 'Company', 'Vehicle', 'Reason', 'Lat', 'Lng', 'Acc m', 'Checklist', 'Time ms'],
+  HKChecks: ['Check ID', 'Time (WIB)', 'Date', 'Shift', 'Inspector', 'Items', 'Not OK', 'Note', 'Time ms'],
+  HKActions: ['Action ID', 'Check ID', 'Created (WIB)', 'Date', 'Shift', 'Item', 'Finding', 'Status', 'Done by', 'Done at (WIB)', 'Done note', 'Verified by', 'Verified at (WIB)', 'Verify note', 'Created ms'],
+  Equip: ['Check ID', 'Time (WIB)', 'Date', 'Shift', 'Checked by', 'Item', 'Expected', 'Found', 'Condition', 'Note', 'Time ms'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
   Staff: ['Guard', 'NPK'],
@@ -170,6 +173,38 @@ function setRadius10() {
   for (var i = 2; i <= n; i++) if (sh.getRange(i, 1).getValue()) sh.getRange(i, 6).setValue(10);
   Logger.log('Radius set to 10 m for ' + (n - 1) + ' points.');
 }
+/* RADIUS RECALIBRATION (owner 25 Oct 2026): the point POSITIONS stay as they are; only the allowed radius (Points col F) is suggested from real scans.
+   A scan is accepted when distance <= radius + min(GPS accuracy, 30 m). The part of the distance that the accuracy allowance does not already cover is "needed = max(0, distance - min(acc, 30))".
+   Suggested radius = 90th percentile of needed over the last RADIUS_DAYS (default 14) days, rounded UP to 5 m, never below RADIUS_MIN (10) or above RADIUS_MAX (25). Points in GPS_SKIP and points with fewer than RADIUS_MIN_SCANS (5) usable scans are left alone.
+   previewRadius() only writes to the log; applyRadius() writes Points col F only (never Lat / Lng). */
+function radiusFromScans_(apply) {
+  var days = Number(cfg_('RADIUS_DAYS', '14')) || 14, minN = Number(cfg_('RADIUS_MIN_SCANS', '5')) || 5, rMin = Number(cfg_('RADIUS_MIN', '10')) || 10, rMax = Number(cfg_('RADIUS_MAX', '25')) || 25;
+  var from = Date.now() - days * 86400000, by = {}, used = 0;
+  scans_(6000).forEach(function (r) {
+    var ms = Number(r[17]), d = num_(r[13]), ac = num_(r[12]), gps = String(r[14]), fl = String(r[15]);
+    if (ms < from || d == null || (gps !== 'OK' && gps !== 'OUTSIDE') || /REPEAT|SUSPECT_GPS|TOO_FAST|VPN_SUSPECT/.test(fl)) return;
+    (by[String(r[6])] = by[String(r[6])] || []).push(Math.max(0, d - Math.min(ac == null ? 0 : ac, 30)));
+    used++;
+  });
+  var out = [], changed = 0, sh = sh_('Points');
+  points_(false).forEach(function (p) {
+    if (gpsSkip_(p.no)) { out.push(p.no + '  ' + p.name + '  radius ' + p.radius + ' m  GPS not checked here (shade / tall structure), unchanged'); return; }
+    var f = (by[p.id] || []).slice().sort(function (a, b) { return a - b; });
+    if (f.length < minN) { out.push(p.no + '  ' + p.name + '  radius ' + p.radius + ' m  only ' + f.length + ' usable scans (need ' + minN + '), unchanged'); return; }
+    var p90 = f[Math.min(f.length - 1, Math.ceil(0.9 * f.length) - 1)], med = f[Math.floor(f.length / 2)];
+    var sug = Math.min(rMax, Math.max(rMin, Math.ceil(p90 / 5) * 5));
+    var outNow = f.filter(function (x) { return x > p.radius; }).length, outSug = f.filter(function (x) { return x > sug; }).length;
+    var mark = sug === p.radius ? 'keep' : (sug > p.radius ? 'RAISE' : 'LOWER');
+    if (mark !== 'keep') changed++;
+    out.push(p.no + '  ' + p.name + '  radius ' + p.radius + ' -> ' + sug + ' m (' + mark + ')  scans ' + f.length + ', typical extra distance ' + Math.round(med) + ' m, 90% within ' + Math.round(p90) + ' m, outside now ' + Math.round(100 * outNow / f.length) + '%, outside at ' + sug + ' m ' + Math.round(100 * outSug / f.length) + '%');
+    if (apply && mark !== 'keep') sh.getRange(p.row, 6).setValue(sug);
+  });
+  var head = (apply ? 'RADIUS SAVED' : 'PREVIEW ONLY, nothing saved') + ': ' + used + ' usable scans in the last ' + days + ' days; ' + changed + ' point(s) ' + (apply ? 'changed' : 'would change') + '. Positions (Lat / Lng) are never touched.';
+  Logger.log(head + '\n' + out.join('\n'));
+  return {head: head, lines: out, changed: changed};
+}
+function previewRadius() { return radiusFromScans_(false); }
+function applyRadius() { return radiusFromScans_(true); }
 function setupTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     var h = t.getHandlerFunction();
@@ -463,7 +498,7 @@ function route_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -472,12 +507,14 @@ function route_(b) {
   if (a === 'clockin') return clockIn_(b, me);
   if (a === 'video') return videoSave_(b, me);
   if (a === 'obs') return obsSave_(b, me);
+  if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkList_() : {ok: false, err: 'not_duty'});
+  if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkDone_(b, me) : {ok: false, err: 'not_duty'});
   if (a === 'gate_list') return gateList_();
   if (a === 'gate_get') return gateGet_(b);
   if (a === 'gate_release') return gateRelease_(b, me);
   return scan_(b, me);
 }
-/* ---------- Material Gate Pass release (v1.42) ----------
+/* ---------- Material Gate Pass release (v1.44) ----------
    The Gate Pass app (separate repo, separate Sheet and Apps Script) holds the passes. A guard releases a vehicle here, after checking it against the
    uploaded signed copy and the paper original. Patroli calls the Gate Pass backend server to server (UrlFetchApp) with a shared secret.
    Script properties (Project Settings > Script properties, never in the code): GATEPASS_URL = the Gate Pass web app URL (ends in /exec), GATEPASS_SECRET = BRIDGE_SECRET from the Gate Pass showCodes.
@@ -545,7 +582,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), gate: gateOn_()
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_(), mine: hkMay_(me)}, gate: gateOn_()
   };
 }
 function planNow_() {
@@ -1196,6 +1233,197 @@ function weeklyGps() {
   if (dr.length) MailApp.sendEmail({to: dr.join(','), subject: subj, htmlBody: both_(gpsWeekHtml_('en', rep, false), gpsWeekHtml_('id', rep, false)) + foot});
 }
 
+/* ---------- Security building check (Danru / Shift Supervisor inspect, guards act) and equipment check (owner 26 Oct 2026) ---------- */
+var HK_DEFAULT = [
+  ['Floor swept and mopped', 'Lantai disapu dan dipel'], ['Desks and tables clear and tidy', 'Meja bersih dan rapi'], ['Waste bins emptied, no overflow', 'Tempat sampah dikosongkan, tidak meluap'],
+  ['Toilet and washbasin clean', 'Toilet dan wastafel bersih'], ['Pantry area clean, no food left out', 'Area pantry bersih, tidak ada sisa makanan'], ['Uniforms, bags and lockers tidy', 'Seragam, tas dan loker rapi'],
+  ['Equipment stored in its place', 'Peralatan disimpan pada tempatnya'], ['Logbooks and registers in place and up to date', 'Buku log dan register ada dan terbarui'], ['Windows, doors and locks in order', 'Jendela, pintu dan kunci dalam kondisi baik'],
+  ['Lights, fans and AC working', 'Lampu, kipas dan AC berfungsi'], ['Entrance and walkway clear, no trip hazard', 'Pintu masuk dan jalan bebas hambatan'], ['No pests or bad smell', 'Tidak ada hama atau bau tidak sedap']];
+var EQ_DEFAULT = [
+  ['Handheld radios', 'Radio genggam', 0], ['Torches', 'Senter', 0], ['Spare batteries', 'Baterai cadangan', 0], ['First aid kit', 'Kotak P3K', 1], ['Fire extinguisher (security building)', 'APAR (pos keamanan)', 1],
+  ['Key box and key register', 'Kotak kunci dan register kunci', 1], ['Visitor and vehicle logbook', 'Buku tamu dan kendaraan', 1], ['CCTV monitor working', 'Monitor CCTV berfungsi', 1], ['Raincoats', 'Jas hujan', 0], ['Mobile phones for patrol', 'Ponsel patroli', 0]];
+/* Config HK_ITEMS = 'English|Bahasa;English|Bahasa' and EQUIP_ITEMS = 'English|Bahasa|expected number;...' (expected 0 = just count what is there) replace the defaults. */
+function hkItems_() {
+  var v = String(cfg_('HK_ITEMS', '')).trim(), out = [];
+  if (v) v.split(';').forEach(function (x) { var p = x.split('|'); if (p[0].trim()) out.push([p[0].trim(), (p[1] || p[0]).trim()]); });
+  return (out.length ? out : HK_DEFAULT).map(function (x, i) { return {i: i, en: x[0], id: x[1]}; });
+}
+function eqItems_() {
+  var v = String(cfg_('EQUIP_ITEMS', '')).trim(), out = [];
+  if (v) v.split(';').forEach(function (x) { var p = x.split('|'); if (p[0].trim()) out.push([p[0].trim(), (p[1] || p[0]).trim(), Math.max(0, parseInt(p[2], 10) || 0)]); });
+  return (out.length ? out : EQ_DEFAULT).map(function (x, i) { return {i: i, en: x[0], id: x[1], exp: x[2]}; });
+}
+function lazy_(name) {
+  var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName(name);
+  if (!sh) { sh = s.insertSheet(name); sh.appendRow(HEAD[name]); sh.setFrozenRows(1); sh.getRange(1, 1, 1, HEAD[name].length).setFontWeight('bold'); }
+  return sh;
+}
+function txt_(v, n) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n); }
+function hkActs_() {
+  var sh = lazy_('HKActions'), last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 15).getValues().map(function (r, i) {
+    return {row: i + 2, id: String(r[0]), check: String(r[1]), at: String(r[2]), date: String(r[3]), shift: String(r[4]), item: String(r[5]), finding: String(r[6]), status: String(r[7]), doneBy: String(r[8]), doneAt: String(r[9]), doneNote: String(r[10]), vBy: String(r[11]), vAt: String(r[12]), vNote: String(r[13])};
+  });
+}
+function hkPub_(a) { return {id: a.id, at: a.at, date: a.date, shift: a.shift, item: a.item, finding: a.finding, status: a.status, doneBy: a.doneBy, doneAt: a.doneAt, doneNote: a.doneNote, vBy: a.vBy, vAt: a.vAt, vNote: a.vNote}; }
+/* open cleaning actions waiting for the guards (cheap: only the status column is read) */
+/* Cleaning of the security building is the duty of the guard on Gate duty (Config HK_DUTY, default 'Gate 1') in the current shift plan, plus his buddy. If nobody is planned on that duty, every guard may act so nothing gets stuck. */
+function hkMay_(me) {
+  if (me.danru) return false;
+  try {
+    var sf = shiftAt_(Date.now()), duty = String(cfg_('HK_DUTY', 'Gate 1')).trim().toLowerCase(), k = String(me.name).toLowerCase(), any = false, mine = false;
+    roster_(sf.date, sf.code).forEach(function (r) {
+      if (String(r.duty).trim().toLowerCase() !== duty) return;
+      any = true;
+      if (r.guard.toLowerCase() === k || (r.buddy && r.buddy.toLowerCase() === k)) mine = true;
+    });
+    return any ? mine : true;
+  } catch (e) { return true; }
+}
+function hkOpenCount_() {
+  var s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('HKActions');
+  if (!s || s.getLastRow() < 2) return 0;
+  var n = 0;
+  s.getRange(2, 8, s.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0] === 'Open') n++; });
+  return n;
+}
+function hkGet_() {
+  var items = hkItems_(), cs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('HKChecks'), last = null;
+  if (cs && cs.getLastRow() >= 2) { var r = cs.getRange(cs.getLastRow(), 1, 1, 9).getValues()[0]; last = {id: String(r[0]), at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4]), items: Number(r[5]), notOk: Number(r[6]), note: String(r[7])}; }
+  return {ok: true, items: items, last: last, open: hkOpenCount_()};
+}
+function hkSave_(b, by) {
+  var items = hkItems_(), rows = b.rows;
+  if (!rows || rows.length !== items.length) return {ok: false, err: 'hk_all'};
+  var bad = [], note = txt_(b.note, 300);
+  for (var i = 0; i < items.length; i++) {
+    var r = rows[i];
+    if (!r || (r.ok !== true && r.ok !== false)) return {ok: false, err: 'hk_all'};
+    if (r.ok === false && txt_(r.note, 300).length < 3) return {ok: false, err: 'hk_note'};
+    if (r.ok === false) bad.push({item: items[i].en, note: txt_(r.note, 300)});
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now(), sf = shiftAt_(now), id = Utilities.getUuid().slice(0, 8), t = ymdhms_(now);
+    lazy_('HKChecks').appendRow([id, t, sf.date, sf.code, by, items.length, bad.length, note, now]);
+    var ash = lazy_('HKActions');
+    bad.forEach(function (x, k) { ash.appendRow([id + '-' + (k + 1), id, t, sf.date, sf.code, x.item, x.note, 'Open', '', '', '', '', '', '', now]); });
+    return {ok: true, id: id, notOk: bad.length};
+  } finally { lock.releaseLock(); }
+}
+function hkList_() {
+  var all = hkActs_().map(hkPub_);
+  return {ok: true, open: all.filter(function (a) { return a.status === 'Open'; }), done: all.filter(function (a) { return a.status === 'Done'; }), verified: all.filter(function (a) { return a.status === 'Verified'; }).slice(-10).reverse()};
+}
+/* a guard reports what he did about an open cleaning action */
+function hkDone_(b, me) {
+  var id = String(b.id || ''), note = txt_(b.note, 300);
+  if (note.length < 3) return {ok: false, err: 'hk_donenote'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = null;
+    hkActs_().forEach(function (a) { if (a.id === id) hit = a; });
+    if (!hit) return {ok: false, err: 'bad_obs'};
+    if (hit.status !== 'Open') return {ok: false, err: 'already_closed'};
+    lazy_('HKActions').getRange(hit.row, 8, 1, 4).setValues([['Done', me.name, ymdhms_(Date.now()), note]]);
+    return {ok: true, open: hkOpenCount_()};
+  } finally { lock.releaseLock(); }
+}
+/* Danru / Shift Supervisor verifies a finished action, or re-opens it (note required when re-opening) */
+function hkVerify_(b, by) {
+  var id = String(b.id || ''), note = txt_(b.note, 300), reopen = b.ok === false;
+  if (reopen && note.length < 3) return {ok: false, err: 'hk_note'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = null;
+    hkActs_().forEach(function (a) { if (a.id === id) hit = a; });
+    if (!hit) return {ok: false, err: 'bad_obs'};
+    if (hit.status !== 'Done') return {ok: false, err: 'already_closed'};
+    var sh = lazy_('HKActions');
+    if (reopen) { sh.getRange(hit.row, 8, 1, 7).setValues([['Open', '', '', '', by, ymdhms_(Date.now()), 'Re-opened: ' + note]]); }
+    else sh.getRange(hit.row, 8, 1, 7).setValues([['Verified', hit.doneBy, hit.doneAt, hit.doneNote, by, ymdhms_(Date.now()), note]]);
+    return {ok: true};
+  } finally { lock.releaseLock(); }
+}
+function eqLatest_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Equip');
+  if (!sh || sh.getLastRow() < 2) return {meta: null, rows: {}};
+  var n = sh.getLastRow(), st = Math.max(2, n - 399), rows = sh.getRange(st, 1, n - st + 1, 11).getValues(), id = String(rows[rows.length - 1][0]), out = {}, meta = null;
+  rows.forEach(function (r) { if (String(r[0]) === id) { out[String(r[5])] = {found: r[7], cond: String(r[8]), note: String(r[9])}; meta = {id: id, at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4])}; } });
+  return {meta: meta, rows: out};
+}
+function eqGet_() {
+  var items = eqItems_(), lt = eqLatest_();
+  items.forEach(function (x) { x.last = lt.rows[x.en] || null; });
+  return {ok: true, items: items, last: lt.meta};
+}
+function eqSave_(b, by) {
+  var items = eqItems_(), rows = b.rows;
+  if (!rows || rows.length !== items.length) return {ok: false, err: 'eq_all'};
+  var out = [], issues = 0;
+  for (var i = 0; i < items.length; i++) {
+    var r = rows[i] || {}, found = Number(r.found), cond = String(r.cond || ''), note = txt_(r.note, 200);
+    if (['OK', 'Damaged', 'Missing'].indexOf(cond) < 0 || !isFinite(found) || found < 0 || found > 999) return {ok: false, err: 'eq_all'};
+    var short = items[i].exp > 0 && found < items[i].exp;
+    if ((cond !== 'OK' || short) && note.length < 3) return {ok: false, err: 'eq_note'};
+    if (cond !== 'OK' || short) issues++;
+    out.push([items[i].en, items[i].exp, Math.floor(found), cond, note]);
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now(), sf = shiftAt_(now), id = Utilities.getUuid().slice(0, 8), t = ymdhms_(now), sh = lazy_('Equip');
+    out.forEach(function (x) { sh.appendRow([id, t, sf.date, sf.code, by, x[0], x[1], x[2], x[3], x[4], now]); });
+    return {ok: true, id: id, issues: issues};
+  } finally { lock.releaseLock(); }
+}
+/* Admin overview: recent building checks, actions and equipment problems */
+function chkOverview_() {
+  var cs = lazy_('HKChecks'), n = cs.getLastRow(), checks = [];
+  if (n >= 2) cs.getRange(Math.max(2, n - 29), 1, Math.min(30, n - 1), 9).getValues().forEach(function (r) { checks.push({id: String(r[0]), at: String(r[1]), date: String(r[2]), shift: String(r[3]), by: String(r[4]), items: Number(r[5]), notOk: Number(r[6]), note: String(r[7])}); });
+  var acts = hkActs_().map(hkPub_), eq = eqGet_(), prob = [];
+  eq.items.forEach(function (x) { var l = x.last; if (l && (l.cond !== 'OK' || (x.exp > 0 && Number(l.found) < x.exp))) prob.push({item: x.en, exp: x.exp, found: l.found, cond: l.cond, note: l.note}); });
+  return {ok: true, checks: checks.reverse(), open: acts.filter(function (a) { return a.status === 'Open'; }), done: acts.filter(function (a) { return a.status === 'Done'; }), verified: acts.filter(function (a) { return a.status === 'Verified'; }).slice(-10).reverse(), eqLast: eq.last, eqProblems: prob, eqItems: eq.items.length};
+}
+/* ---------- Command dashboard for Danru / Shift Supervisors (first screen) ---------- */
+/* Finished, non-held rounds between two dates: points nobody scanned = missed. Reads only the tail of Scans. */
+function missedRange_(fromD, toD) {
+  var now = Date.now(), rounds = [], held = 0, idx = {}, d = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(toD + 'T00:00:00Z'), c = 0;
+  for (; d <= end && c < 31; d += 86400000, c++) {
+    var ds = new Date(d).toISOString().slice(0, 10);
+    for (var i = 0; i < ROUNDS.length; i++) { var r = roundBy_(ds, i); if (r.end <= now) { if (roundHeld_(r)) held++; else { var o = {date: ds, idx: i, label: r.label, end: r.end, seen: {}}; rounds.push(o); idx[ds + '|' + i] = o; } } }
+  }
+  var sh = sh_('Scans'), last = sh.getLastRow();
+  if (last >= 2) { var st = Math.max(2, last - 3999); sh.getRange(st, 1, last - st + 1, 18).getValues().forEach(function (r3) { var wh = rowWhen_(r3); if (wh.idx < 0) return; var o = idx[wh.date + '|' + wh.idx]; if (o) o.seen[String(r3[6])] = 1; }); }
+  var pts = points_(true), missed = 0, withMiss = 0;
+  rounds.forEach(function (o) { var m = pts.filter(function (p) { return !o.seen[p.id]; }); o.total = pts.length; o.done = pts.length - m.length; o.missed = m.length; if (m.length) { missed += m.length; withMiss++; } });
+  rounds.sort(function (a, b) { return a.end - b.end; });
+  var possible = rounds.length * pts.length;
+  return {rounds: rounds, held: held, missed: missed, withMiss: withMiss, possible: possible, pct: possible ? Math.round(1000 * missed / possible) / 10 : 0};
+}
+function dash_() {
+  var now = Date.now(), r = roundAt_(now), pts = points_(true), done = doneMap_(r), op = r.opDate;
+  var rem = pts.filter(function (p) { return !done[p.id]; }).map(function (p) { return {no: p.no, name: p.name, hi: !!p.hi}; });
+  var from7 = new Date(Date.parse(op + 'T00:00:00Z') - 6 * 86400000).toISOString().slice(0, 10);
+  var w = missedRange_(from7, op), today = w.rounds.filter(function (x) { return x.date === op; });
+  var tm = today.reduce(function (t, x) { return t + x.missed; }, 0), twm = today.filter(function (x) { return x.missed; }).length;
+  var lastR = w.rounds.length ? w.rounds[w.rounds.length - 1] : null;
+  var oo = obsList_(), hk = hkList_(), eq = eqGet_(), prob = 0;
+  eq.items.forEach(function (x) { var l = x.last; if (l && (l.cond !== 'OK' || (x.exp > 0 && Number(l.found) < x.exp))) prob++; });
+  var cm = []; try { cm = clockMissing_(op, op); } catch (e) {}
+  var gps = null; try { var g = gpsWeek_(from7, op); gps = {checked: g.totals.checked, outside: g.totals.outside, pct: g.totals.pct}; } catch (e2) {}
+  var oldest = oo.open.length ? oo.open[oo.open.length - 1] : null;
+  return {ok: true, now: now, round: {label: r.label, upcoming: !!r.upcoming, end: r.end, start: r.start, done: pts.length - rem.length, total: pts.length}, remaining: rem.slice(0, 40),
+    last: lastR ? {date: lastR.date, label: lastR.label, done: lastR.done, total: lastR.total, missed: lastR.missed} : null,
+    today: {rounds: today.length, missed: tm, withMiss: twm, possible: today.length * pts.length, pct: today.length ? Math.round(1000 * tm / (today.length * pts.length)) / 10 : 0},
+    week: {rounds: w.rounds.length, held: w.held, missed: w.missed, withMiss: w.withMiss, pct: w.pct, perDay: (function () { var m = {}; w.rounds.forEach(function (x) { var d = m[x.date] || (m[x.date] = {date: x.date, missed: 0, rounds: 0}); d.missed += x.missed; d.rounds++; }); return Object.keys(m).sort().map(function (k) { return m[k]; }); })()},
+    issues: {open: oo.open.length, oldest: oldest ? oldest.t : ''}, clean: {open: hk.open.length, done: hk.done.length}, equip: {problems: prob, last: eq.last ? eq.last.date : ''},
+    clock: {missing: cm.length, who: cm.slice(0, 8).map(function (x) { return x.guard + ' (' + x.shift + ')'; })}, gps: gps, hold: holdPublic_()};
+}
 /* ---------- Danru team management (Danru PIN or admin PIN) ---------- */
 function team_(a, b) {
   var adm = false, me = null;
@@ -1224,6 +1452,13 @@ function team_(a, b) {
     gr.ok = true; gr.days = days;
     return gr;
   }
+  if (a === 'd_dash') return dash_();
+  if (a === 'd_hk_get') return hkGet_();
+  if (a === 'd_hk_save') return hkSave_(b, adm ? 'Admin' : me.name);
+  if (a === 'd_hk_list') return hkList_();
+  if (a === 'd_hk_verify') return hkVerify_(b, adm ? 'Admin' : me.name);
+  if (a === 'd_eq_get') return eqGet_();
+  if (a === 'd_eq_save') return eqSave_(b, adm ? 'Admin' : me.name);
   if (a === 'd_obs_list') return obsList_();
   if (a === 'd_obs_close') return obsClose_(b, adm ? 'Admin' : me.name);
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
@@ -1362,6 +1597,7 @@ function admin_(a, b) {
       byZone: Object.keys(MZ).map(function (k) { return {zone: k, missed: MZ[k]}; }).sort(function (x, y) { return y.missed - x.missed; }),
       byPoint: byPoint, detail: detail.reverse()};
   }
+  if (a === 'a_chk') return chkOverview_();
   if (a === 'a_stats') {
     var to = String(b.to || ymdhms_(Date.now()).slice(0, 10)), fromD = String(b.from || ymdhms_(Date.now() - 6 * 86400000).slice(0, 10));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fromD) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || fromD > to) return {ok: false, err: 'bad_date'};

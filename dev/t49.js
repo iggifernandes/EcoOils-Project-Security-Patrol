@@ -13,7 +13,7 @@ const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Off Guard'});
  await ctx.addInitScript(({qrUrl})=>{navigator.mediaDevices.getUserMedia=function(){const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');const im=new Image();im.onload=()=>{setInterval(()=>{x.fillStyle='#fff';x.fillRect(0,0,640,480);x.drawImage(im,120,40,400,400);},100)};im.src=qrUrl;return Promise.resolve(c.captureStream(10));};},{qrUrl});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(600);
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(600);
  const st=await pg.evaluate(()=>JSON.parse(localStorage.getItem('sp_state')));
  const p0=st.points[0];global.BLOCK=true;
  // offline scan: the phone must ask for a selfie even though it cannot know
@@ -30,7 +30,7 @@ const g=m.call({action:'d_add',gp:dp['Rendi Irawan'],name:'Off Guard'});
  const t0=Date.now();
  const items=st.points.map((p,i)=>({pid:p.id,guard:'Off Guard',pin:g.pin,lat:2.9,lng:99.1,acc:10,ts:t0-60000-i*500,photo:jpg2}));
  await pg.evaluate(x=>localStorage.setItem('sp_q',JSON.stringify(x)),items);
- global.BLOCK=false;await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');
+ global.BLOCK=false;await pg.reload();await waitPat(pg);
  await pg.waitForFunction(()=>JSON.parse(localStorage.getItem('sp_q')||'[]').length===0&&JSON.parse(localStorage.getItem('sp_pq')||'[]').length===0,null,{timeout:60000});
  const rs=m.sheets.Scans.rows.filter(r=>r[4]==='Off Guard'&&/QUEUED/.test(r[15]));
  const taken=rs.filter(r=>r[16]).length, tk=rs.filter(r=>r[18]==='Taken').length;

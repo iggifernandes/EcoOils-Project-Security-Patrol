@@ -12,11 +12,11 @@ const D=dp['Rendi Irawan'];const g=m.call({action:'d_add',gp:D,name:'Vid Guard'}
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
  // plain guard: no hold button, sees banner when Danru starts a hold
- await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(500);
+ await pg.fill('#gpin',g.pin);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(500);
  ok(await pg.locator('#bHold').isVisible()===false,'plain guard has no hold button');
  ok(/Record video/.test(await pg.locator('#bVid').innerText()),'Record video button for every login');
  m.call({action:'d_hold',gp:D,on:true,reason:'Lightning'});
- await pg.evaluate(()=>{});await pg.reload();await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForFunction(()=>/paused/i.test(document.querySelector('#holdBox').innerText),null,{timeout:10000});
+ await pg.evaluate(()=>{});await pg.reload();await waitPat(pg);await pg.waitForFunction(()=>/paused/i.test(document.querySelector('#holdBox').innerText),null,{timeout:10000});
  let t=await pg.locator('#holdBox').innerText();ok(/Rendi Irawan/.test(t)&&/Lightning/.test(t),'guard sees banner with who and why: '+t.replace(/\n/g,' '));
  await pg.click('#lID');ok(/dihentikan/.test(await pg.locator('#holdBox').innerText()),'banner in Bahasa Indonesia');await pg.click('#lEN');
  // video
@@ -28,9 +28,9 @@ const D=dp['Rendi Irawan'];const g=m.call({action:'d_add',gp:D,name:'Vid Guard'}
  await pg.click('#vSend');await pg.waitForFunction(()=>/sent/i.test(document.querySelector('#vMsg').innerText),null,{timeout:15000});
  const row=m.sheets.Videos&&m.sheets.Videos.rows[1];
  ok(row&&row[1]==='Vid Guard'&&row[4]==='Weather hold'&&/drive\.example/.test(row[5]),'video stored: guard, note "Weather hold", Drive link');
- await pg.waitForSelector('#vPatrol:not(.hidden)',{timeout:8000});
+ await waitPat(pg);
  // Danru can resume
- await pg.click('#bChange');await pg.fill('#gpin',D);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(600);
+ await pg.click('#bChange');await pg.fill('#gpin',D);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(600);
  ok(/Resume rounds/.test(await pg.locator('#bHold').innerText()),'Danru sees Resume rounds');
  await pg.click('#bHold');await pg.waitForFunction(()=>!/paused/i.test(document.querySelector('#holdBox').innerText),null,{timeout:10000});
  ok(/Pause rounds/.test(await pg.locator('#bHold').innerText()),'after resume the button says Pause rounds');

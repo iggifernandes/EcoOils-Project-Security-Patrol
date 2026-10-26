@@ -1,0 +1,16 @@
+const m=require('./mock.js');
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+const D=dp['Rendi Irawan'],ADM=m.props.ADMIN_PIN;
+const G=m.call({action:'d_add',gp:D,name:'Dash Guard'});
+ok(m.call({action:'d_dash',gp:G.pin}).err==='auth','guard cannot open the dashboard');
+const r=m.call({action:'d_dash',gp:D});
+ok(r.ok&&r.round.total>=46&&r.round.done===0&&r.remaining.length>0&&r.remaining[0].name,'dashboard: round counts and remaining points with names');
+ok(r.week&&typeof r.week.pct==='number'&&r.today&&r.issues.open===0&&r.clean.open===0&&r.equip.problems===0&&r.clock&&r.hold&&r.hold.on===false,'dashboard: all sections present');
+m.call({action:'obs',gp:G.pin,type:'Issue',cat:'Fence / perimeter',text:'Broken light',cid:'z1'});
+m.call({action:'d_hk_save',gp:D,rows:m.call({action:'d_hk_get',gp:D}).items.map((x,i)=>({i,ok:i!==0,note:i===0?'Dirty floor':''}))});
+const r2=m.call({action:'d_dash',gp:D});
+ok(r2.issues.open===1&&r2.clean.open===1,'dashboard counts the open issue and cleaning action');
+ok(m.call({action:'d_dash',pin:ADM}).ok,'Admin PIN works');
+ok(r.week.rounds===0||r.week.perDay.length>0,'weekly rounds consistent');
+console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);

@@ -23,7 +23,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  const pm=new Date(Date.now()+7*3600000);const mon=pm.toISOString().slice(0,7);
  for(let i=0;i<6;i++){add('Aa One',mon+'-0'+(1+i%3));add('Bb Two',mon+'-0'+(1+i%3));}
  add('Cc Three',mon+'-05');
- await pg.fill('#gpin',Dn);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForTimeout(400);
+ await pg.fill('#gpin',Dn);await pg.click('#bGpin');await waitPat(pg);await pg.waitForTimeout(400);
  ok((await pg.locator('#awardCard').innerText())==='','no award card before announcement');
  await pg.click('#bChange');
  await pg.click('#bAdmin');await pg.fill('#pin',m.props.ADMIN_PIN);await pg.click('#pinGo');await pg.waitForSelector('#vAdmin:not(.hidden)');
@@ -45,7 +45,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  await pg.click('#aOut');
  await pg.waitForSelector('#gpin,#vPatrol:not(.hidden)');
  if(await pg.locator('#gpin').count()&&await pg.locator('#gpin').isVisible()){await pg.fill('#gpin',Dn);await pg.click('#bGpin');}
- await pg.waitForSelector('#vPatrol:not(.hidden)');await pg.waitForFunction(()=>document.querySelector('#awardCard').innerText.length>0,null,{timeout:8000});
+ await waitPat(pg);await pg.waitForFunction(()=>document.querySelector('#awardCard').innerText.length>0,null,{timeout:8000});
  const card=await pg.locator('#awardCard').innerText();
  ok(card.includes(drawn)&&card.includes('Best Guard'),'guard sees winner card: '+card.replace(/\n/g,' | '));
  await pg.click('#lID');

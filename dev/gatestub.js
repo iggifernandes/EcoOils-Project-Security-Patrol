@@ -1,4 +1,4 @@
-// A small stand-in for the Gate Pass web app, used by t56 and t57 (the real one is tested in the Gate Pass repo).
+// A small stand-in for the Gate Pass web app, used by t61 and t62 (the real one is tested in the Gate Pass repo).
 module.exports=function(SECRET){
   const st={fetches:[],down:false,pass:{}};
   const mk=(ref,o)=>Object.assign({ref,status:'Pending release',company:'GSB',vehicle:'BK 1234 XY',carrier:'Budi Santoso',icNo:'1271012345678901',purpose:'A',purposeText:'Return rejected pipes',dept:'Stores',icRep:'Andi Wijaya',icPos:'Store lead',items:[{no:1,item:'Pipe 6in',qty:12,unit:'pcs'},{no:2,item:'Gasket',qty:40,unit:''}],signedAt:'2026-10-26 09:00:00',validUntil:Date.now()+40*3600000,decidedBy:'',decidedAt:'',note:''},o||{});
