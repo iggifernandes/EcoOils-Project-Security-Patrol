@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.47';
+var VERSION = 'v1.48';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -14,7 +14,7 @@ var HEAD = {
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
   Hold: ['Time (WIB)', 'Action', 'By', 'Reason', 'Time ms'],
-  Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms'],
+  Videos: ['Time (WIB)', 'Guard', 'Role', 'Seconds', 'Note', 'Link', 'Time ms', 'Client ID'],
   Clock: ['Date', 'Shift', 'Guard', 'Role', 'Clock in (WIB)', 'Lat', 'Lng', 'Acc m', 'Dist m', 'Status', 'Late min', 'Set by', 'Time ms', 'Key'],
   Observations: ['Obs ID', 'Time (WIB)', 'Date', 'Shift', 'Guard', 'Type', 'Category', 'Point No', 'Location', 'Description', 'Photo', 'Closed on spot', 'Status', 'Closed by', 'Closed at (WIB)', 'Close note', 'Time ms'],
   GatePass: ['Time (WIB)', 'Pass ref', 'Decision', 'Guard', 'Role', 'Company', 'Vehicle', 'Reason', 'Lat', 'Lng', 'Acc m', 'Checklist', 'Time ms'],
@@ -514,7 +514,7 @@ function route_(b) {
   if (a === 'gate_release') return gateRelease_(b, me);
   return scan_(b, me);
 }
-/* ---------- Material Gate Pass release (v1.47) ----------
+/* ---------- Material Gate Pass release (v1.48) ----------
    The Gate Pass app (separate repo, separate Sheet and Apps Script) holds the passes. A guard releases a vehicle here, after checking it against the
    uploaded signed copy and the paper original. Patroli calls the Gate Pass backend server to server (UrlFetchApp) with a shared secret.
    Script properties (Project Settings > Script properties, never in the code): GATEPASS_URL = the Gate Pass web app URL (ends in /exec), GATEPASS_SECRET = BRIDGE_SECRET from the Gate Pass showCodes.
@@ -994,15 +994,17 @@ function videoFolder_() { return driveFolder_('VIDEO_FOLDER', 'EcoOils Patrol Vi
 function videoSave_(b, me) {
   var v = String(b.video || ''), mime = String(b.mime || '').toLowerCase().indexOf('mp4') >= 0 ? 'video/mp4' : 'video/webm', secs = Math.round(Number(b.sec) || 0);
   if (v.length < 100 || v.length > 12000000) return {ok: false, err: 'bad_video'};
-  var now = Date.now(), ymd = ymdhms_(now), note = String(b.note || 'Conditions').slice(0, 60), url;
+  var now = Date.now(), ymd = ymdhms_(now), note = String(b.note || 'Conditions').slice(0, 60), url, cid = String(b.cid || '').slice(0, 40);
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    if (cid) { var vs0 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Videos'); if (vs0 && vs0.getLastRow() >= 2) { var vn = vs0.getLastRow(), vst = Math.max(2, vn - 99), seen = vs0.getRange(vst, 8, vn - vst + 1, 1).getValues(); for (var vi = 0; vi < seen.length; vi++) if (String(seen[vi][0]) === cid) return {ok: true, dup: true}; } }
     try { url = videoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(v), mime, ymd.slice(0, 10) + '_' + ymd.slice(11, 13) + 'h' + ymd.slice(14, 16) + '_' + me.name + (mime === 'video/mp4' ? '.mp4' : '.webm'))).getUrl(); }
     catch (e) { return {ok: false, err: 'video_fail'}; }
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Videos');
     if (!sh) { sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Videos'); sh.appendRow(HEAD.Videos); sh.setFrozenRows(1); sh.getRange(1, 1, 1, HEAD.Videos.length).setFontWeight('bold'); }
-    sh.appendRow([ymd, me.name, me.role, secs, note, url, now]);
+    sh.appendRow([ymd, me.name, me.role, secs, note, url, now, cid]);
+    if (!sh.getRange(1, 8).getValue()) sh.getRange(1, 8).setValue('Client ID').setFontWeight('bold');
     return {ok: true};
   } finally { lock.releaseLock(); }
 }
@@ -1596,6 +1598,33 @@ function admin_(a, b) {
       byShift: ['Morning', 'Afternoon', 'Night'].map(function (k) { return {shift: k, missed: MSH[k].missed, rounds: MSH[k].rounds}; }),
       byZone: Object.keys(MZ).map(function (k) { return {zone: k, missed: MZ[k]}; }).sort(function (x, y) { return y.missed - x.missed; }),
       byPoint: byPoint, detail: detail.reverse()};
+  }
+  if (a === 'a_obsdb') {
+    /* Observation database: totals, breakdowns and the full list for a period (Admin only). */
+    var oTo = String(b.to || ymdhms_(Date.now()).slice(0, 10)), oFrom = String(b.from || ymdhms_(Date.now() - 29 * 86400000).slice(0, 10));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(oFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(oTo) || oFrom > oTo) return {ok: false, err: 'bad_date'};
+    var oAll = obsRows_(0).filter(function (o) { return o.date >= oFrom && o.date <= oTo; });
+    var T0 = {all: oAll.length, positive: 0, issues: 0, open: 0, closedSpot: 0, closed: 0, withPhoto: 0, avgCloseHrs: null}, OP = {}, OC = {}, OG = {}, OS = {}, OD = {}, hrs = [];
+    function bump(m, k, o) {
+      var x = m[k] || (m[k] = {key: k, positive: 0, issues: 0, open: 0, closed: 0});
+      if (o.type === 'Positive') x.positive++; else { x.issues++; if (o.status === 'Open') x.open++; else x.closed++; }
+      return x;
+    }
+    oAll.forEach(function (o) {
+      var iss = o.type !== 'Positive';
+      if (iss) T0.issues++; else T0.positive++;
+      if (o.photo) T0.withPhoto++;
+      if (iss && o.status === 'Open') T0.open++;
+      if (iss && o.status === 'Closed on spot') T0.closedSpot++;
+      if (iss && o.status === 'Closed') { T0.closed++; var c = Date.parse(String(o.at).replace(' ', 'T') + '+07:00'); if (o.ms && isFinite(c) && c > o.ms) hrs.push((c - o.ms) / 3600000); }
+      var loc = (o.no != null ? o.no + '. ' : '') + (o.where || 'No location');
+      var lx = bump(OP, loc, o); lx.no = o.no;
+      bump(OC, o.cat || '-', o); bump(OG, o.guard || '-', o); bump(OS, o.shift === 'P' ? 'Morning' : (o.shift === 'S' ? 'Afternoon' : (o.shift === 'M' ? 'Night' : '-')), o); bump(OD, o.date || '-', o);
+    });
+    if (hrs.length) T0.avgCloseHrs = Math.round(10 * hrs.reduce(function (t, x) { return t + x; }, 0) / hrs.length) / 10;
+    function arr(m, byKey) { return Object.keys(m).map(function (k) { return m[k]; }).sort(byKey ? function (x, y) { return x.key < y.key ? -1 : 1; } : function (x, y) { return (y.issues + y.positive) - (x.issues + x.positive); }); }
+    return {ok: true, from: oFrom, to: oTo, totals: T0, byPoint: arr(OP), byCat: arr(OC), byGuard: arr(OG), byShift: arr(OS), byDay: arr(OD, true),
+      list: oAll.slice().reverse().slice(0, 1500).map(function (o) { return {id: o.id, t: o.t, date: o.date, shift: o.shift, guard: o.guard, type: o.type, cat: o.cat, no: o.no, where: o.where, text: o.text, photo: o.photo, status: o.status, by: o.by, at: o.at, note: o.note}; })};
   }
   if (a === 'a_chk') return chkOverview_();
   if (a === 'a_stats') {

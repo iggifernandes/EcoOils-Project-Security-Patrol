@@ -195,7 +195,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 </section>
 
 <section id="vAdmin" class="hidden">
-  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aChk" type="button">Checks</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
+  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aChk" type="button">Checks</button><button id="aObs" type="button">Observations</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -219,7 +219,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.47';
+var VERSION='v1.48';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -402,7 +402,7 @@ function render(){
   $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
   $('ofTotal').textContent=st.round.upcoming?'':n+' '+tr('of')+' '+total+' '+tr('points');
-  $('pend').textContent=(S.online?'':tr('offline')+' ')+(S.queue.length?S.queue.length+' '+tr('pending'):'');
+  $('pend').textContent=(S.online?'':tr('offline')+' ')+(S.queue.length?S.queue.length+' '+tr('pending'):'')+(typeof VQ!=='undefined'&&VQ.n?' '+VQ.n+' '+tr('vidPend'):'');
   tick();renderList(d);
 }
 function tick(){
@@ -571,8 +571,8 @@ function result(pt,r,note){
 var A={pin:'',tab:'live',pts:[],cal:null};
 function aApi(b){b.pin=A.pin;return api(b);}
 function aTab(t){
-  A.tab=t;['Stats','Miss','Chk','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
-  PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
+  A.tab=t;['Stats','Miss','Chk','Obs','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,obs:aObsDb,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -697,8 +697,8 @@ function enterAdmin(){show('vAdmin');aTab('stats');}
 
 
 /* ===== Security building check (Danru / Shift Supervisor inspect, guards act) and equipment check ===== */
-Object.assign(T.en,{pvPrev:'Preview only (Guard view). Nothing is sent.',hkBtn:'Building check',eqBtn:'Equipment',hkaBtn:'Cleaning actions',hkTitle:'Security building check',hkNew:'New check',hkActs:'Actions',hkOk:'OK',hkNot:'Not OK',hkNotePh:'What is wrong? (required)',hkOverall:'Overall note (optional)',hkSave:'Save check',hkAllNeed:'Answer every line first.',hkNoteNeed:'Write what is wrong on every Not OK line.',hkSaved:'Check saved. Actions sent to the guards:',hkLast:'Last check',hkBy:'by',hkOpenL:'Open, waiting for the guards',hkDoneL:'Done by the guards, please verify',hkVerL:'Recently verified',hkVerify:'Verify',hkReopen:'Re-open',hkReason:'Reason for re-opening (required)',hkNoOpen:'No open actions.',hkNone:'No check yet.',hkaTitle:'Cleaning actions',hkaDo:'What did you do? (required)',hkaDone:'Done',hkaNone:'No cleaning actions. Thank you.',hkaGate:'Cleaning of the security building is the duty of the guard on Gate duty.',hkaWait:'Waiting for the supervisor to verify',hkaFound:'Found by',hkaNeed:'Describe what you did first.',eqTitle:'Equipment check',eqExp:'expected',eqFound:'Found',eqCond:'Condition',eqNotePh:'Note (required if not OK or short)',eqSave:'Save equipment check',eqNeed:'Fill the number found on every line.',eqNoteNeed:'Write a note on every line that is damaged, missing or short.',eqSaved:'Equipment check saved. Lines with a problem:',eqLast:'Last',eqOK:'OK',eqDam:'Damaged',eqMis:'Missing',hkshP:'Morning',hkshS:'Afternoon',hkshM:'Night'});
-Object.assign(T.id,{pvPrev:'Hanya pratinjau (Tampilan petugas). Tidak ada yang dikirim.',hkBtn:'Cek gedung',eqBtn:'Peralatan',hkaBtn:'Tindakan kebersihan',hkTitle:'Cek gedung keamanan',hkNew:'Cek baru',hkActs:'Tindakan',hkOk:'Baik',hkNot:'Tidak baik',hkNotePh:'Apa yang salah? (wajib)',hkOverall:'Catatan umum (opsional)',hkSave:'Simpan cek',hkAllNeed:'Jawab semua baris dulu.',hkNoteNeed:'Tulis masalahnya pada setiap baris Tidak baik.',hkSaved:'Cek disimpan. Tindakan dikirim ke petugas:',hkLast:'Cek terakhir',hkBy:'oleh',hkOpenL:'Terbuka, menunggu petugas',hkDoneL:'Selesai oleh petugas, mohon verifikasi',hkVerL:'Baru diverifikasi',hkVerify:'Verifikasi',hkReopen:'Buka lagi',hkReason:'Alasan membuka lagi (wajib)',hkNoOpen:'Tidak ada tindakan terbuka.',hkNone:'Belum ada cek.',hkaTitle:'Tindakan kebersihan',hkaDo:'Apa yang Anda lakukan? (wajib)',hkaDone:'Selesai',hkaNone:'Tidak ada tindakan kebersihan. Terima kasih.',hkaGate:'Kebersihan gedung keamanan adalah tugas petugas yang bertugas di gerbang.',hkaWait:'Menunggu verifikasi supervisor',hkaFound:'Ditemukan oleh',hkaNeed:'Jelaskan dulu apa yang Anda lakukan.',eqTitle:'Cek peralatan',eqExp:'seharusnya',eqFound:'Ditemukan',eqCond:'Kondisi',eqNotePh:'Catatan (wajib jika tidak baik atau kurang)',eqSave:'Simpan cek peralatan',eqNeed:'Isi jumlah yang ditemukan pada setiap baris.',eqNoteNeed:'Tulis catatan pada setiap baris yang rusak, hilang atau kurang.',eqSaved:'Cek peralatan disimpan. Baris bermasalah:',eqLast:'Terakhir',eqOK:'Baik',eqDam:'Rusak',eqMis:'Hilang',hkshP:'Pagi',hkshS:'Sore',hkshM:'Malam',err_not_duty:'Kebersihan dilakukan oleh petugas yang bertugas di gerbang pada shift ini.',err_hk_all:'Jawab semua baris.',err_hk_note:'Tulis catatan.',err_hk_donenote:'Jelaskan apa yang Anda lakukan.',err_eq_all:'Lengkapi semua baris peralatan.',err_eq_note:'Tulis catatan pada baris bermasalah.'});
+Object.assign(T.en,{vidQueued:'No signal or the server is busy. The video is saved on this phone and will be sent automatically when there is signal.',vidPend:'video(s) waiting to send',pvPrev:'Preview only (Guard view). Nothing is sent.',hkBtn:'Building check',eqBtn:'Equipment',hkaBtn:'Cleaning actions',hkTitle:'Security building check',hkNew:'New check',hkActs:'Actions',hkOk:'OK',hkNot:'Not OK',hkNotePh:'What is wrong? (required)',hkOverall:'Overall note (optional)',hkSave:'Save check',hkAllNeed:'Answer every line first.',hkNoteNeed:'Write what is wrong on every Not OK line.',hkSaved:'Check saved. Actions sent to the guards:',hkLast:'Last check',hkBy:'by',hkOpenL:'Open, waiting for the guards',hkDoneL:'Done by the guards, please verify',hkVerL:'Recently verified',hkVerify:'Verify',hkReopen:'Re-open',hkReason:'Reason for re-opening (required)',hkNoOpen:'No open actions.',hkNone:'No check yet.',hkaTitle:'Cleaning actions',hkaDo:'What did you do? (required)',hkaDone:'Done',hkaNone:'No cleaning actions. Thank you.',hkaGate:'Cleaning of the security building is the duty of the guard on Gate duty.',hkaWait:'Waiting for the supervisor to verify',hkaFound:'Found by',hkaNeed:'Describe what you did first.',eqTitle:'Equipment check',eqExp:'expected',eqFound:'Found',eqCond:'Condition',eqNotePh:'Note (required if not OK or short)',eqSave:'Save equipment check',eqNeed:'Fill the number found on every line.',eqNoteNeed:'Write a note on every line that is damaged, missing or short.',eqSaved:'Equipment check saved. Lines with a problem:',eqLast:'Last',eqOK:'OK',eqDam:'Damaged',eqMis:'Missing',hkshP:'Morning',hkshS:'Afternoon',hkshM:'Night'});
+Object.assign(T.id,{vidQueued:'Tidak ada sinyal atau server sibuk. Video disimpan di ponsel ini dan akan dikirim otomatis saat ada sinyal.',vidPend:'video menunggu dikirim',pvPrev:'Hanya pratinjau (Tampilan petugas). Tidak ada yang dikirim.',hkBtn:'Cek gedung',eqBtn:'Peralatan',hkaBtn:'Tindakan kebersihan',hkTitle:'Cek gedung keamanan',hkNew:'Cek baru',hkActs:'Tindakan',hkOk:'Baik',hkNot:'Tidak baik',hkNotePh:'Apa yang salah? (wajib)',hkOverall:'Catatan umum (opsional)',hkSave:'Simpan cek',hkAllNeed:'Jawab semua baris dulu.',hkNoteNeed:'Tulis masalahnya pada setiap baris Tidak baik.',hkSaved:'Cek disimpan. Tindakan dikirim ke petugas:',hkLast:'Cek terakhir',hkBy:'oleh',hkOpenL:'Terbuka, menunggu petugas',hkDoneL:'Selesai oleh petugas, mohon verifikasi',hkVerL:'Baru diverifikasi',hkVerify:'Verifikasi',hkReopen:'Buka lagi',hkReason:'Alasan membuka lagi (wajib)',hkNoOpen:'Tidak ada tindakan terbuka.',hkNone:'Belum ada cek.',hkaTitle:'Tindakan kebersihan',hkaDo:'Apa yang Anda lakukan? (wajib)',hkaDone:'Selesai',hkaNone:'Tidak ada tindakan kebersihan. Terima kasih.',hkaGate:'Kebersihan gedung keamanan adalah tugas petugas yang bertugas di gerbang.',hkaWait:'Menunggu verifikasi supervisor',hkaFound:'Ditemukan oleh',hkaNeed:'Jelaskan dulu apa yang Anda lakukan.',eqTitle:'Cek peralatan',eqExp:'seharusnya',eqFound:'Ditemukan',eqCond:'Kondisi',eqNotePh:'Catatan (wajib jika tidak baik atau kurang)',eqSave:'Simpan cek peralatan',eqNeed:'Isi jumlah yang ditemukan pada setiap baris.',eqNoteNeed:'Tulis catatan pada setiap baris yang rusak, hilang atau kurang.',eqSaved:'Cek peralatan disimpan. Baris bermasalah:',eqLast:'Terakhir',eqOK:'Baik',eqDam:'Rusak',eqMis:'Hilang',hkshP:'Pagi',hkshS:'Sore',hkshM:'Malam',err_not_duty:'Kebersihan dilakukan oleh petugas yang bertugas di gerbang pada shift ini.',err_hk_all:'Jawab semua baris.',err_hk_note:'Tulis catatan.',err_hk_donenote:'Jelaskan apa yang Anda lakukan.',err_eq_all:'Lengkapi semua baris peralatan.',err_eq_note:'Tulis catatan pada baris bermasalah.'});
 Object.assign(T.en,{err_not_duty:'Cleaning is done by the guard on Gate duty this shift.',err_hk_all:'Answer every line.',err_hk_note:'Write a note.',err_hk_donenote:'Describe what you did.',err_eq_all:'Complete every equipment line.',err_eq_note:'Write a note on the lines with a problem.'});
 var HK={items:[],res:[],note:'',tab:'new',msg:'',err:'',busy:false,last:null,list:null,open:0};
 var EQ={items:[],res:[],last:null,msg:'',err:'',busy:false};
@@ -965,6 +965,74 @@ $('aBody').addEventListener('click',function(e){
     var L=['Date,Round,Shift,Point no,Point,Zone,High risk,Scans in round'];
     MS2.r.detail.forEach(function(d){d.missed.forEach(function(p){L.push([d.date,d.label,d.shift,p.no,'"'+String(p.name).replace(/"/g,'""')+'"',p.zone,p.hi?'Yes':'No',d.scans].join(','));});});
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\r\n')],{type:'text/csv'}));a.download='missed-points-'+MS2.r.from+'-to-'+MS2.r.to+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+  }
+});
+
+/* ===== Observation database (Admin): all counts, locations, list, CSV ===== */
+var OBD={from:'',to:'',r:null,type:'all',status:'all',q:''};
+function obdStatus(o){return o.type==='Positive'?'Positive':o.status;}
+function obdRows(){
+  var r=OBD.r;if(!r)return [];var q=OBD.q.trim().toLowerCase();
+  return r.list.filter(function(o){
+    if(OBD.type==='pos'&&o.type!=='Positive')return false;
+    if(OBD.type==='iss'&&o.type==='Positive')return false;
+    if(OBD.status==='open'&&!(o.type!=='Positive'&&o.status==='Open'))return false;
+    if(OBD.status==='closed'&&!(o.type!=='Positive'&&o.status!=='Open'))return false;
+    if(q&&(o.guard+' '+o.cat+' '+o.where+' '+o.no+' '+o.text+' '+o.note+' '+o.by).toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+}
+function obdList(){
+  var rows=obdRows(),h='<div class="note">'+rows.length+' of '+OBD.r.list.length+' shown</div>';
+  rows.slice(0,300).forEach(function(o){
+    var iss=o.type!=='Positive',cls=iss&&o.status==='Open'?' hi':'';
+    h+='<div class="pt'+cls+'"><b>'+esc(o.date)+' '+esc(o.t.slice(11,16))+' &middot; '+esc(iss?'Issue':'Positive')+' &middot; '+esc(o.status)+'</b><small>'+esc(o.guard)+' &middot; '+esc(o.cat)+' &middot; '+(o.no!=null?o.no+'. ':'')+esc(o.where||'No location')+'</small><div>'+esc(o.text)+'</div>'
+     +(o.photo?'<small><a href="'+esc(o.photo)+'" target="_blank" rel="noopener">Photo</a></small>':'')
+     +(iss&&o.status!=='Open'?'<small>'+esc(o.status==='Closed on spot'?'Closed on the spot':'Closed')+' by '+esc(o.by)+' '+esc(String(o.at).slice(0,16))+': '+esc(o.note)+'</small>':'')+'</div>';
+  });
+  if(rows.length>300)h+='<p class="note">First 300 shown. Narrow the filter or download the CSV for all.</p>';
+  if(!rows.length)h+='<p class="note">Nothing matches.</p>';
+  return h;
+}
+function aObsDb(){
+  if(!OBD.to){OBD.to=today();OBD.from=new Date(Date.now()+7*3600000-29*86400000).toISOString().slice(0,10);}
+  $('aBody').innerHTML='<h1>Observations</h1><label>From</label><input type="date" id="obdF" value="'+esc(OBD.from)+'"><label>To</label><input type="date" id="obdT" value="'+esc(OBD.to)+'"><div class="tabs" style="margin-top:8px"><button type="button" data-obq="7">7 days</button><button type="button" data-obq="30">30 days</button><button type="button" data-obq="90">90 days</button><button type="button" id="obdGo">Show</button></div><div id="obdOut"><p><span class="sp"></span></p></div>';
+  aApi({action:'a_obsdb',from:OBD.from,to:OBD.to}).then(function(r){
+    if(!r.ok){if(r.err==='bad_date'&&$('obdOut'))$('obdOut').innerHTML='<p class="err">Pick a valid period.</p>';else aErr(r);return;}
+    OBD.r=r;var t=r.totals;
+    var bar=function(v,max){return '<div class="bar"><i style="width:'+(max?Math.round(100*v/max):0)+'%"></i></div>';};
+    var sect=function(title,arr,lim){
+      var mx=0;arr.forEach(function(x){var n=x.positive+x.issues;if(n>mx)mx=n;});
+      var o='<div class="zh">'+title+'</div>';
+      arr.slice(0,lim||50).forEach(function(x){o+='<div class="pt'+(x.open?' hi':'')+'"><b>'+esc(x.key)+'</b><small>'+x.positive+' positive &middot; '+x.issues+' issues ('+x.open+' open, '+x.closed+' closed)</small>'+bar(x.positive+x.issues,mx)+'</div>';});
+      if(!arr.length)o+='<p class="note">None.</p>';return o;
+    };
+    var h='<div class="counts"><div class="cnt d"><b>'+t.positive+'</b><span>Positive</span></div><div class="cnt r"><b>'+t.issues+'</b><span>Issues</span></div></div>';
+    h+='<div class="counts"><div class="cnt r"><b>'+t.open+'</b><span>Open</span></div><div class="cnt d"><b>'+(t.closed+t.closedSpot)+'</b><span>Closed</span></div></div>';
+    h+='<div class="card"><small class="note">'+t.all+' observations, '+r.from+' to '+r.to+'. Issues closed on the spot by the guard: '+t.closedSpot+'. Closed by Danru / Supervisor: '+t.closed+(t.avgCloseHrs!=null?' (average '+t.avgCloseHrs+' h to close)':'')+'. With photo: '+t.withPhoto+'. Positive : issues ratio '+t.positive+' : '+t.issues+'.</small></div>';
+    h+=sect('By location (issue locations first)',r.byPoint.slice().sort(function(a,b){return b.issues-a.issues||(b.positive-a.positive);}),40);
+    h+=sect('By category',r.byCat)+sect('By guard',r.byGuard)+sect('By shift',r.byShift)+sect('By day',r.byDay);
+    h+='<div class="zh">All observations</div><div class="tabs"><button type="button" data-obt="all" class="on">All</button><button type="button" data-obt="pos">Positive</button><button type="button" data-obt="iss">Issues</button></div><div class="tabs"><button type="button" data-obs="all" class="on">Any status</button><button type="button" data-obs="open">Open</button><button type="button" data-obs="closed">Closed</button></div><input type="text" id="obdQ" placeholder="Search guard, location, text" value="'+esc(OBD.q)+'"><button class="btn ghost sm" id="obdCsv" type="button">Download CSV (filtered)</button><div id="obdList"></div>';
+    $('obdOut').innerHTML=h;OBD.type='all';OBD.status='all';$('obdList').innerHTML=obdList();
+  }).catch(function(){if($('obdOut'))$('obdOut').innerHTML='<p class="err">No connection.</p>';});
+}
+$('aBody').addEventListener('input',function(e){if(A.tab==='obs'&&e.target&&e.target.id==='obdQ'){OBD.q=e.target.value;$('obdList').innerHTML=obdList();}});
+$('aBody').addEventListener('click',function(e){
+  var t=e.target;if(!t||A.tab!=='obs'||!t.getAttribute)return;
+  var q=t.getAttribute('data-obq'),ty=t.getAttribute('data-obt'),st=t.getAttribute('data-obs');
+  if(q){OBD.to=today();OBD.from=new Date(Date.now()+7*3600000-(Number(q)-1)*86400000).toISOString().slice(0,10);aObsDb();return;}
+  if(t.id==='obdGo'){OBD.from=$('obdF').value;OBD.to=$('obdT').value;aObsDb();return;}
+  if(ty||st){
+    if(ty)OBD.type=ty;if(st)OBD.status=st;
+    [].forEach.call($('obdOut').querySelectorAll('[data-obt]'),function(b){b.classList.toggle('on',b.getAttribute('data-obt')===OBD.type);});
+    [].forEach.call($('obdOut').querySelectorAll('[data-obs]'),function(b){b.classList.toggle('on',b.getAttribute('data-obs')===OBD.status);});
+    $('obdList').innerHTML=obdList();return;
+  }
+  if(t.id==='obdCsv'&&OBD.r){
+    var c=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';};
+    var L=['Date,Time,Shift,Guard,Type,Category,Point no,Location,Description,Photo,Status,Closed by,Closed at,Close note'];
+    obdRows().forEach(function(o){L.push([o.date,o.t,o.shift,o.guard,o.type,o.cat,o.no==null?'':o.no,o.where,o.text,o.photo,o.status,o.by,o.at,o.note].map(c).join(','));});
+    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));a.download='observations-'+OBD.r.from+'-to-'+OBD.r.to+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
   }
 });
 
@@ -1253,17 +1321,48 @@ $('vRetake').addEventListener('click',function(){var v=$('vPrev');v.controls=fal
 $('vSend').addEventListener('click',function(){
   if(!VD.blob)return;
   $('vMsg').textContent=tr('vidSending');$('vSend').disabled=true;
-  var fr=new FileReader();
+  var fr=new FileReader(),blob=VD.blob,sec=VD.sec;
+  fr.onerror=function(){$('vSend').disabled=false;$('vMsg').textContent=tr('vidFail');};
   fr.onload=function(){
-    var b64=String(fr.result).split(',')[1]||'';
-    api({action:'video',gp:S.pin,video:b64,mime:VD.blob.type,sec:VD.sec,note:(S.state&&S.state.hold&&S.state.hold.on)?'Weather hold':'Conditions'},90000).then(function(r){
-      $('vSend').disabled=false;
-      if(r&&r.ok){$('vMsg').textContent=tr('vidSent');vClose();setTimeout(function(){showPatrol();},1200);}
-      else $('vMsg').textContent=tr('vidFail');
-    }).catch(function(){$('vSend').disabled=false;$('vMsg').textContent=tr('vidFail');});
+    var it={id:newCid(),b64:String(fr.result).split(',')[1]||'',mime:blob.type,sec:sec,note:(S.state&&S.state.hold&&S.state.hold.on)?'Weather hold':'Conditions',pin:S.pin,ts:Date.now()};
+    var done=function(msg){$('vSend').disabled=false;$('vMsg').textContent=msg;vClose();setTimeout(function(){showPatrol();},1800);};
+    var queue=function(why){vqPut(it).then(function(){vqCount();done(tr('vidQueued'));},function(){$('vSend').disabled=false;$('vMsg').textContent=tr('vidFail')+(why?' ('+why+')':'');});};
+    if(S.online===false||navigator.onLine===false){queue('');return;}
+    api({action:'video',gp:it.pin,cid:it.id,video:it.b64,mime:it.mime,sec:it.sec,note:it.note},90000).then(function(r){
+      if(r&&r.ok){done(tr('vidSent'));}
+      else if(r&&r.err==='bad_video'){$('vSend').disabled=false;$('vMsg').textContent=tr('vidFail')+' (bad_video)';}
+      else queue(r&&r.err||'');
+    }).catch(function(){queue('');});
   };
-  fr.readAsDataURL(VD.blob);
+  fr.readAsDataURL(blob);
 });
+/* videos that could not be sent wait on the phone (IndexedDB) and go out when there is signal */
+var VQ={n:0,busy:false};
+function vqDb(){return new Promise(function(res,rej){try{var r=indexedDB.open('sp_vq',1);r.onupgradeneeded=function(){r.result.createObjectStore('v',{keyPath:'id'});};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};}catch(e){rej(e);}});}
+function vqAll(){return vqDb().then(function(db){return new Promise(function(res){var q=db.transaction('v','readonly').objectStore('v').getAll();q.onsuccess=function(){res(q.result||[]);};q.onerror=function(){res([]);};});}).catch(function(){return [];});}
+function vqPut(it){return vqDb().then(function(db){return new Promise(function(res,rej){var tx=db.transaction('v','readwrite');tx.objectStore('v').put(it);tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});});}
+function vqDel(id){return vqDb().then(function(db){return new Promise(function(res){var tx=db.transaction('v','readwrite');tx.objectStore('v').delete(id);tx.oncomplete=function(){res();};tx.onerror=function(){res();};});}).catch(function(){});}
+function vqCount(){return vqAll().then(function(a){VQ.n=a.length;try{render();}catch(e){}return a;});}
+function vqFlush(){
+  if(VQ.busy||PV.on||!API_URL||!S.pin)return Promise.resolve();
+  VQ.busy=true;
+  return vqAll().then(function(a){
+    var p=Promise.resolve(),stop=false,lim=Date.now()-48*3600000;
+    a.forEach(function(it){p=p.then(function(){
+      if(stop)return;
+      if(it.ts<lim)return vqDel(it.id);
+      return api({action:'video',gp:it.pin||S.pin,cid:it.id,video:it.b64,mime:it.mime,sec:it.sec,note:it.note},90000).then(function(r){
+        if(r&&(r.ok||r.err==='bad_video'))return vqDel(it.id);
+        if(r&&r.err==='pin'&&S.pin&&it.pin!==S.pin){it.pin=S.pin;return vqPut(it);}
+        stop=true;
+      },function(){stop=true;});
+    });});
+    return p;
+  }).then(function(){VQ.busy=false;return vqCount();},function(){VQ.busy=false;});
+}
+window.addEventListener('online',function(){vqFlush();});
+setTimeout(function(){vqCount().then(function(a){if(a.length)vqFlush();});},1500);
+setInterval(function(){if(VQ.n&&navigator.onLine!==false)vqFlush();},30000);
 $('vBack').addEventListener('click',function(){vClose();showPatrol();});
 $('bVid').addEventListener('click',vOpen);
 
@@ -1421,7 +1520,7 @@ $('bObsL').addEventListener('click',obsListOpen);
 Object.assign(T.en,{obsActLbl:'What did you do to fix it? (required)',obsActPh:'Describe the action you took',obsActNeed:'Describe the action you took to fix it.',err_need_action:'Describe the action taken to fix the issue.',err_need_note:'Write what was done to close this issue.',obsNeedNote:'Write the close-out comment first (what was done).',obsNotePh2:'Close-out comment: what was done (required)',obsActWas:'Action taken',
  aMiss:'Missed',msTitle:'Missed points: trends and detail'});
 Object.assign(T.id,{obsActLbl:'Apa yang Anda lakukan untuk memperbaikinya? (wajib)',obsActPh:'Jelaskan tindakan yang Anda ambil',obsActNeed:'Jelaskan tindakan yang Anda ambil untuk memperbaikinya.',err_need_action:'Jelaskan tindakan yang diambil untuk memperbaiki temuan.',err_need_note:'Tulis apa yang dilakukan untuk menutup temuan ini.',obsNeedNote:'Tulis dulu komentar penutupan (apa yang dilakukan).',obsNotePh2:'Komentar penutupan: apa yang dilakukan (wajib)',obsActWas:'Tindakan yang diambil'});
-/* ===== Material Gate Pass: release a vehicle (v1.47) ===== */
+/* ===== Material Gate Pass: release a vehicle (v1.48) ===== */
 var GT={list:null,n:0,at:0,ref:'',data:null,chk:{},busy:false,view:'list',rej:false,done:null,err:''};
 function gateOn(){return !!(S.state&&S.state.gate);}
 function gateLabel(){var b=$('bGate');if(!b)return;b.textContent=tr('gateBtn')+(GT.list?' ('+GT.n+')':'');}
@@ -1843,7 +1942,7 @@ $('pinForm').addEventListener('submit',function(e){
     else{$('pinErr').textContent=tr('badPin');}
   }).catch(function(){$('pinErr').textContent='No connection.';});
 });
-$('aStats').addEventListener('click',function(){aTab('stats');});$('aMiss').addEventListener('click',function(){aTab('miss');});$('aChk').addEventListener('click',function(){aTab('chk');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
+$('aStats').addEventListener('click',function(){aTab('stats');});$('aMiss').addEventListener('click',function(){aTab('miss');});$('aChk').addEventListener('click',function(){aTab('chk');});$('aObs').addEventListener('click',function(){aTab('obs');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
 $('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aView').addEventListener('click',function(){aTab('view');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});
