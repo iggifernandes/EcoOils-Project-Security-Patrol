@@ -40,5 +40,5 @@ call({action:'d_plan_set',gp:D,date:'2026-10-19',shift:'S',rows:[{duty:'Gate 1',
 r=call({action:'a_stats',pin:AP,from:'2026-10-19',to:'2026-10-19'});
 ok(r.clockMissing.some(x=>x.guard==='Clock Four'&&x.shift==='S')&&!r.clockMissing.some(x=>x.guard==='Clock One'&&x.shift==='P'),'planned but not clocked in is listed; clocked-in is not');
 Date.now=realNow;
-ok(m.ctx.VERSION==='v1.46','version v1.10');
+ok(m.ctx.VERSION==='v1.47','version v1.10');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);

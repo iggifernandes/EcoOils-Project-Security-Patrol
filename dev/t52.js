@@ -34,9 +34,14 @@ ok(cnt()===before,'viewing writes nothing ('+before+' = '+cnt()+')');
  await pg.click('#pvGo');await waitPat(pg);await pg.waitForTimeout(600);
  ok(await pg.locator('#pvBar').isVisible()&&/Viewing as View Guard/.test(await pg.locator('#pvBar').innerText())&&/Read-only/.test(await pg.locator('#pvBar').innerText()),'banner: viewing as View Guard, read-only');
  ok((await pg.locator('#who').innerText())==='View Guard'&&(await pg.locator('#nDone').innerText())==='1','guard screen shows the guard name and 1 done');
- const hid=['#bScan','#bObs','#bObsL','#bVid','#bTeamOpen','#bPlanOpen','#bHold','#bGps','#bChange','#clockBox'];
+ const hid=['#bScan','#bObsL','#bVid','#bTeamOpen','#bPlanOpen','#bHold','#bGps','#bChange','#clockBox'];
  let vis=[];for(const s of hid){if(await pg.locator(s).isVisible())vis.push(s);}
  ok(vis.length===0,'no action buttons visible in the view: '+vis.join(','));
+ ok(await pg.locator('#bObs').isVisible(),'Observation button is visible in Guard view');
+ const nObs=(m.sheets.Observations?m.sheets.Observations.rows.length:0);
+ await pg.click('#bObs');await pg.waitForSelector('#vObs:not(.hidden)');await pg.click('#obIss');await pg.fill('#obText','Preview text only');await pg.click('#obSend');
+ ok(/Preview only/.test(await pg.locator('#obErr').innerText())&&(m.sheets.Observations?m.sheets.Observations.rows.length:0)===nObs,'observation form opens in Guard view, send blocked, nothing written');
+ await pg.click('#obHome');await pg.waitForSelector('#vPatrol:not(.hidden)');
  ok(await pg.locator('#tMap').isVisible()&&await pg.locator('#tDone').isVisible(),'tabs still work');
  await pg.click('#tDone');await pg.waitForTimeout(200);
  ok(/Main gate/.test(await pg.locator('#list').innerText()),'Done tab lists the guard\'s scan');
