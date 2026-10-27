@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.48';
+var VERSION = 'v1.49';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -364,6 +364,22 @@ function rowWhen_(r) {
   var li = -1; for (var q = 0; q < ROUNDS.length; q++) if (rlabel_(q).slice(0, 2) === String(r[3]).slice(0, 2)) li = q;
   return {date: d, idx: li};
 }
+/* Scans rows from about fromD (YYYY-MM-DD, Jakarta) to the end. Reads only the Time ms column first, then just the rows needed, so a week of data does not mean reading months of scans. */
+var SCANM_ = {};
+function scanRows_(fromD) {
+  if (SCANM_[fromD]) return SCANM_[fromD];
+  return (SCANM_[fromD] = scanRows0_(fromD));
+}
+function scanRows0_(fromD) {
+  var sh = sh_('Scans'), last = sh.getLastRow();
+  if (last < 2) return [];
+  var lim = Date.parse(String(fromD) + 'T00:00:00+07:00') - 48 * 3600000, col = sh.getRange(2, 18, last - 1, 1).getValues(), i0 = 0, any = false;
+  for (var i = 0; i < col.length; i++) if (Number(col[i][0]) > 0) { any = true; break; }
+  if (!any || !isFinite(lim)) return sh.getRange(2, 1, last - 1, 18).getValues();
+  for (; i0 < col.length; i0++) if (Number(col[i0][0]) >= lim) break;
+  if (i0 >= col.length) return [];
+  return sh.getRange(2 + i0, 1, last - 1 - i0, 18).getValues();
+}
 function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
   if (last < 2) return [];
@@ -489,12 +505,39 @@ function doPost(e) {
   try { res = route_(JSON.parse(e.postData.contents)); } catch (err) { res = {ok: false, err: 'server', msg: String(err)}; }
   return out_(res);
 }
+var CACHE_ON = true;
+/* Short result cache for heavy read-only screens (Admin tabs, Danru dashboard). Any write that changes them bumps a counter, so the next read is fresh. */
+function cacheVer_() { try { return CacheService.getScriptCache().get('cv') || '0'; } catch (e) { return '0'; } }
+function cacheBust_() { try { CacheService.getScriptCache().put('cv', String(Date.now()), 21600); } catch (e) {} }
+function cached_(key, ttl, fn, fresh) {
+  if (!CACHE_ON) return fn();
+  var c; try { c = CacheService.getScriptCache(); } catch (e) { return fn(); }
+  var k = 'c' + cacheVer_() + '|' + key + '|' + cfgVer_();
+  if (!fresh) { try { var h = c.get(k); if (h) { var o = JSON.parse(h); o.cached = true; return o; } } catch (e2) {} }
+  var r = fn();
+  try { if (r && r.ok) { var j = JSON.stringify(r); if (j.length < 90000) c.put(k, j, ttl); } } catch (e3) {}
+  return r;
+}
+function cfgVer_() { return String(VERSION); }
+var CACHE_TTL = {a_stats: 60, a_missed: 60, a_obsdb: 60, a_chk: 30, a_history: 60, a_live: 15, d_dash: 20, d_gps: 60, d_obs_list: 20, d_hk_list: 20, d_eq_get: 30};
+var CACHE_BUST = {obs: 1, hk_done: 1, d_obs_close: 1, d_hk_save: 1, d_hk_verify: 1, d_eq_save: 1, d_hold: 1, d_clock: 1, d_plan_set: 1, d_add: 1, d_active: 1, d_danru: 1, d_reset: 1, a_config: 1, a_points: 1, a_calibrate: 1, a_radius: 1, a_ts_danru: 1, clockin: 1, video: 1};
+function cacheKey_(a, b) {
+  var o = {}; Object.keys(b).sort().forEach(function (k) { if (k !== 'pin' && k !== 'gp' && k !== 'fresh' && k !== 'action') o[k] = b[k]; });
+  return a + '|' + (b.pin ? 'A' : 'D') + '|' + JSON.stringify(o);
+}
 function route_(b) {
-  CFGM_ = null; ROSM_ = null;
+  var a = String(b.action || ''), res;
+  res = route2_(b);
+  if (CACHE_BUST[a] && res && res.ok) cacheBust_();
+  return res;
+}
+function route2_(b) {
+  CFGM_ = null; ROSM_ = null; SCANM_ = {};
   var a = String(b.action || '');
   if (a === 'ping') return {ok: true, version: VERSION};
   if (a.indexOf('a_') === 0) {
     if (!adminOk_(b.pin)) return {ok: false, err: 'pin'};
+    if (CACHE_TTL[a]) return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return admin_(a, b); }, b.fresh);
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
@@ -1099,6 +1142,22 @@ function obsSave_(b, me) {
   } finally { lock.releaseLock(); }
 }
 /* Danru / Shift Supervisor / Admin: open issues (oldest first) and the latest closed ones. */
+/* Observations from a date on (reads only the Time ms column, then the tail). */
+function obsRowsSince_(fromD) {
+  var sh = obsSheet_(), last = sh.getLastRow();
+  if (last < 2) return [];
+  var lim = Date.parse(String(fromD) + 'T00:00:00+07:00') - 48 * 3600000, col = sh.getRange(2, 17, last - 1, 1).getValues(), i0 = 0, any = false;
+  for (var i = 0; i < col.length; i++) if (Number(col[i][0]) > 0) { any = true; break; }
+  if (!any || !isFinite(lim)) return obsRows_(0);
+  for (; i0 < col.length; i0++) if (Number(col[i0][0]) >= lim) break;
+  if (i0 >= col.length) return [];
+  var st = 2 + i0;
+  return sh.getRange(st, 1, last - st + 1, 17).getValues().map(function (r, k) {
+    var o = obsRow_(r, st + k), ms = o.ms;
+    if (ms) { var sf = shiftAt_(ms); o.date = sf.date; o.shift = sf.code; }
+    return o;
+  });
+}
 function obsList_() {
   var rows = obsRows_(800), open = rows.filter(function (o) { return o.type === 'Issue' && o.status === 'Open'; });
   var done = rows.filter(function (o) { return o.type === 'Issue' && o.status !== 'Open'; }).slice(-15).reverse();
@@ -1126,7 +1185,7 @@ function obsMissing_(fromD, to) {
   var out = [], min = obsMin_(), now = Date.now(), starts = {P: 7, S: 15, M: 23}, from0 = String(cfg_('OBS_FROM', '2026-10-24'));
   if (!min) return out;
   var cnt = {}, dr = {};
-  obsRows_(0).forEach(function (o) { if (o.type) { var k = o.date + '|' + o.shift + '|' + o.guard.toLowerCase(); cnt[k] = (cnt[k] || 0) + 1; } });
+  obsRowsSince_(from0).forEach(function (o) { if (o.type) { var k = o.date + '|' + o.shift + '|' + o.guard.toLowerCase(); cnt[k] = (cnt[k] || 0) + 1; } });
   guardsAll_().forEach(function (g) { if (g.danru) dr[g.name.toLowerCase()] = 1; });
   var dd = Date.parse(fromD + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z'), n = 0;
   for (; dd <= end && n < 31; dd += 86400000, n++) {
@@ -1180,7 +1239,7 @@ function obsDailyHtml_(L, y) {
    Scheduled Sunday about 18:00 Jakarta (setupTriggers) so the Danru has it for the Monday morning discussion; it covers Monday to Sunday of that week (the last 7 days including today). The Danru can also open it on the phone (d_gps, last 7/14/30 days). */
 function gpsWeek_(fromD, to) {
   var sh = sh_('Scans'), last = sh.getLastRow(), G = {}, P = {}, tot = {checked: 0, outside: 0, strong: 0, noGps: 0};
-  if (last >= 2) sh.getRange(2, 1, last - 1, 18).getValues().forEach(function (r) {
+  scanRows_(fromD).forEach(function (r) {
     var dt = rowWhen_(r).date;
     if (dt < fromD || dt > to) return;
     var fl = String(r[15]).split(' ');
@@ -1399,8 +1458,7 @@ function missedRange_(fromD, toD) {
     var ds = new Date(d).toISOString().slice(0, 10);
     for (var i = 0; i < ROUNDS.length; i++) { var r = roundBy_(ds, i); if (r.end <= now) { if (roundHeld_(r)) held++; else { var o = {date: ds, idx: i, label: r.label, end: r.end, seen: {}}; rounds.push(o); idx[ds + '|' + i] = o; } } }
   }
-  var sh = sh_('Scans'), last = sh.getLastRow();
-  if (last >= 2) { var st = Math.max(2, last - 3999); sh.getRange(st, 1, last - st + 1, 18).getValues().forEach(function (r3) { var wh = rowWhen_(r3); if (wh.idx < 0) return; var o = idx[wh.date + '|' + wh.idx]; if (o) o.seen[String(r3[6])] = 1; }); }
+  scanRows_(fromD).forEach(function (r3) { var wh = rowWhen_(r3); if (wh.idx < 0) return; var o = idx[wh.date + '|' + wh.idx]; if (o) o.seen[String(r3[6])] = 1; });
   var pts = points_(true), missed = 0, withMiss = 0;
   rounds.forEach(function (o) { var m = pts.filter(function (p) { return !o.seen[p.id]; }); o.total = pts.length; o.done = pts.length - m.length; o.missed = m.length; if (m.length) { missed += m.length; withMiss++; } });
   rounds.sort(function (a, b) { return a.end - b.end; });
@@ -1447,21 +1505,21 @@ function team_(a, b) {
     if (!adm && cfg_('TS_DANRU', 'no') !== 'yes') return {ok: false, err: 'ts_off'};
     return timesheet_('a_' + a.slice(2), b, adm ? 'Admin' : me.name);
   }
-  if (a === 'd_gps') {
+  if (a === 'd_gps') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () {
     var days = Math.max(1, Math.min(31, parseInt(b.days, 10) || 7)), gto = ymdhms_(Date.now()).slice(0, 10), gfrom = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10);
     var gr = gpsWeek_(gfrom, gto);
     gr.totals.noGps = 0; gr.guards.forEach(function (g) { g.noGps = 0; }); gr.points.forEach(function (p) { p.review = false; }); /* the reading advice and the review flag are for the owner only */
     gr.ok = true; gr.days = days;
     return gr;
-  }
-  if (a === 'd_dash') return dash_();
+  }, b.fresh);
+  if (a === 'd_dash') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return dash_(); }, b.fresh);
   if (a === 'd_hk_get') return hkGet_();
   if (a === 'd_hk_save') return hkSave_(b, adm ? 'Admin' : me.name);
-  if (a === 'd_hk_list') return hkList_();
+  if (a === 'd_hk_list') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return hkList_(); }, b.fresh);
   if (a === 'd_hk_verify') return hkVerify_(b, adm ? 'Admin' : me.name);
-  if (a === 'd_eq_get') return eqGet_();
+  if (a === 'd_eq_get') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return eqGet_(); }, b.fresh);
   if (a === 'd_eq_save') return eqSave_(b, adm ? 'Admin' : me.name);
-  if (a === 'd_obs_list') return obsList_();
+  if (a === 'd_obs_list') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return obsList_(); }, b.fresh);
   if (a === 'd_obs_close') return obsClose_(b, adm ? 'Admin' : me.name);
   if (a === 'd_hold') return holdSet_(b.on === true, adm ? 'Admin' : me.name, b.reason);
   if (a === 'd_clock') {
@@ -1554,7 +1612,7 @@ function admin_(a, b) {
   }
   if (a === 'a_history') {
     var from = String(b.from || ''), to = String(b.to || from), rows = [];
-    scans_(6000).forEach(function (r2) {
+    scanRows_(from).forEach(function (r2) {
       var dt = rowWhen_(r2).date;
       if (dt >= from && dt <= to) rows.push({t: r2[1] instanceof Date ? ymdhms_(Number(r2[17])) : String(r2[1]), round: String(r2[3]), guard: String(r2[4]), no: r2[7], name: String(r2[8]), gps: String(r2[14]), dist: r2[13], acc: r2[12], flags: String(r2[15]), photo: String(r2[16] || '')});
     });
@@ -1571,7 +1629,7 @@ function admin_(a, b) {
     }
     var mIdx = {}; mRounds.forEach(function (r) { mIdx[r.date + '|' + r.idx] = r; });
     var mSh = sh_('Scans'), mLast = mSh.getLastRow();
-    if (mLast >= 2) mSh.getRange(2, 1, mLast - 1, 18).getValues().forEach(function (r3) {
+    scanRows_(mFrom).forEach(function (r3) {
       var wh = rowWhen_(r3);
       if (wh.idx < 0) return;
       var rr2 = mIdx[wh.date + '|' + wh.idx];
@@ -1637,7 +1695,7 @@ function admin_(a, b) {
     }
     var OG = {}, OP = {}, pts2 = points_(true), P = {}, G = {}, total = 0, sh2 = sh_('Scans'), last2 = sh2.getLastRow(), full = {};
     pts2.forEach(function (p) { P[p.id] = {no: p.no, name: p.name, zone: p.zone, hi: p.hi, cal: p.lat != null, rounds: {}, scans: 0, issues: 0, noGps: 0, photos: 0, lastMs: 0, lastBy: ''}; });
-    if (last2 >= 2) sh2.getRange(2, 1, last2 - 1, 18).getValues().forEach(function (r3) {
+    scanRows_(fromD).forEach(function (r3) {
       var wh = rowWhen_(r3), dt = wh.date;
       if (dt < fromD || dt > to) return;
       var o = P[String(r3[6])];
@@ -1773,7 +1831,7 @@ function awardCrit_() {
 function awardStats_(month) {
   var c = awardCrit_(), sh = sh_('Scans'), last = sh.getLastRow(), by = {}, eligible = {};
   guards_().forEach(function (g) { if (!(c.excludeDanru && g.danru)) eligible[g.name] = 1; });
-  if (last >= 2) sh.getRange(2, 1, last - 1, 18).getValues().forEach(function (r) {
+  scanRows_(month + '-01').forEach(function (r) {
     if (rowWhen_(r).date.slice(0, 7) !== month) return;
     var fl = String(r[15]).split(' ');
     if (fl.indexOf('REPEAT') >= 0) return;
@@ -1786,7 +1844,7 @@ function awardStats_(month) {
   });
   /* Observations of the month: count, positive : issues, photos, issues closed on the spot. */
   var ob = {};
-  try { obsRows_(0).forEach(function (o) {
+  try { obsRowsSince_(month + '-01').forEach(function (o) {
     if (!o.type || o.date.slice(0, 7) !== month || !eligible[o.guard]) return;
     var x = ob[o.guard] || (ob[o.guard] = {obs: 0, pos: 0, iss: 0, ophotos: 0, spot: 0});
     x.obs++; if (o.type === 'Positive') x.pos++; else { x.iss++; if (o.spot) x.spot++; }

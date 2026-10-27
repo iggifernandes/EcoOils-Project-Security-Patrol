@@ -219,7 +219,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.48';
+var VERSION='v1.49';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -569,7 +569,24 @@ function result(pt,r,note){
 
 /* ===== admin ===== */
 var A={pin:'',tab:'live',pts:[],cal:null};
-function aApi(b){b.pin=A.pin;return api(b);}
+var AC={},AC_OK={a_stats:1,a_missed:1,a_obsdb:1,a_chk:1,a_history:1};
+function acKey(b){var o={};Object.keys(b).sort().forEach(function(k){if(k!=='pin')o[k]=b[k];});return JSON.stringify(o);}
+function aApi(b){
+  b.pin=A.pin;
+  if(!AC_OK[b.action]){AC={};return api(b);}
+  var key=acKey(b),e=AC[key],tab=A.tab;
+  if(e&&Date.now()-e.t<300000){
+    if(Date.now()-e.t>8000&&!e.bg){e.bg=1;var c=JSON.parse(JSON.stringify(b));
+      api(c).then(function(r){
+        if(!r||!r.ok){e.bg=0;return;}
+        var j=JSON.stringify(r),ch=j!==e.j;AC[key]={t:Date.now(),j:j,r:r};
+        var ae=document.activeElement;
+        if(ch&&A.tab===tab&&!$('vAdmin').classList.contains('hidden')&&!(ae&&$('aBody').contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)))aTab(tab);
+      }).catch(function(){e.bg=0;});}
+    return Promise.resolve(e.r);
+  }
+  return api(b).then(function(r){if(r&&r.ok)AC[key]={t:Date.now(),j:JSON.stringify(r),r:r};return r;});
+}
 function aTab(t){
   A.tab=t;['Stats','Miss','Chk','Obs','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
   PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,obs:aObsDb,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
@@ -691,7 +708,7 @@ function aSet(){
 }
 function aLogout(){A.pin='';ls('sp_pin',null);if(S.pin)showPatrol();else showSetup('');}
 function openPin(){$('pin').value='';$('pinErr').textContent='';$('pinModal').classList.remove('hidden');$('pin').focus();}
-function enterAdmin(){show('vAdmin');aTab('stats');}
+function enterAdmin(){AC={};show('vAdmin');aTab('stats');}
 
 
 
