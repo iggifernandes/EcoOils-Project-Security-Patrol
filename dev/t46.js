@@ -14,7 +14,7 @@ const rows=m.sheets.Points.rows;
  const bg=()=>pg.evaluate(()=>getComputedStyle(document.body).backgroundColor);
  ok(await bg()==='rgb(255, 255, 255)','starts light');
  ok(/Dark mode/.test(await pg.locator('#bTheme').innerText()),'button offers Dark mode');
- ok(await pg.evaluate(()=>{const i=document.querySelector('#logo');return i&&i.complete&&i.naturalWidth>100&&i.getBoundingClientRect().height>=30&&/^data:image\/png/.test(i.src);}),'logo shown in the header (embedded PNG)');
+ ok(await pg.evaluate(()=>{const i=document.querySelector('.eh-logo');return i&&i.complete&&i.naturalWidth>100&&i.getBoundingClientRect().height>=30&&/^data:image\/png/.test(i.src);}),'logo shown in the header (embedded PNG)');
  await pg.click('#bTheme');
  ok(await bg()==='rgb(26, 23, 24)','dark background after tap');
  ok(/Light mode/.test(await pg.locator('#bTheme').innerText()),'button now offers Light mode');
