@@ -206,7 +206,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 
 <div class="modal hidden" id="scanModal">
   <video id="cam" playsinline muted></video><div class="frame"></div><canvas id="cv" class="hidden"></canvas>
-  <div style="padding:14px;text-align:center;width:100%"><div id="scanMsg" class="note" style="font-size:15px;color:#fff"></div><button class="btn ghost" id="scanX" type="button"></button></div>
+  <div style="padding:14px;text-align:center;width:100%"><div id="scanMsg" class="note" style="white-space:pre-line;font-size:15px;color:#fff"></div><button class="btn hidden" id="scanSkip" type="button"></button><button class="btn ghost" id="scanX" type="button"></button></div>
 </div>
 <div class="modal hidden" id="gzModal" style="padding:0;background:#000;z-index:30;flex-direction:column"><div style="position:absolute;top:0;left:0;right:0;display:flex;gap:8px;justify-content:flex-end;padding:10px;z-index:2"><button type="button" class="gzb" id="gzOut" aria-label="Zoom out">&minus;</button><button type="button" class="gzb" id="gzIn" aria-label="Zoom in">+</button><button type="button" class="gzb" id="gzRs">1:1</button><button type="button" class="gzb" id="gzX" aria-label="Close">&times;</button></div><div id="gzSt" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none"><img id="gzImg" alt="" style="max-width:100%;max-height:100%;object-fit:contain;transform-origin:center;user-select:none"></div></div>
 <div class="modal hidden" id="resModal"><div class="box" id="resBody"></div></div>
@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.49';
+var VERSION='v1.50';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -358,7 +358,7 @@ function applyLang(){
   $('tSetup').textContent=tr('setup');$('lGpin').textContent=tr('pinLabel');$('hGpin').textContent=tr('pinHelp');$('bGpin').textContent=tr('pinGo');
   $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');$('bPlanOpen').textContent=tr('plan');$('bTsOpen').textContent=tr('tsBtn');$('tsBack').textContent=tr('back');$('bVid').textContent=tr('vidBtn');$('vBack').textContent=tr('back');$('vRec').textContent=tr('vidRec');$('vSend').textContent=tr('vidSend');$('vRetake').textContent=tr('vidRetake');$('vNote').textContent=tr('vidNote');$('pBack').textContent=tr('back');
   $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
-  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanX').textContent=tr('cancel');
+  $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanSkip').textContent=tr('gwSkip');$('scanX').textContent=tr('cancel');
   $('lKeep').textContent=tr('keep');$('pinGo').textContent=tr('adminLogin');$('pinX').textContent=tr('cancel');
   $('banner').innerHTML=API_URL?'':'<div class="banner">'+esc(tr('ann'))+'</div>';
   dTabsSet(['vDan','vPatrol','vObsL','vHk','vEq'].filter(function(v){return !$('v'+v.slice(1)).classList.contains('hidden');})[0]||'');if(!$('vDan').classList.contains('hidden'))danDraw();else if(!$('vHk').classList.contains('hidden'))hkDraw();else if(!$('vEq').classList.contains('hidden'))eqDraw();else if(!$('vHkA').classList.contains('hidden'))hkaDraw();else if(!$('vGps').classList.contains('hidden'))gpsLoad();else if(!$('vObs').classList.contains('hidden'))obsDraw();else if(!$('vObsL').classList.contains('hidden'))obsListLoad();else if(!$('vGate').classList.contains('hidden'))gateDraw();
@@ -443,12 +443,57 @@ function loadJsQR(){
   if(!qrLoad)qrLoad=new Promise(function(ok,no){var e=document.createElement('script');e.src='jsQR.js';e.onload=ok;e.onerror=function(){qrLoad=null;no();};document.head.appendChild(e);});
   return qrLoad;
 }
-function openScan(cb){
+/* GPS warm-up (v1.50): a high-accuracy watch runs before the camera opens and keeps running while the guard scans, so the scan uses a settled fix. */
+var GW={id:null,fixes:[],tm:null,err:false,on:null};
+var GW_OK=15,GW_MAX=10000;
+function gwStart(){
+  clearTimeout(GW.tm);GW.tm=setTimeout(gwStop,120000);
+  if(GW.id!==null||!navigator.geolocation)return;
+  GW.err=false;
+  try{GW.id=navigator.geolocation.watchPosition(function(p){
+    GW.fixes.push({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()});if(GW.fixes.length>12)GW.fixes.shift();if(GW.on)GW.on();
+  },function(e){if(e&&e.code===1)GW.err=true;if(GW.on)GW.on();},{enableHighAccuracy:true,maximumAge:0,timeout:30000});}catch(e){GW.id=null;}
+}
+function gwStop(){clearTimeout(GW.tm);if(GW.id!==null){try{navigator.geolocation.clearWatch(GW.id);}catch(e){}GW.id=null;}GW.fixes=[];GW.on=null;}
+function gwBest(age){
+  var now=Date.now(),b=null;
+  GW.fixes.forEach(function(f){if(now-f.t<=age&&(!b||f.acc<b.acc))b=f;});
+  return b?{lat:b.lat,lng:b.lng,acc:b.acc}:null;
+}
+function gwWait(seq){
+  return new Promise(function(res){
+    var t0=Date.now(),done=false,iv=null;
+    function fin(){if(done)return;done=true;GW.on=null;clearInterval(iv);$('scanSkip').classList.add('hidden');res();}
+    function upd(){
+      if(seq!==SCANSEQ){fin();return;}
+      var b=gwBest(20000),el=Date.now()-t0;
+      if(GW.err){$('scanMsg').textContent=tr('gwDenied');fin();return;}
+      if(b&&b.acc<=GW_OK){$('scanMsg').textContent=tr('gwReady').replace('{n}',Math.round(b.acc));fin();return;}
+      if(el>=GW_MAX){fin();return;}
+      $('scanMsg').textContent=(b?tr('gwWait').replace('{n}',Math.round(b.acc)):tr('gwNone'))+(el>5000&&(!b||b.acc>30)?'\n'+tr('gwTip'):'');
+    }
+    gwStart();GW.on=upd;iv=setInterval(upd,500);
+    $('scanSkip').classList.remove('hidden');$('scanSkip').onclick=fin;upd();
+  });
+}
+var SCANSEQ=0;
+function openScan(cb,warm){
+  var seq=++SCANSEQ;
   CK.paused=true;ckStop();onCode=cb;$('scanModal').classList.remove('hidden');$('scanMsg').textContent=tr('scanHelp');
-  try{if(!detector&&window.BarcodeDetector)detector=new BarcodeDetector({formats:['qr_code']});}catch(e){detector=null;}
-  (detector?Promise.resolve():loadJsQR()).then(function(){return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:640},height:{ideal:480}},audio:false});}).then(function(s){
-    stream=s;var v=$('cam');v.srcObject=s;v.setAttribute('playsinline','');return v.play();
-  }).then(function(){scanning=true;scanLoop();}).catch(function(){$('scanMsg').textContent=tr('camErr');});
+  function cam(){
+    if(seq!==SCANSEQ)return;
+    $('scanMsg').textContent=tr('scanHelp');
+    try{if(!detector&&window.BarcodeDetector)detector=new BarcodeDetector({formats:['qr_code']});}catch(e){detector=null;}
+    (detector?Promise.resolve():loadJsQR()).then(function(){return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:640},height:{ideal:480}},audio:false});}).then(function(s){
+      if(seq!==SCANSEQ){s.getTracks().forEach(function(t){t.stop();});return;}
+      stream=s;var v=$('cam');v.srcObject=s;return v.play();
+    }).then(function(){if(seq!==SCANSEQ||!stream)return;scanning=true;scanLoop();}).catch(function(){$('scanMsg').textContent=tr('camErr');});
+  }
+  if(warm){
+    var b=gwBest(20000);
+    if(GW.id!==null&&b&&b.acc<=GW_OK){gwStart();cam();return;}
+    gwWait(seq).then(function(){if(seq===SCANSEQ){$('scanMsg').textContent=tr('scanHelp');cam();}});
+  }else cam();
 }
 function gotCode(d){var f=onCode;closeScan();if(f)f(d);}
 function scanLoop(){
@@ -468,7 +513,7 @@ function scanLoop(){
   }
   setTimeout(scanLoop,180);
 }
-function closeScan(){setTimeout(function(){CK.paused=false;},25000);scanning=false;if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('scanModal').classList.add('hidden');}
+function closeScan(){SCANSEQ++;$('scanSkip').classList.add('hidden');setTimeout(function(){CK.paused=false;},25000);scanning=false;if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('scanModal').classList.add('hidden');}
 function parseCode(raw){
   var s=String(raw||'').trim(),n=null;
   try{var u=new URL(s);var v=u.searchParams.get('loc');if(v!==null)n=parseInt(v,10);}catch(e){if(/^\d{1,3}$/.test(s))n=parseInt(s,10);}
@@ -477,7 +522,8 @@ function parseCode(raw){
 function getFix(){
   return new Promise(function(res){
     if(!navigator.geolocation)return res(null);
-    var best=null,fin=false,id=null,t1=null,t2=null;
+    var best=gwBest(20000),fin=false,id=null,t1=null,t2=null;
+    if(best&&best.acc<=GW_OK)return res(best);
     function end(){if(fin)return;fin=true;try{navigator.geolocation.clearWatch(id);}catch(e){}clearTimeout(t1);clearTimeout(t2);res(best);}
     id=navigator.geolocation.watchPosition(function(p){var f={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};if(!best||f.acc<best.acc)best=f;if(f.acc<=8)end();},function(){},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
     t1=setTimeout(function(){if(best)end();},7000);t2=setTimeout(end,20000);
@@ -717,6 +763,8 @@ function enterAdmin(){AC={};show('vAdmin');aTab('stats');}
 
 
 /* ===== Security building check (Danru / Shift Supervisor inspect, guards act) and equipment check ===== */
+Object.assign(T.en,{gwWait:'Getting a good GPS fix... accuracy {n} m',gwNone:'Getting a good GPS fix...',gwReady:'GPS ready ({n} m)',gwTip:'Weak GPS: stand in the open, away from buildings, and turn ON Precise location.',gwSkip:'Scan now',gwDenied:'Location is OFF for this app. Turn on Location (Precise) in the phone settings.'});
+Object.assign(T.id,{gwWait:'Mencari sinyal GPS yang baik... akurasi {n} m',gwNone:'Mencari sinyal GPS yang baik...',gwReady:'GPS siap ({n} m)',gwTip:'GPS lemah: berdiri di tempat terbuka, jauh dari bangunan, dan aktifkan Lokasi Tepat (Precise).',gwSkip:'Pindai sekarang',gwDenied:'Lokasi MATI untuk aplikasi ini. Aktifkan Lokasi (Tepat) di pengaturan ponsel.'});
 Object.assign(T.en,{vidQueued:'No signal or the server is busy. The video is saved on this phone and will be sent automatically when there is signal.',vidPend:'video(s) waiting to send',pvPrev:'Preview only (Guard view). Nothing is sent.',hkBtn:'Building check',eqBtn:'Equipment',hkaBtn:'Cleaning actions',hkTitle:'Security building check',hkNew:'New check',hkActs:'Actions',hkOk:'OK',hkNot:'Not OK',hkNotePh:'What is wrong? (required)',hkOverall:'Overall note (optional)',hkSave:'Save check',hkAllNeed:'Answer every line first.',hkNoteNeed:'Write what is wrong on every Not OK line.',hkSaved:'Check saved. Actions sent to the guards:',hkLast:'Last check',hkBy:'by',hkOpenL:'Open, waiting for the guards',hkDoneL:'Done by the guards, please verify',hkVerL:'Recently verified',hkVerify:'Verify',hkReopen:'Re-open',hkReason:'Reason for re-opening (required)',hkNoOpen:'No open actions.',hkNone:'No check yet.',hkaTitle:'Cleaning actions',hkaDo:'What did you do? (required)',hkaDone:'Done',hkaNone:'No cleaning actions. Thank you.',hkaGate:'Cleaning of the security building is the duty of the guard on Gate duty.',hkaWait:'Waiting for the supervisor to verify',hkaFound:'Found by',hkaNeed:'Describe what you did first.',eqTitle:'Equipment check',eqExp:'expected',eqFound:'Found',eqCond:'Condition',eqNotePh:'Note (required if not OK or short)',eqSave:'Save equipment check',eqNeed:'Fill the number found on every line.',eqNoteNeed:'Write a note on every line that is damaged, missing or short.',eqSaved:'Equipment check saved. Lines with a problem:',eqLast:'Last',eqOK:'OK',eqDam:'Damaged',eqMis:'Missing',hkshP:'Morning',hkshS:'Afternoon',hkshM:'Night'});
 Object.assign(T.id,{vidQueued:'Tidak ada sinyal atau server sibuk. Video disimpan di ponsel ini dan akan dikirim otomatis saat ada sinyal.',vidPend:'video menunggu dikirim',pvPrev:'Hanya pratinjau (Tampilan petugas). Tidak ada yang dikirim.',hkBtn:'Cek gedung',eqBtn:'Peralatan',hkaBtn:'Tindakan kebersihan',hkTitle:'Cek gedung keamanan',hkNew:'Cek baru',hkActs:'Tindakan',hkOk:'Baik',hkNot:'Tidak baik',hkNotePh:'Apa yang salah? (wajib)',hkOverall:'Catatan umum (opsional)',hkSave:'Simpan cek',hkAllNeed:'Jawab semua baris dulu.',hkNoteNeed:'Tulis masalahnya pada setiap baris Tidak baik.',hkSaved:'Cek disimpan. Tindakan dikirim ke petugas:',hkLast:'Cek terakhir',hkBy:'oleh',hkOpenL:'Terbuka, menunggu petugas',hkDoneL:'Selesai oleh petugas, mohon verifikasi',hkVerL:'Baru diverifikasi',hkVerify:'Verifikasi',hkReopen:'Buka lagi',hkReason:'Alasan membuka lagi (wajib)',hkNoOpen:'Tidak ada tindakan terbuka.',hkNone:'Belum ada cek.',hkaTitle:'Tindakan kebersihan',hkaDo:'Apa yang Anda lakukan? (wajib)',hkaDone:'Selesai',hkaNone:'Tidak ada tindakan kebersihan. Terima kasih.',hkaGate:'Kebersihan gedung keamanan adalah tugas petugas yang bertugas di gerbang.',hkaWait:'Menunggu verifikasi supervisor',hkaFound:'Ditemukan oleh',hkaNeed:'Jelaskan dulu apa yang Anda lakukan.',eqTitle:'Cek peralatan',eqExp:'seharusnya',eqFound:'Ditemukan',eqCond:'Kondisi',eqNotePh:'Catatan (wajib jika tidak baik atau kurang)',eqSave:'Simpan cek peralatan',eqNeed:'Isi jumlah yang ditemukan pada setiap baris.',eqNoteNeed:'Tulis catatan pada setiap baris yang rusak, hilang atau kurang.',eqSaved:'Cek peralatan disimpan. Baris bermasalah:',eqLast:'Terakhir',eqOK:'Baik',eqDam:'Rusak',eqMis:'Hilang',hkshP:'Pagi',hkshS:'Sore',hkshM:'Malam',err_not_duty:'Kebersihan dilakukan oleh petugas yang bertugas di gerbang pada shift ini.',err_hk_all:'Jawab semua baris.',err_hk_note:'Tulis catatan.',err_hk_donenote:'Jelaskan apa yang Anda lakukan.',err_eq_all:'Lengkapi semua baris peralatan.',err_eq_note:'Tulis catatan pada baris bermasalah.'});
 Object.assign(T.en,{err_not_duty:'Cleaning is done by the guard on Gate duty this shift.',err_hk_all:'Answer every line.',err_hk_note:'Write a note.',err_hk_donenote:'Describe what you did.',err_eq_all:'Complete every equipment line.',err_eq_note:'Write a note on the lines with a problem.'});
@@ -1943,14 +1991,14 @@ $('pinBox').addEventListener('submit',function(e){
 $('bChange').addEventListener('click',function(){dropLogin('');});
 $('bTeamOpen').addEventListener('click',teamOpen);
 $('tBack').addEventListener('click',function(){showHome();});
-$('bScan').addEventListener('click',function(){vpnGate().then(function(ok){if(ok)openScan(handleCode);});});
+$('bScan').addEventListener('click',function(){vpnGate().then(function(ok){if(ok)openScan(handleCode,true);});});
 $('scanX').addEventListener('click',closeScan);
 $('tRem').addEventListener('click',function(){S.tab='rem';$('tRem').classList.add('on');$('tDone').classList.remove('on');$('tMap').classList.remove('on');render();});
 $('tDone').addEventListener('click',function(){S.tab='done';$('tDone').classList.add('on');$('tRem').classList.remove('on');$('tMap').classList.remove('on');render();});
 $('tMap').addEventListener('click',function(){S.tab='map';$('tMap').classList.add('on');$('tRem').classList.remove('on');$('tDone').classList.remove('on');render();});
 $('resBody').addEventListener('click',function(e){
   var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');
-  if(a==='close')hideRes();if(a==='again'){hideRes();vpnGate().then(function(ok){if(ok)openScan(handleCode);});}
+  if(a==='close')hideRes();if(a==='again'){hideRes();vpnGate().then(function(ok){if(ok)openScan(handleCode,true);});}
   if(a==='yes'){var f=TM.pending;TM.pending=null;hideRes();if(f)f();}
 });
 $('bAdmin').addEventListener('click',function(){var p=ls('sp_pin');if(p){A.pin=p;enterAdmin();}else openPin();});
@@ -1973,7 +2021,7 @@ function resume(){
   var t=Date.now();if(t-lastResume<2000)return;lastResume=t;
   S.loading=false;S.flushing=false;
   try{tick();render();}catch(e){}
-  if(scanning&&!$('scanModal').classList.contains('hidden')){var cb=onCode;closeScan();openScan(cb);}
+  if(!$('scanModal').classList.contains('hidden')){var cb=onCode;closeScan();openScan(cb,cb===handleCode);}
   loadState(true).then(function(){flush();});
 }
 document.addEventListener('visibilitychange',resume);
