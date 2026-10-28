@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.50';
+var VERSION='v1.51';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -552,12 +552,13 @@ function shrink(file,lines,max){
 }
 function showRes(html){$('resBody').innerHTML=html;$('resModal').classList.remove('hidden');}
 function hideRes(){CK.paused=false;$('resModal').classList.add('hidden');}
+var SHOT=0;
 function askPhoto(pt,off){
   return new Promise(function(res){
     showRes('<p><b>'+esc(pt.no+'. '+pt.name)+'</b></p><p>'+esc(tr(off?'offNeed':'photoNeed'))+'</p>'+
       '<label class="btn" style="text-align:center;cursor:pointer">'+esc(tr('takePhoto'))+'<input id="phIn" type="file" accept="image/*" capture="user" style="display:none"></label>'+
       '<button class="btn ghost" id="phSkip" type="button">'+esc(tr('skipPhoto'))+'</button>');
-    $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f,[stampTime(),pt.no+'. '+pt.name+'  |  '+(S.guard||'')]).then(res,function(){res('');});});
+    $('phIn').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;SHOT=nowMs();showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');shrink(f,[stampTime(),pt.no+'. '+pt.name+'  |  '+(S.guard||'')]).then(res,function(){res('');});});
     $('phSkip').addEventListener('click',function(){res('');});
   });
 }
@@ -596,7 +597,7 @@ function photoStep(pt,r){
 }
 function sendPhoto(pt,r,photo){
   showRes('<p><span class="sp"></span>'+esc(tr('sending'))+'</p>');
-  return api({action:'photo',gp:S.pin,scanId:r.scanId,photo:photo},60000).then(function(x){return x;},function(){return null;}).then(function(x){
+  return api({action:'photo',gp:S.pin,scanId:r.scanId,photo:photo,shot:SHOT||0},60000).then(function(x){return x;},function(){return null;}).then(function(x){
     if(x&&x.ok){return result(pt,r,tr('photoSent'));}
     if(x&&x.err==='pin'){hideRes();dropLogin(tr('badGuardPin'));return;}
     return new Promise(function(res){

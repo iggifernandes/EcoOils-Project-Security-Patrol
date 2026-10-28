@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.50';
+var VERSION = 'v1.51';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -9,7 +9,7 @@ var TZ = 'Asia/Jakarta';
 var ZORDER = ['GT', 'FN', 'PL', 'UT', 'LD', 'BL', 'MP'];
 var ZNAME = {GT: 'Gate / entry', FN: 'Perimeter fence', PL: 'Process plant', UT: 'Utilities / tanks', LD: 'Laydown', BL: 'Buildings', MP: 'Muster point'};
 var HEAD = {
-  Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms', 'Photo taken'],
+  Scans: ['ScanId', 'Time (WIB)', 'Date', 'Round', 'Guard', 'Role', 'Point ID', 'No', 'Point name', 'Zone', 'Lat', 'Lng', 'Accuracy m', 'Distance m', 'GPS', 'Flags', 'Photo', 'Time ms', 'Photo taken', 'Photo gap s'],
   Points: ['Point ID', 'No', 'Name', 'UAUC location', 'Zone', 'Radius m', 'Photo', 'Active', 'Lat', 'Lng', 'Calibrated at', 'Notes', 'Seq'],
   Guards: ['Name', 'Role', 'Active', 'PIN hash', 'Danru', 'PIN set (WIB)'],
   Roster: ['Date', 'Shift', 'Duty', 'Guard', 'Buddy', 'Set by', 'Set at (WIB)', 'Batch ms'],
@@ -384,7 +384,7 @@ function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
   if (last < 2) return [];
   var st = Math.max(2, last - n + 1);
-  return sh.getRange(st, 1, last - st + 1, 18).getValues();
+  return sh.getRange(st, 1, last - st + 1, Math.max(18, Math.min(20, sh.getLastColumn()))).getValues();
 }
 function doneMap_(r) {
   var d = {}, rows = scans_(300);
@@ -709,10 +709,11 @@ function scan_(b, g) {
 function photoHdr_() {
   try {
     var pr = PropertiesService.getScriptProperties();
-    if (pr.getProperty('PH_HDR') === '1') return;
+    if (pr.getProperty('PH_HDR') === '2') return;
     var sh = sh_('Scans');
     if (!sh.getRange(1, 19).getValue()) sh.getRange(1, 19).setValue('Photo taken');
-    pr.setProperty('PH_HDR', '1');
+    if (!sh.getRange(1, 20).getValue()) sh.getRange(1, 20).setValue('Photo gap s');
+    pr.setProperty('PH_HDR', '2');
   } catch (e) {}
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
@@ -736,6 +737,8 @@ function photo_(b, me) {
     catch (e) { return {ok: false, err: 'photo_fail'}; }
     sh.getRange(st + hit, 17).setValue(url);
     sh.getRange(st + hit, 19).setValue('Taken');
+    /* Seconds between the scan and the moment the selfie was taken on the phone (owner only: round email + sheet). Blank for queued (offline) scans. */
+    if (!/QUEUED/.test(String(row[15]))) { var shot = Number(b.shot), gap = (isFinite(shot) && shot > ts - 5000 && shot < Date.now() + 60000) ? shot - ts : Date.now() - ts; sh.getRange(st + hit, 20).setValue(Math.max(0, Math.round(gap / 1000))); }
     sh.getRange(st + hit, 16).setValue(String(row[15]).split(' ').filter(function (f) { return f && f !== 'NO_PHOTO'; }).join(' '));
     return {ok: true};
   } finally { lock.releaseLock(); }
@@ -1929,6 +1932,69 @@ function hideGps_(list) {
   });
   return out;
 }
+/* ---------- gpsTrace (v1.51): what is a guard's phone / behaviour doing? Run from the editor. Owner only: result in the log and ONE email to the first NOTIFY_EMAIL.
+   Config TRACE_GUARD (part of a name, default 'Irvan'), TRACE_DAYS (default 3). Part 1 compares EVERY guard (so one bad phone shows up as an outlier), part 2 lists the chosen guard's scans in time order. */
+function gpsTrace() {
+  var gname = String(cfg_('TRACE_GUARD', 'Irvan')).toLowerCase(), days = Math.max(1, Math.min(14, parseInt(cfg_('TRACE_DAYS', '3'), 10) || 3));
+  var from = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10), sh = sh_('Scans'), nc = Math.max(18, Math.min(20, sh.getLastColumn()));
+  var last = sh.getLastRow(), rows = [];
+  if (last >= 2) { var st = Math.max(2, last - 6000 + 1); rows = sh.getRange(st, 1, last - st + 1, nc).getValues(); }
+  var lim = Date.now() - days * 86400000;
+  rows = rows.filter(function (r) { return Number(r[17]) >= lim && String(r[15]).indexOf('REPEAT') < 0; }).sort(function (a, b) { return Number(a[17]) - Number(b[17]); });
+  var pts = {}; points_(true).forEach(function (p) { pts[p.id] = p; });
+  var by = {};
+  rows.forEach(function (r) { var g = String(r[4]); (by[g] || (by[g] = [])).push(r); });
+  function med(a) { if (!a.length) return ''; a = a.slice().sort(function (x, y) { return x - y; }); return a[Math.floor(a.length / 2)]; }
+  function stat(list) {
+    var n = list.length, acc = [], dist = [], out = 0, low = 0, gaps = [], pos = [];
+    list.forEach(function (r) {
+      var a = Number(r[12]), d = Number(r[13]), f = String(r[15]), g = String(r[14]);
+      if (isFinite(a) && r[12] !== '') acc.push(a);
+      if (r[13] !== '' && isFinite(d)) dist.push(d);
+      if (g === 'OUTSIDE') out++; if (f.indexOf('LOW_ACCURACY') >= 0) low++;
+      if (r.length > 19 && r[19] !== '') gaps.push(Number(r[19]));
+      if (r[10] !== '' && r[11] !== '') pos.push([Number(r[10]), Number(r[11])]);
+    });
+    /* how many recorded positions lie within 25 m of the most common spot while the points they belong to are 60 m or more apart from that spot's point */
+    var best = 0;
+    pos.forEach(function (p) { var c = 0; pos.forEach(function (q) { if (hav_(p[0], p[1], q[0], q[1]) <= 25) c++; }); if (c > best) best = c; });
+    var cx = pos.length ? pos.reduce(function (t, p) { return t + p[0]; }, 0) / pos.length : 0, cy = pos.length ? pos.reduce(function (t, p) { return t + p[1]; }, 0) / pos.length : 0, spread = 0;
+    pos.forEach(function (p) { var d = hav_(cx, cy, p[0], p[1]); if (d > spread) spread = d; });
+    var pointsSeen = {}; list.forEach(function (r) { pointsSeen[String(r[6])] = 1; });
+    return {n: n, medAcc: med(acc), medDist: med(dist), outside: out, low: low, cluster: best, clusterPct: pos.length ? Math.round(100 * best / pos.length) : 0, spread: Math.round(spread), distinct: Object.keys(pointsSeen).length, medGap: med(gaps), gaps: gaps.length};
+  }
+  var html = '<h3>GPS trace, last ' + days + ' day(s) from ' + from + '</h3><p>Compares every guard. "Same spot" = share of scans whose recorded position is within 25 m of the most common position (a guard really walking the site should be low). "Spread" = furthest recorded position from the middle of his scans (a real patrol covers 150 m or more).</p>';
+  html += '<table border="1" cellpadding="4" style="border-collapse:collapse;font-size:13px"><tr><th>Guard</th><th>Scans</th><th>Median accuracy m</th><th>Median distance m</th><th>Outside</th><th>Low acc.</th><th>Same spot %</th><th>Spread m</th><th>Selfie gap s (median)</th></tr>';
+  var names = Object.keys(by).sort(function (a, b) { return by[b].length - by[a].length; });
+  names.forEach(function (g) {
+    var x = stat(by[g]), hot = g.toLowerCase().indexOf(gname) >= 0;
+    html += '<tr' + (hot ? ' style="background:#fff3cd"' : '') + '><td>' + esc_(g) + '</td><td>' + x.n + '</td><td>' + x.medAcc + '</td><td>' + x.medDist + '</td><td>' + x.outside + '</td><td>' + x.low + '</td><td>' + x.clusterPct + '</td><td>' + x.spread + '</td><td>' + (x.gaps ? x.medGap + ' (' + x.gaps + ')' : '-') + '</td></tr>';
+    Logger.log(g + ': scans ' + x.n + ', median acc ' + x.medAcc + ' m, median dist ' + x.medDist + ' m, outside ' + x.outside + ', same spot ' + x.clusterPct + '%, spread ' + x.spread + ' m, selfie gap ' + x.medGap);
+  });
+  html += '</table>';
+  var target = names.filter(function (g) { return g.toLowerCase().indexOf(gname) >= 0; });
+  target.forEach(function (g) {
+    var list = by[g], x = stat(list), prev = null, jumps = 0;
+    html += '<h3>' + esc_(g) + ' in time order</h3><table border="1" cellpadding="3" style="border-collapse:collapse;font-size:12px"><tr><th>Time</th><th>Point</th><th>Acc m</th><th>Dist from point m</th><th>GPS</th><th>Moved since previous scan m</th><th>Seconds since previous</th><th>Speed m/s</th><th>Selfie gap s</th></tr>';
+    list.forEach(function (r) {
+      var ms = Number(r[17]), moved = '', dt = '', sp = '', note = '';
+      if (prev) {
+        dt = Math.round((ms - Number(prev[17])) / 1000);
+        if (r[10] !== '' && prev[10] !== '') { moved = Math.round(hav_(Number(prev[10]), Number(prev[11]), Number(r[10]), Number(r[11]))); sp = dt > 0 ? Math.round(10 * moved / dt) / 10 : ''; }
+        var pa = pts[String(prev[6])], pb = pts[String(r[6])];
+        if (pa && pb && pa.lat && pb.lat && moved !== '') { var between = hav_(pa.lat, pa.lng, pb.lat, pb.lng); if (between > 60 && moved < 20) { jumps++; note = ' style="background:#fde2e2"'; } }
+      }
+      html += '<tr' + note + '><td>' + esc_(String(r[1]).slice(5, 19)) + '</td><td>' + r[7] + ' ' + esc_(String(r[8])) + '</td><td>' + r[12] + '</td><td>' + r[13] + '</td><td>' + esc_(String(r[14])) + '</td><td>' + moved + '</td><td>' + dt + '</td><td>' + sp + '</td><td>' + (r.length > 19 ? r[19] : '') + '</td></tr>';
+      prev = r;
+    });
+    html += '</table><p><b>Reading it:</b> pink rows = two points that are more than 60 m apart on the site but his phone recorded the two scans less than 20 m apart (he did not move between them: same spot, or a phone that reports a fixed place). Count of pink rows: <b>' + jumps + '</b> of ' + list.length + '.</p>';
+    Logger.log(g + ': same-spot jumps ' + jumps + ' of ' + list.length + ', spread ' + x.spread + ' m');
+  });
+  if (!target.length) html += '<p>No scans found for "' + esc_(gname) + '" in this period (set Config TRACE_GUARD).</p>';
+  html += '<p><b>How to read the comparison:</b> if only this guard has a high accuracy figure (worse than 50 m) and the other columns look normal for the rest, the cause is his phone settings (precise location off, battery saver). If his positions repeat the same spot (high Same spot %, small Spread) while the points scanned are far apart, the scans were made from one place. A selfie gap well above the others (over 120 s) means he went to the point after scanning. Talk first, decide after.</p>';
+  var to = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my').split(',')[0].trim();
+  try { MailApp.sendEmail({to: to, subject: 'EcoOils Patrol: GPS trace ' + from + ' (' + target.length + ' guard focus)', htmlBody: html}); Logger.log('Trace emailed to ' + to); } catch (e) { Logger.log('Email FAILED: ' + e); }
+}
 function sendTo_(subject, htmlFull, htmlQuiet) {
   var lst = function (k) { return String(cfg_(k, '')).split(',').map(function (x) { return x.trim(); }).filter(String); };
   var all = cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my').split(',').map(function (x) { return x.trim(); }).filter(String);
@@ -1972,25 +2038,27 @@ function photoChecks_(r, pts, rows) {
   rows = rows || scans_(1500);
   var set = photoSet_(r, pts), out = [];
   pts.filter(function (p) { return set[p.id]; }).forEach(function (p) {
-    var st = 'none', by = '', url = '';
+    var st = 'none', by = '', url = '', gap = '';
     rows.forEach(function (row) {
       var ms = Number(row[17]);
       if (ms >= r.start && ms < r.end && String(row[6]) === p.id) {
         by = String(row[4]);
-        if (row[16]) { st = 'taken'; url = String(row[16]); } else if (st !== 'taken') st = 'missing';
+        if (row[16]) { st = 'taken'; url = String(row[16]); gap = (row.length > 19 && row[19] !== '') ? Number(row[19]) : ''; } else if (st !== 'taken') st = 'missing';
       }
     });
-    out.push({no: p.no, name: p.name, status: st, by: by, url: url});
+    out.push({no: p.no, name: p.name, status: st, by: by, url: url, gap: gap});
   });
   return out.sort(function (a, b) { return a.no - b.no; });
 }
-function photoHtml_(list, L) {
+function photoHtml_(list, L, owner) {
   if (!list.length) return '';
   var T = TXT[L], taken = list.filter(function (x) { return x.status === 'taken'; }).length;
   var h = '<p style="margin:12px 0 2px"><b>' + T.photoChecks + ': ' + taken + ' ' + T.of + ' ' + list.length + '</b></p><ul style="margin:0;list-style:none;padding-left:0">';
   list.forEach(function (x) {
     var lab = x.status === 'taken' ? '<span style="color:#1a7f37">&#10003; ' + T.photoTaken + '</span>' + (x.url ? ' (<a href="' + esc_(x.url) + '">' + T.photoLink + '</a>)' : '') : (x.status === 'missing' ? '<b style="color:#b00020">&#10007; ' + T.photoMissing + '</b>' : '<span style="color:#666">- ' + T.photoNone + '</span>');
-    h += '<li>' + lab + ' - ' + T.no + ' ' + x.no + ' ' + esc_(x.name) + (x.by ? ' - ' + esc_(x.by) : '') + '</li>';
+    var gp = '';
+    if (owner && x.status === 'taken' && x.gap !== '' && x.gap !== undefined) { var g = Number(x.gap), late = g > 120, mid = g > 45 && !late; gp = ' - <span style="color:' + (late ? '#b00020' : (mid ? '#a05a00' : '#666')) + '">' + (L === 'id' ? 'selfie ' + g + ' dtk setelah pindai' : 'selfie ' + g + ' s after scan') + (late ? (L === 'id' ? ' (LAMA: mungkin berjalan ke titik)' : ' (LONG: may have walked to the point)') : (mid ? (L === 'id' ? ' (agak lama)' : ' (slow)') : '')) + '</span>'; }
+    h += '<li>' + lab + ' - ' + T.no + ' ' + x.no + ' ' + esc_(x.name) + (x.by ? ' - ' + esc_(x.by) : '') + gp + '</li>';
   });
   return h + '</ul>';
 }
@@ -2004,11 +2072,11 @@ function flagHtml_(list, L) {
   });
   return h + '</ul>';
 }
-function roundHtml_(L, r, pts, missed, hi, flagged, photos) {
+function roundHtml_(L, r, pts, missed, hi, flagged, photos, owner) {
   var T = TXT[L];
   var h = '<h3 style="margin:0 0 6px">' + T.round + ' ' + esc_(r.label) + ' (' + r.date + ')</h3><p><b>' + T.done + ' ' + (pts.length - missed.length) + ' ' + T.of + ' ' + pts.length + '. ' + T.missed + ' ' + missed.length + '.</b></p>';
   if (missed.length) h += '<p style="margin:8px 0 0"><b>' + T.notScanned + '</b> (' + T.highFirst + ')</p>' + groupHtml_(hi, L) + groupHtml_(missed.filter(function (p) { return !p.hi; }), L);
-  h += photoHtml_(photos, L) + flagHtml_(flagged, L);
+  h += photoHtml_(photos, L, owner) + flagHtml_(flagged, L);
   return h;
 }
 function roundCheck() {
@@ -2025,7 +2093,7 @@ function roundCheck() {
   var hi = missed.filter(function (p) { return p.hi; });
   var subj = 'Patrol / Patroli ' + r.date + ' ' + r.label + ': ' + (pts.length - missed.length) + '/' + pts.length + (missed.length ? ' - ' + missed.length + ' missed / terlewat' : ' - all done / semua selesai') + (hi.length ? ' (' + hi.length + ' high-risk / risiko tinggi)' : '');
   var foot = '<p style="color:#666;margin-top:14px">EcoOils Mentari Security Patrol / Patroli Keamanan ' + VERSION + '</p>';
-  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos), roundHtml_('id', r, pts, missed, hi, flagged, photos)) + foot;
+  var h = both_(roundHtml_('en', r, pts, missed, hi, flagged, photos, true), roundHtml_('id', r, pts, missed, hi, flagged, photos, true)) + foot;
   var fq = hideGps_(flagged), hq = (missed.length || fq.length || allClear) ? both_(roundHtml_('en', r, pts, missed, hi, fq, photos), roundHtml_('id', r, pts, missed, hi, fq, photos)) + foot : '';
   sendTo_(subj, h, hq);
 }

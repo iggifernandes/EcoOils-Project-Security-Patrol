@@ -2,7 +2,7 @@
 const fs=require('fs'),crypto=require('crypto'),vm=require('vm');
 const src=fs.readFileSync(require('path').join(__dirname,'..','Code.gs'),'utf8');
 function mkSheet(name){const rows=[];return {name,rows,
-  getLastRow:()=>rows.length,
+  getLastRow:()=>rows.length,getLastColumn:()=>rows.reduce((t,r)=>Math.max(t,r.length),0),
   appendRow:r=>{rows.push(r.slice())},
   setFrozenRows(){},
   insertSheet(){},
