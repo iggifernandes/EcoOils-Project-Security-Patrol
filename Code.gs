@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.51';
+var VERSION = 'v1.52';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -175,14 +175,16 @@ function setRadius10() {
 }
 /* RADIUS RECALIBRATION (owner 25 Oct 2026): the point POSITIONS stay as they are; only the allowed radius (Points col F) is suggested from real scans.
    A scan is accepted when distance <= radius + min(GPS accuracy, 30 m). The part of the distance that the accuracy allowance does not already cover is "needed = max(0, distance - min(acc, 30))".
-   Suggested radius = 90th percentile of needed over the last RADIUS_DAYS (default 14) days, rounded UP to 5 m, never below RADIUS_MIN (10) or above RADIUS_MAX (25). Points in GPS_SKIP and points with fewer than RADIUS_MIN_SCANS (5) usable scans are left alone.
+   Suggested radius = 90th percentile of needed over the last RADIUS_DAYS (default 14) days, rounded UP to 5 m, never below RADIUS_MIN (10) or above RADIUS_MAX (25). Scans with accuracy worse than RADIUS_MAX_ACC (default 30 m) are ignored (v1.52). Points in GPS_SKIP and points with fewer than RADIUS_MIN_SCANS (5) usable scans are left alone.
    previewRadius() only writes to the log; applyRadius() writes Points col F only (never Lat / Lng). */
 function radiusFromScans_(apply) {
   var days = Number(cfg_('RADIUS_DAYS', '14')) || 14, minN = Number(cfg_('RADIUS_MIN_SCANS', '5')) || 5, rMin = Number(cfg_('RADIUS_MIN', '10')) || 10, rMax = Number(cfg_('RADIUS_MAX', '25')) || 25;
+  var maxAcc = Number(cfg_('RADIUS_MAX_ACC', '30')) || 30, weak = 0;
   var from = Date.now() - days * 86400000, by = {}, used = 0;
   scans_(6000).forEach(function (r) {
     var ms = Number(r[17]), d = num_(r[13]), ac = num_(r[12]), gps = String(r[14]), fl = String(r[15]);
     if (ms < from || d == null || (gps !== 'OK' && gps !== 'OUTSIDE') || /REPEAT|SUSPECT_GPS|TOO_FAST|VPN_SUSPECT/.test(fl)) return;
+    if (ac != null && ac > maxAcc) { weak++; return; } /* a fix worse than RADIUS_MAX_ACC says nothing about where the point is */
     (by[String(r[6])] = by[String(r[6])] || []).push(Math.max(0, d - Math.min(ac == null ? 0 : ac, 30)));
     used++;
   });
@@ -199,7 +201,7 @@ function radiusFromScans_(apply) {
     out.push(p.no + '  ' + p.name + '  radius ' + p.radius + ' -> ' + sug + ' m (' + mark + ')  scans ' + f.length + ', typical extra distance ' + Math.round(med) + ' m, 90% within ' + Math.round(p90) + ' m, outside now ' + Math.round(100 * outNow / f.length) + '%, outside at ' + sug + ' m ' + Math.round(100 * outSug / f.length) + '%');
     if (apply && mark !== 'keep') sh.getRange(p.row, 6).setValue(sug);
   });
-  var head = (apply ? 'RADIUS SAVED' : 'PREVIEW ONLY, nothing saved') + ': ' + used + ' usable scans in the last ' + days + ' days; ' + changed + ' point(s) ' + (apply ? 'changed' : 'would change') + '. Positions (Lat / Lng) are never touched.';
+  var head = (apply ? 'RADIUS SAVED' : 'PREVIEW ONLY, nothing saved') + ': ' + used + ' usable scans in the last ' + days + ' days (' + weak + ' scans with GPS accuracy worse than ' + maxAcc + ' m ignored); ' + changed + ' point(s) ' + (apply ? 'changed' : 'would change') + '. Positions (Lat / Lng) are never touched.';
   Logger.log(head + '\n' + out.join('\n'));
   return {head: head, lines: out, changed: changed};
 }

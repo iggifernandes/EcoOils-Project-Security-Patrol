@@ -12,10 +12,13 @@ for(let i=0;i<10;i++)add(b,14+i%5,5,'OUTSIDE');     // needed 9..13 -> p90 13 ->
 for(let i=0;i<10;i++)add(c,30,5,'OUTSIDE','');      // needed 25 -> capped at 25
 for(let i=0;i<10;i++)add(skip,50,5,'OUTSIDE');      // GPS_SKIP point never changed
 add(a,200,5,'OUTSIDE','REPEAT');add(a,200,5,'OUTSIDE','SUSPECT_GPS');add(a,200,5,'OUTSIDE','',40); // ignored: repeat, suspect, too old
+for(let i=0;i<20;i++)add(a,119,70,'OUTSIDE');      // weak GPS (70 m): ignored
+add(a,40,30,'OUTSIDE');                              // exactly 30 m accuracy still counts
 const before=JSON.stringify(m.sheets.Points.rows.map(r=>[r[8],r[9]]));
 const n0=m.ctx.logs.length;
 let r=m.ctx.previewRadius();
 const L=m.ctx.logs.slice(n0).join('\n');
+ok(/20 scans with GPS accuracy worse than 30 m ignored/.test(r.head),'weak-GPS scans are counted as ignored');
 ok(/PREVIEW ONLY/.test(r.head)&&r.changed===2,'preview: 2 points would change ('+r.head+')');
 ok([a,b,c].every(p=>Number(m.sheets.Points.rows[p.row-1][5])===10),'preview writes nothing');
 ok(new RegExp(b.no+'  .*10 -> 15 m \\(RAISE\\)').test(L),'point b: 10 -> 15');
