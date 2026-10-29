@@ -11,7 +11,7 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  await ctx.addInitScript(()=>{window.__cam=0;navigator.mediaDevices.getUserMedia=function(){window.__cam++;const c=document.createElement('canvas');c.width=640;c.height=480;return Promise.resolve(c.captureStream(5));};});
  const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));
  await pg.goto('file://'+require('path').join(__dirname,'..','index.html'));
- ok(await pg.locator('#ver').innerText()==='v1.52','version v1.50');
+ ok(await pg.locator('#ver').innerText()==='v1.53','version v1.50');
  await pg.fill('#gpin',G.pin);await pg.click('#bGpin');await pg.waitForSelector('#vPatrol:not(.hidden)');
  await pg.click('#bScan');await pg.waitForTimeout(1500);
  ok(await pg.locator('#scanModal').isVisible(),'scan window open');

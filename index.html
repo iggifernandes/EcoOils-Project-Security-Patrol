@@ -116,7 +116,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 <main>
 <div id="banner"></div>
 
-<div class="tabs hidden" id="dTabs"><button id="dtDash" type="button"></button><button id="dtPat" type="button"></button><button id="dtIss" type="button"></button><button id="dtHk" type="button"></button><button id="dtEq" type="button"></button></div>
+<div class="tabs hidden" id="dTabs"><button id="dtDash" type="button"></button><button id="dtPat" type="button"></button><button id="dtIss" type="button"></button><button id="dtHk" type="button"></button><button id="dtEq" type="button"></button><button id="dtWarn" type="button"></button></div>
 <section id="vSetup">
   <h1 id="tSetup"></h1>
   <form id="pinBox" autocomplete="off">
@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.52';
+var VERSION='v1.53';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -938,17 +938,20 @@ function aChk(){
 }
 
 /* ===== Danru / Shift Supervisor home: tab bar + command dashboard ===== */
-Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
-Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
+Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dtWarn:'Warning',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
+Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dtWarn:'Peringatan',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
 var DS={d:null,err:'',busy:false,at:0};
 function dTabsSet(id){
   var bar=$('dTabs');if(!bar)return;
   var on=isDan()&&id!=='vSetup'&&id!=='vAdmin'&&id!=='vVid'&&!PV.on;
   bar.classList.toggle('hidden',!on);if(!on)return;
   var m={vDan:'dtDash',vPatrol:'dtPat',vObsL:'dtIss',vObs:'dtIss',vHk:'dtHk',vEq:'dtEq'};
-  [['dtDash','dtDash'],['dtPat','dtPat'],['dtIss','dtIss'],['dtHk','dtHk'],['dtEq','dtEq']].forEach(function(x){var b=$(x[0]);b.textContent=tr(x[1]);b.classList.toggle('on',m[id]===x[0]);});
+  [['dtDash','dtDash'],['dtPat','dtPat'],['dtIss','dtIss'],['dtHk','dtHk'],['dtEq','dtEq'],['dtWarn','dtWarn']].forEach(function(x){var b=$(x[0]);b.textContent=tr(x[1]);b.classList.toggle('on',m[id]===x[0]);});
 }
 $('dtDash').addEventListener('click',danOpen);$('dtPat').addEventListener('click',showPatrol);$('dtIss').addEventListener('click',obsListOpen);$('dtHk').addEventListener('click',hkOpen);$('dtEq').addEventListener('click',eqOpen);
+/* Warning tab (v1.53): opens the Site Safety Warning Record app (separate app, own sign-in) in a new tab; no PIN is passed. */
+var WARN_URL='https://iggifernandes.github.io/EcoOils-Project-Disciplinary-Record/';
+$('dtWarn').addEventListener('click',function(){window.open(WARN_URL,'_blank','noopener');});
 function danOpen(){show('vDan');danDraw();danLoad();}
 function danLoad(){
   if(DS.busy)return;DS.busy=true;
