@@ -28,7 +28,7 @@ ok(m.call({action:'hk_done',gp:G2.pin,id,note:'I cleaned it'}).err==='not_duty',
  await pd.waitForFunction(()=>document.querySelectorAll('#danBody .kpi').length>=8,null,{timeout:6000});
  const t=await pd.locator('#danBody').innerText();
  ok(/open issues/i.test(t)&&/cleaning actions open/i.test(t)&&/missed today/i.test(t)&&/last 7 days/i.test(t)&&/equipment problems/i.test(t),'dashboard shows the critical metrics');
- ok((await pd.locator('#dTabs button').allInnerTexts()).join('|')==='Dashboard|Patrol|Update issues|Building|Equipment|Warning','tab bar for Danru');
+ ok((await pd.locator('#dTabs button:visible').allInnerTexts()).join('|')==='Dashboard|Patrol|Update issues|Building|Equipment','tab bar for a Shift Supervisor (no Warning)');
  ok(await pd.locator('#dtDash.on').count()===1,'Dashboard tab is active');
  ok((await pd.locator('.kpi[data-go="iss"] b').innerText())==='1','1 open issue on the tile');
  await pd.click('#dtIss');await pd.waitForSelector('#vObsL:not(.hidden)');

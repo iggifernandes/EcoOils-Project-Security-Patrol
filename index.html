@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.53';
+var VERSION='v1.54';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -377,6 +377,7 @@ function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
+function isChief(){return !!(S.state&&S.state.me&&S.state.me.role==='Danru');}
 function isDan(){return !!(S.state&&S.state.me&&S.state.me.danru);}
 function showHome(){if(isDan())danOpen();else showPatrol();}
 function startUp(){
@@ -947,9 +948,10 @@ function dTabsSet(id){
   bar.classList.toggle('hidden',!on);if(!on)return;
   var m={vDan:'dtDash',vPatrol:'dtPat',vObsL:'dtIss',vObs:'dtIss',vHk:'dtHk',vEq:'dtEq'};
   [['dtDash','dtDash'],['dtPat','dtPat'],['dtIss','dtIss'],['dtHk','dtHk'],['dtEq','dtEq'],['dtWarn','dtWarn']].forEach(function(x){var b=$(x[0]);b.textContent=tr(x[1]);b.classList.toggle('on',m[id]===x[0]);});
+  $('dtWarn').classList.toggle('hidden',!isChief());
 }
 $('dtDash').addEventListener('click',danOpen);$('dtPat').addEventListener('click',showPatrol);$('dtIss').addEventListener('click',obsListOpen);$('dtHk').addEventListener('click',hkOpen);$('dtEq').addEventListener('click',eqOpen);
-/* Warning tab (v1.53): opens the Site Safety Warning Record app (separate app, own sign-in) in a new tab; no PIN is passed. */
+/* Warning tab (v1.53, Danru only from v1.54, not Shift Supervisors): opens the Site Safety Warning Record app (separate app, own sign-in) in a new tab; no PIN is passed. */
 var WARN_URL='https://iggifernandes.github.io/EcoOils-Project-Disciplinary-Record/';
 $('dtWarn').addEventListener('click',function(){window.open(WARN_URL,'_blank','noopener');});
 function danOpen(){show('vDan');danDraw();danLoad();}
