@@ -1,4 +1,5 @@
-/* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
+// Code.gs VERSION v1.55 (keep this line first; bump with var VERSION below)
+/* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
 var VERSION = 'v1.55';
