@@ -1,7 +1,7 @@
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)  v1.11
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.54';
+var VERSION = 'v1.55';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -386,7 +386,7 @@ function scans_(n) {
   var sh = sh_('Scans'), last = sh.getLastRow();
   if (last < 2) return [];
   var st = Math.max(2, last - n + 1);
-  return sh.getRange(st, 1, last - st + 1, Math.max(18, Math.min(20, sh.getLastColumn()))).getValues();
+  return sh.getRange(st, 1, last - st + 1, Math.max(18, Math.min(21, sh.getLastColumn()))).getValues();
 }
 function doneMap_(r) {
   var d = {}, rows = scans_(300);
@@ -690,9 +690,34 @@ function scan_(b, g) {
           var d2 = hav_(pp.lat, pp.lng, pt.lat, pt.lng), sec = (ts - pms) / 1000;
           if (d2 > 100 && d2 / sec > 5) flags.push('TOO_FAST');
         }
+        /* v1.55: the previous scan of this guard was an OUTSIDE scan that prompted him to go to THIS point. Check he really walked there. */
+        if (!b.queued && row.length > 20 && String(row[20]) === pt.id && ts - pms <= 900000 && pp && pp.lat != null && pt.lat != null) {
+          var dd = hav_(pp.lat, pp.lng, pt.lat, pt.lng), sc2 = (ts - pms) / 1000, la0 = num_(row[10]), ln0 = num_(row[11]);
+          if (dd >= 30 && dd / sc2 > 3) flags.push('PROMPT_FAST');
+          else if (dd >= 50 && lat != null && la0 != null && hav_(lat, lng, la0, ln0) < 15) flags.push('PROMPT_STAY');
+        }
         break;
       }
     }
+    var promptTo = '', promptNo = null;
+    try {
+      var pmax = Number(cfg_('PROMPT_MAX', '3'));
+      if (!isFinite(pmax)) pmax = 3;
+      if (gps === 'OUTSIDE' && pmax > 0 && !b.queued && !r.upcoming && acc != null && acc > 0 && acc <= (Number(cfg_('RADIUS_MAX_ACC', '30')) || 30) && pt.lat != null) {
+        var used = 0;
+        recent.forEach(function (rw2) { if (String(rw2[2]) === r.date && String(rw2[3]) === r.label && rw2.length > 20 && rw2[20] !== '') used++; });
+        if (used < pmax) {
+          var lim = Number(cfg_('PROMPT_RANGE_M', '150')) || 150, cand = [];
+          pts.forEach(function (q) {
+            if (!q.active || q.id === pt.id || prev[q.id] || q.lat == null || gpsSkip_(q.no)) return;
+            var dq = hav_(pt.lat, pt.lng, q.lat, q.lng);
+            if (dq <= lim) cand.push({q: q, d: dq});
+          });
+          cand.sort(function (x, y) { return x.d - y.d; });
+          if (cand.length) { var pick = cand[Math.floor(Math.random() * Math.min(3, cand.length))].q; promptTo = pick.id; promptNo = pick.no; }
+        }
+      }
+    } catch (e3) {}
     var url = '', gotPhoto = false;
     if (needPhoto && b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
       try { url = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', r.date + '_' + p2_(new Date(ts + OFF).getUTCHours()) + 'h' + p2_(new Date(ts + OFF).getUTCMinutes()) + '_' + pt.id + '_' + g.name + '.jpg')).getUrl(); gotPhoto = true; }
@@ -700,22 +725,23 @@ function scan_(b, g) {
     }
     if (needPhoto && !gotPhoto) flags.push('NO_PHOTO');
     sh_('Scans').appendRow([sid, ymdhms_(ts), r.date, r.label, g.name, g.role, pt.id, pt.no, pt.name, pt.zone,
-      lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts, needPhoto ? (gotPhoto ? 'Taken' : 'Missing') : '']);
+      lat == null ? '' : lat, lng == null ? '' : lng, acc == null ? '' : Math.round(acc), dist, gps, flags.join(' '), url, ts, needPhoto ? (gotPhoto ? 'Taken' : 'Missing') : '', '', promptTo]);
     photoHdr_();
   } finally { lock.releaseLock(); }
   var cur = roundAt_(Date.now()), dn = doneMap_(cur);
   var quiet = quiet_();
-  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto, scanId: sid, off: !!r.upcoming};
+  return {ok: true, gps: quiet ? 'UNCALIBRATED' : gps, dist: quiet ? '' : dist, flags: quiet ? [] : flags, done: Object.keys(dn).length, total: pts.filter(function (q) { return q.active; }).length, round: cur, needPhoto: needPhoto && !gotPhoto, scanId: sid, off: !!r.upcoming, next: promptNo};
 }
 /* The Scans sheet gets a 'Photo taken' header in column S once (existing sheets). */
 function photoHdr_() {
   try {
     var pr = PropertiesService.getScriptProperties();
-    if (pr.getProperty('PH_HDR') === '2') return;
+    if (pr.getProperty('PH_HDR') === '3') return;
     var sh = sh_('Scans');
     if (!sh.getRange(1, 19).getValue()) sh.getRange(1, 19).setValue('Photo taken');
     if (!sh.getRange(1, 20).getValue()) sh.getRange(1, 20).setValue('Photo gap s');
-    pr.setProperty('PH_HDR', '2');
+    if (!sh.getRange(1, 21).getValue()) sh.getRange(1, 21).setValue('Prompt to');
+    pr.setProperty('PH_HDR', '3');
   } catch (e) {}
 }
 /* A photo sent after the scan (the phone only learns that a photo is wanted when the scan is accepted). Removes the NO_PHOTO flag. */
@@ -1915,8 +1941,8 @@ function award_(a, b) {
 /* ---------- emails (English + Bahasa Indonesia) ---------- */
 var ZNAME_ID = {GT: 'Gerbang / pintu masuk', FN: 'Pagar keliling', PL: 'Area pabrik', UT: 'Utilitas / tangki', LD: 'Area penyimpanan', BL: 'Bangunan', MP: 'Titik kumpul'};
 var FLAGTXT = {
-  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed', VPN_SUSPECT: 'VPN suspected', NOT_ON_PLAN: 'not on the shift plan'},
-  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal', VPN_SUSPECT: 'VPN dicurigai', NOT_ON_PLAN: 'tidak ada di rencana shift'}
+  en: {OUTSIDE: 'outside radius', NO_GPS: 'no GPS', SUSPECT_GPS: 'suspect GPS', LOW_ACCURACY: 'low GPS accuracy', NO_PHOTO: 'no photo', TOO_FAST: 'moved too fast', PHOTO_FAIL: 'photo failed', VPN_SUSPECT: 'VPN suspected', PROMPT_FAST: 'reached the prompted point too fast', PROMPT_STAY: 'prompted point scanned from the same spot', NOT_ON_PLAN: 'not on the shift plan'},
+  id: {OUTSIDE: 'di luar radius', NO_GPS: 'tanpa GPS', SUSPECT_GPS: 'GPS mencurigakan', LOW_ACCURACY: 'akurasi GPS rendah', NO_PHOTO: 'tanpa foto', TOO_FAST: 'bergerak terlalu cepat', PHOTO_FAIL: 'foto gagal', VPN_SUSPECT: 'VPN dicurigai', PROMPT_FAST: 'tiba di titik yang diminta terlalu cepat', PROMPT_STAY: 'titik yang diminta dipindai dari tempat yang sama', NOT_ON_PLAN: 'tidak ada di rencana shift'}
 };
 var TXT = {
   en: {round: 'Round', done: 'Done', of: 'of', missed: 'Missed', notScanned: 'Points not scanned in this round', highFirst: 'high-risk first', high: 'HIGH RISK', no: 'No.', flagged: 'Flagged scans', away: 'm from point', daily: 'Daily patrol summary', tRound: 'Round', tDone: 'Done', tMiss: 'Missed', often: 'Points missed most often', missedIn: 'missed in', rounds: 'rounds', app: 'EcoOils Mentari Security Patrol', photoChecks: 'Photo checks (selfie)', photoTaken: 'photo taken', photoMissing: 'NO PHOTO', photoNone: 'not scanned', photoCol: 'Photo', photoTotal: 'Photo checks taken', photoLink: 'view'},
@@ -1925,7 +1951,7 @@ var TXT = {
 /* GPS_QUIET (Config, default yes): while points are being calibrated, guards are not told about GPS problems (the scan screen just says Recorded)
    and addresses after the first in NOTIFY_EMAIL get emails without GPS flags. The first address (owner) and the Admin screens see everything. Set GPS_QUIET to no to switch off. */
 function quiet_() { return cfg_('GPS_QUIET', 'yes').toLowerCase() !== 'no'; }
-var GPS_FLAGS = ['NO_GPS', 'OUTSIDE', 'SUSPECT_GPS', 'LOW_ACCURACY'];
+var GPS_FLAGS = ['NO_GPS', 'OUTSIDE', 'SUSPECT_GPS', 'LOW_ACCURACY', 'PROMPT_FAST', 'PROMPT_STAY'];
 function hideGps_(list) {
   var out = [];
   list.forEach(function (f) {
@@ -1938,7 +1964,7 @@ function hideGps_(list) {
    Config TRACE_GUARD (part of a name, default 'Irvan'), TRACE_DAYS (default 3). Part 1 compares EVERY guard (so one bad phone shows up as an outlier), part 2 lists the chosen guard's scans in time order. */
 function gpsTrace() {
   var gname = String(cfg_('TRACE_GUARD', 'Irvan')).toLowerCase(), days = Math.max(1, Math.min(14, parseInt(cfg_('TRACE_DAYS', '3'), 10) || 3));
-  var from = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10), sh = sh_('Scans'), nc = Math.max(18, Math.min(20, sh.getLastColumn()));
+  var from = ymdhms_(Date.now() - (days - 1) * 86400000).slice(0, 10), sh = sh_('Scans'), nc = Math.max(18, Math.min(21, sh.getLastColumn()));
   var last = sh.getLastRow(), rows = [];
   if (last >= 2) { var st = Math.max(2, last - 6000 + 1); rows = sh.getRange(st, 1, last - st + 1, nc).getValues(); }
   var lim = Date.now() - days * 86400000;

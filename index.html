@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.54';
+var VERSION='v1.55';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -608,13 +608,18 @@ function sendPhoto(pt,r,photo){
     });
   });
 }
+/* v1.55: the server may suggest the next point (silent check after an outside scan); the text never says why. */
+function nextHtml(r){
+  if(!r||!r.next||!S.state)return '';var q=null;S.state.points.forEach(function(p){if(p.no===r.next)q=p;});
+  if(!q)return '';return '<p style="text-align:center;margin:8px 0" class="note" id="nextPt"><b>'+esc(tr('nextScan'))+': '+esc(q.no+(q.name?'. '+q.name:''))+'</b></p>';
+}
 function result(pt,r,note){
   var d=doneSet(),n=0,total=S.state.points.length;S.state.points.forEach(function(p){if(d[p.id])n++;});
   if(r&&r.off&&!note)note=tr('offRound');
   var msg=r===null?tr('queued'):(r.gps==='OK'?tr('locOk'):(r.gps==='OUTSIDE'?tr('locOut'):(r.gps==='NO_GPS'?tr('locNone'):tr('locCal'))));
   var good=r!==null&&(r.gps==='OK'||r.gps==='UNCALIBRATED');
   showRes('<div class="big '+(good?'okc':'wrn')+'">'+(good?'&#10003;':'!')+'</div><p style="text-align:center;font-size:18px;margin:8px 0 2px"><b>'+esc(pt.no+'. '+pt.name)+'</b></p>'+
-    '<p style="text-align:center;margin:2px 0" class="note">'+esc(msg)+'</p>'+(note?'<p style="text-align:center;margin:2px 0" class="note"><b>'+esc(note)+'</b></p>':'')+'<p style="text-align:center;font-size:20px;margin:10px 0"><b>'+esc(tr('done'))+' '+n+' / '+total+' &nbsp; '+esc(tr('rem'))+' '+(total-n)+'</b></p>'+(S.queue.length?'<p style="text-align:center;margin:2px 0" class="note"><b>'+S.queue.length+' '+esc(tr('pending'))+'</b></p>':'')+
+    '<p style="text-align:center;margin:2px 0" class="note">'+esc(msg)+'</p>'+nextHtml(r)+(note?'<p style="text-align:center;margin:2px 0" class="note"><b>'+esc(note)+'</b></p>':'')+'<p style="text-align:center;font-size:20px;margin:10px 0"><b>'+esc(tr('done'))+' '+n+' / '+total+' &nbsp; '+esc(tr('rem'))+' '+(total-n)+'</b></p>'+(S.queue.length?'<p style="text-align:center;margin:2px 0" class="note"><b>'+S.queue.length+' '+esc(tr('pending'))+'</b></p>':'')+
     '<button class="btn" data-act="again">'+esc(tr('scanNext'))+'</button><button class="btn ghost" data-act="close">'+esc(tr('close'))+'</button>');
 }
 
@@ -939,8 +944,8 @@ function aChk(){
 }
 
 /* ===== Danru / Shift Supervisor home: tab bar + command dashboard ===== */
-Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dtWarn:'Warning',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
-Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dtWarn:'Peringatan',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
+Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dtWarn:'Warning',nextScan:'Next scan',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
+Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dtWarn:'Peringatan',nextScan:'Pindai berikutnya',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
 var DS={d:null,err:'',busy:false,at:0};
 function dTabsSet(id){
   var bar=$('dTabs');if(!bar)return;
