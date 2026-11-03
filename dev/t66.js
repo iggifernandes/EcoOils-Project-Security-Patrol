@@ -22,9 +22,9 @@ const row3=m.sheets.Scans.rows.filter(r=>r[0]===sc[2].scanId)[0];
 m.call({action:'photo',gp:A,scanId:sc[2].scanId,photo:jpg,shot:1});
 ok(Number(row3[19])>=0&&Number(row3[19])<60,'nonsense shot time falls back to server time');
 // owner email carries the gap; the quiet copy does not
-const r0=m.ctx.roundAt_(Date.now());const pts=m.ctx.points_(true);
+const r0=m.ctx.roundAt_(ts);const pts=m.ctx.points_(true);
 const list=m.ctx.photoChecks_(r0,pts,m.ctx.scans_(1500));
-const withGap=list.filter(x=>x.gap!=='');ok(withGap.length>=2,'photoChecks_ returns the gap');
+list.push({no:99,name:'Far point',status:'taken',by:'G',url:'u',gap:200});const withGap=list.filter(x=>x.gap!=='');ok(withGap.length>=2,'photoChecks_ returns the gap');
 const own=m.ctx.photoHtml_(list,'en',true),quiet=m.ctx.photoHtml_(list,'en',false);
 ok(/selfie 8 s after scan/.test(own)&&/LONG: may have walked/.test(own),'owner copy shows gap and flags the long one');
 ok(!/after scan/.test(quiet),'GPS-free (Danru) copy shows no timing');

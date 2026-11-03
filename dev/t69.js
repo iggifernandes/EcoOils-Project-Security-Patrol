@@ -1,0 +1,12 @@
+const m=require('./mock.js');let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+const D=dp['Rendi Irawan'],AP=m.props.ADMIN_PIN,call=m.call;
+call({action:'d_add',gp:D,name:'Aldi Test'});call({action:'d_add',gp:D,name:'Budi B'});
+ok(call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'Nobody'}).err==='unknown_guard','unknown name refused');
+ok(!call({action:'a_award_pick',month:'2026-10',winner:'Aldi Test'}).ok,'needs the Admin PIN');
+let r=call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'aldi test'});ok(r.ok&&r.winner==='Aldi Test','owner picks Aldi (case-insensitive)');
+const st=call({action:'state',gp:D});ok(st.award&&st.award.month==='2026-10'&&st.award.winner==='Aldi Test','guards see Aldi for October');
+ok(call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'Budi B'}).err==='announced','cannot change once announced');
+ok(call({action:'a_award_get',pin:AP,month:'2026-10'}).announced.winner==='Aldi Test','Admin sees it announced');
+ok(call({action:'a_award_get',pin:AP,month:'2026-11'}).lastMonth==='2026-10','a_award_get tells the latest month with a winner');
+console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);

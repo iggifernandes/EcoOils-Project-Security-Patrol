@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.55';
+var VERSION='v1.56';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -1787,6 +1787,8 @@ function aAward(){
   $('aBody').innerHTML='<p><span class="sp"></span></p>';
   aApi({action:'a_award_get',month:AW.month}).then(function(r){
     if(!r.ok){return aErr(r);}
+    /* v1.56: the first time the tab opens, if this month has no draw yet, show the latest month that has a winner (so October stays visible in November). */
+    if(!AW.auto){AW.auto=1;if(!r.history.length&&r.lastMonth&&r.lastMonth!==AW.month){AW.month=r.lastMonth;return aAward();}}
     var c=r.criteria,h='<div class="card"><b>Best Guard of the month</b><label for="awM">Month</label><input type="month" id="awM" value="'+esc(AW.month)+'">';
     h+='<p class="note">Random draw among guards who meet the criteria below. Danru and Shift Supervisors are not in the draw. Repeat scans do not count.</p>';
     h+='<label for="awS">Minimum scans in the month</label><input type="number" id="awS" min="0" inputmode="numeric" value="'+c.minScans+'">';
@@ -1808,6 +1810,9 @@ function aAward(){
     if(r.announced){h+='<b>&#127942; Announced: '+esc(r.announced.winner)+'</b><p class="note">'+esc(r.announced.at)+'. Guards can see this on their patrol screen. It cannot be redrawn.</p>';}
     else{
       var dr=r.history.filter(function(x){return x.status==='Draft';}),last=dr[dr.length-1];
+      h+='<p class="note"><b>Or choose the winner yourself</b> (no draw; announced at once)</p><select id="awPick">';
+      r.rows.forEach(function(x){h+='<option value="'+esc(x.guard)+'">'+esc(x.guard)+'</option>';});
+      h+='</select><button class="btn" id="awChoose" type="button"'+(r.rows.length?'':' disabled')+'>Announce chosen guard</button><hr>';
       h+='<button class="btn" id="awDraw" type="button"'+(nq?'':' disabled')+'>Draw winner</button>';
       if(last)h+='<p><b>Drawn: '+esc(last.winner)+'</b></p><p class="note">Not visible to guards yet. Drawn '+dr.length+' time(s); every draw is kept in the Awards sheet.</p><button class="btn" id="awAnn" type="button">Announce to all guards</button>';
     }
@@ -1820,6 +1825,7 @@ $('aBody').addEventListener('change',function(e){if(e.target&&e.target.id==='awM
 $('aBody').addEventListener('click',function(e){
   var id=e.target&&e.target.id;if(A.tab!=='award')return;
   if(id==='awSave'){aApi({action:'a_award_set',minScans:$('awS').value,minDays:$('awD').value,maxIssues:$('awI').value,minObs:$('awO').value,minPos:$('awP').value,minIss:$('awX').value,minOPhotos:$('awH').value,minSpot:$('awC').value}).then(function(r){if(r&&r.ok)aAward();else awMsg('Not saved. Use whole numbers, 0 or more.');});}
+  if(id==='awChoose'){var w=$('awPick').value;if(!w||!confirm('Announce '+w+' as Best Guard of '+AW.month+' to all guards? It cannot be changed afterwards.'))return;aApi({action:'a_award_pick',month:AW.month,winner:w}).then(function(r){if(r&&r.ok)aAward();else awMsg('Could not announce: '+(r&&r.err));});}
   if(id==='awDraw'){aApi({action:'a_award_draw',month:AW.month}).then(function(r){if(r&&r.ok)aAward();else awMsg(r&&r.err==='no_qualifiers'?'Nobody qualifies.':'Could not draw: '+(r&&r.err));});}
   if(id==='awAnn'){if(!confirm('Announce this winner to all guards? It cannot be changed afterwards.'))return;aApi({action:'a_award_announce',month:AW.month}).then(function(r){if(r&&r.ok)aAward();else awMsg('Could not announce: '+(r&&r.err));});}
 });

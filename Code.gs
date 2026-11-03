@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.55 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.56 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.55';
+var VERSION = 'v1.56';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1915,7 +1915,8 @@ function award_(a, b) {
   var announced = hist.filter(function (r) { return r.status === 'Announced'; })[0] || null;
   if (a === 'a_award_get') {
     var st = awardStats_(month);
-    return {ok: true, month: month, criteria: st.criteria, rows: st.rows, history: hist, announced: announced ? {winner: announced.winner, at: announced.at} : null};
+    var lastM = ''; awardRows_().forEach(function (x) { if (x.month > lastM) lastM = x.month; });
+    return {ok: true, month: month, lastMonth: lastM, criteria: st.criteria, rows: st.rows, history: hist, announced: announced ? {winner: announced.winner, at: announced.at} : null};
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -1927,6 +1928,15 @@ function award_(a, b) {
       var win = q[Math.floor(Math.random() * q.length)].guard, now = Date.now();
       awardsSheet_().appendRow([month, win, q.length, ymdhms_(now), 'Admin', 'Draft', now]);
       return {ok: true, winner: win, qualifiers: q.length};
+    }
+    if (a === 'a_award_pick') {
+      /* v1.56: the owner chooses the winner himself (no draw). Announced at once; stays on every patrol screen until a later month is announced. */
+      var want = String(b.winner || '').trim().toLowerCase(), pick = null;
+      guards_().forEach(function (g2) { if (g2.name.toLowerCase() === want) pick = g2; });
+      if (!pick) return {ok: false, err: 'unknown_guard'};
+      var tp = Date.now();
+      awardsSheet_().appendRow([month, pick.name, 'Chosen by owner', ymdhms_(tp), 'Admin', 'Announced', tp]);
+      return {ok: true, winner: pick.name};
     }
     if (a === 'a_award_announce') {
       var drafts = hist.filter(function (r) { return r.status === 'Draft'; });
