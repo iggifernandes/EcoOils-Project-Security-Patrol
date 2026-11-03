@@ -222,7 +222,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.56';
+var VERSION='v1.57';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -944,8 +944,8 @@ function aChk(){
 }
 
 /* ===== Danru / Shift Supervisor home: tab bar + command dashboard ===== */
-Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dtWarn:'Warning',nextScan:'Next scan',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
-Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dtWarn:'Peringatan',nextScan:'Pindai berikutnya',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
+Object.assign(T.en,{dtDash:'Dashboard',dtPat:'Patrol',dtIss:'Update issues',dtHk:'Building',dtEq:'Equipment',dtWarn:'Warning',awardNote:'Chosen by the system from performance: QR scanning accuracy, observations and other parameters. A guard chosen once can be in the draw again next month, so keep up the standard every month.',nextScan:'Next scan',dsTitle:'Overview',dsRefresh:'Refresh',dsRound:'This round',dsLast:'Last round',dsToday:'Missed today',dsWeek:'Missed, last 7 days',dsIssues:'Open issues',dsClean:'Cleaning actions open',dsVerify:'to verify',dsEq:'Equipment problems',dsClock:'Not clocked in',dsGps:'Outside the point (7 days)',dsMissed:'missed',dsOf:'of',dsRem:'Still to scan this round',dsNone:'None',dsHold:'WEATHER HOLD is on',dsUpd:'Updated',dsOld:'oldest',dsPts:'points',dsRounds:'rounds',dsNoRound:'No patrol round now',dsAll:'All points scanned'});
+Object.assign(T.id,{dtDash:'Dasbor',dtPat:'Patroli',dtIss:'Perbarui temuan',dtHk:'Gedung',dtEq:'Peralatan',dtWarn:'Peringatan',awardNote:'Dipilih oleh sistem berdasarkan kinerja: akurasi pemindaian QR, observasi dan parameter lainnya. Petugas yang pernah terpilih dapat masuk undian lagi bulan depan, jadi pertahankan standar setiap bulan.',nextScan:'Pindai berikutnya',dsTitle:'Ringkasan',dsRefresh:'Segarkan',dsRound:'Ronde ini',dsLast:'Ronde terakhir',dsToday:'Terlewat hari ini',dsWeek:'Terlewat, 7 hari terakhir',dsIssues:'Temuan terbuka',dsClean:'Tindakan kebersihan terbuka',dsVerify:'untuk diverifikasi',dsEq:'Masalah peralatan',dsClock:'Belum absen masuk',dsGps:'Di luar titik (7 hari)',dsMissed:'terlewat',dsOf:'dari',dsRem:'Masih harus dipindai di ronde ini',dsNone:'Tidak ada',dsHold:'TAHAN CUACA aktif',dsUpd:'Diperbarui',dsOld:'terlama',dsPts:'titik',dsRounds:'ronde',dsNoRound:'Tidak ada ronde patroli sekarang',dsAll:'Semua titik sudah dipindai'});
 var DS={d:null,err:'',busy:false,at:0};
 function dTabsSet(id){
   var bar=$('dTabs');if(!bar)return;
@@ -1779,7 +1779,7 @@ function monthLabel(m){var p=String(m||'').split('-'),i=Number(p[1])-1;return ((
 function awardCard(){
   var box=$('awardCard');if(!box)return;var a=S.state&&S.state.award;
   if(!a||!a.winner){setHtml(box,'');return;}
-  setHtml(box,'<div class="card" style="text-align:center"><div class="note">&#127942; '+esc(tr('awardT'))+' &middot; '+esc(monthLabel(a.month))+'</div><b style="font-size:20px">'+esc(a.winner)+'</b></div>');
+  setHtml(box,'<div class="card" style="text-align:center"><div class="note">&#127942; '+esc(tr('awardT'))+' &middot; '+esc(monthLabel(a.month))+'</div><b style="font-size:20px">'+esc(a.winner)+'</b><p class="note" style="margin:8px 0 0">'+esc(tr('awardNote'))+'</p></div>');
 }
 var AW={month:''};
 function aAward(){

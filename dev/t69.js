@@ -6,6 +6,7 @@ ok(call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'Nobody'}).err==='u
 ok(!call({action:'a_award_pick',month:'2026-10',winner:'Aldi Test'}).ok,'needs the Admin PIN');
 let r=call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'aldi test'});ok(r.ok&&r.winner==='Aldi Test','owner picks Aldi (case-insensitive)');
 const st=call({action:'state',gp:D});ok(st.award&&st.award.month==='2026-10'&&st.award.winner==='Aldi Test','guards see Aldi for October');
+ok(Object.keys(st.award).sort().join()==='month,winner'&&!/hosen|wner/.test(JSON.stringify(st)),'guards and Danru never see that the owner chose');
 ok(call({action:'a_award_pick',pin:AP,month:'2026-10',winner:'Budi B'}).err==='announced','cannot change once announced');
 ok(call({action:'a_award_get',pin:AP,month:'2026-10'}).announced.winner==='Aldi Test','Admin sees it announced');
 ok(call({action:'a_award_get',pin:AP,month:'2026-11'}).lastMonth==='2026-10','a_award_get tells the latest month with a winner');
