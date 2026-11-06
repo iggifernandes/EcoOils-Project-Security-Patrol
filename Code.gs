@@ -458,11 +458,13 @@ function photoSet_(r, pts) {
   if (!n) return set;
   var sec = photoSecret_(), pri = {}, pct = Math.min(100, Math.max(0, Number(cfg_('PHOTO_PRIORITY_PCT', '75')) || 0));
   String(cfg_('PHOTO_PRIORITY', '7,9,18,23')).split(',').forEach(function (x) { x = x.trim(); if (x) pri[x] = 1; });
+  var alw = {};
+  String(cfg_('PHOTO_ALWAYS', '47')).split(',').forEach(function (x) { x = x.trim(); if (x) alw[x] = 1; });   /* v1.59: permanent selfie points (counted inside PHOTO_PER_ROUND) */
   var all = pts.filter(function (p) { return p.active; }).map(function (p) {
     var h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sec + '|' + r.date + '|' + r.idx + '|' + p.id).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
-    return {id: p.id, h: h, first: !!pri[String(p.no)] && parseInt(h.slice(8, 16), 16) / 4294967296 < pct / 100};
+    return {id: p.id, h: h, always: !!alw[String(p.no)], first: !!pri[String(p.no)] && parseInt(h.slice(8, 16), 16) / 4294967296 < pct / 100};
   }).sort(function (a, b) { return a.h < b.h ? -1 : a.h > b.h ? 1 : 0; });
-  all.filter(function (x) { return x.first; }).concat(all.filter(function (x) { return !x.first; })).slice(0, n).forEach(function (x) { set[x.id] = true; });
+  all.filter(function (x) { return x.always; }).concat(all.filter(function (x) { return !x.always && x.first; })).concat(all.filter(function (x) { return !x.always && !x.first; })).slice(0, n).forEach(function (x) { set[x.id] = true; });
   return set;
 }
 function props_() { return PropertiesService.getScriptProperties(); }
@@ -644,8 +646,14 @@ function planNow_() {
   catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
 /* Points where GPS is not reliable (indoors, on upper floors, under tank shadow): the scan is recorded as normal but never flagged OUTSIDE, NO_GPS or LOW_ACCURACY. Config GPS_SKIP = point numbers, comma separated. */
+var SHADE_ALWAYS = ['47'];   /* v1.59: point 47 (DTP 2) is in shade: GPS never checked there, whatever Config GPS_SKIP says */
+function gpsSkipList_() {
+  var l = String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).filter(String);
+  SHADE_ALWAYS.forEach(function (x) { if (l.indexOf(x) < 0) l.push(x); });
+  return l;
+}
 function gpsSkip_(no) {
-  return String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).indexOf(String(no)) >= 0;
+  return gpsSkipList_().indexOf(String(no)) >= 0;
 }
 function scan_(b, g) {
   var pts = points_(false), pt = null, i;
@@ -1301,7 +1309,7 @@ function gpsWeek_(fromD, to) {
   var points = Object.keys(P).map(function (k) { var p = P[k], ng = Object.keys(p.who).length; return {no: p.no, name: p.name, checked: p.checked, outside: p.outside, guards: ng, pct: p.checked ? Math.round(100 * p.outside / p.checked) : 0, avgDist: p.outside ? Math.round(p.dist / p.outside) : 0, review: ng >= 3 && p.checked >= 5 && p.outside / p.checked >= 0.4}; })
     .filter(function (p) { return p.outside > 0; }).sort(function (a, b) { return b.pct - a.pct || b.outside - a.outside; });
   return {from: fromD, to: to, totals: {checked: tot.checked, outside: tot.outside, strong: tot.strong, pct: tot.checked ? Math.round(100 * tot.outside / tot.checked) : 0, noGps: tot.noGps}, guards: guards, points: points,
-    skipped: String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).filter(String)};
+    skipped: gpsSkipList_()};
 }
 function gpsWeekHtml_(L, rep, owner) {
   var en = L === 'en', t = rep.totals;
