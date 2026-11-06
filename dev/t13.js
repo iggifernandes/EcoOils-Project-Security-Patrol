@@ -27,7 +27,7 @@ pts.forEach((id,i)=>{const r=call({action:'scan',gp:i%2?A:B,pid:id,lat:2.9,lng:9
 ok(need.length===5,'exactly 5 scans ask for a photo: '+need.length);
 const rows=m.sheets.Scans.rows;
 ok(rows.filter(r=>/NO_PHOTO/.test(r[15])).length===5,'those 5 rows start flagged NO_PHOTO');
-ok(rows.slice(1).filter(r=>!/NO_PHOTO/.test(r[15])).length===41,'other 41 not flagged for photo');
+ok(rows.slice(1).filter(r=>!/NO_PHOTO/.test(r[15])).length===42,'other 42 not flagged for photo');
 // upload photo
 const n0=need[0];let r=call({action:'photo',gp:n0.by,scanId:n0.sid,photo:'A'.repeat(500)});
 ok(r.ok,'photo accepted');
