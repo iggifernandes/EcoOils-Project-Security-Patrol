@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.59 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.60 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.59';
+var VERSION = 'v1.60';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -459,7 +459,7 @@ function photoSet_(r, pts) {
   var sec = photoSecret_(), pri = {}, pct = Math.min(100, Math.max(0, Number(cfg_('PHOTO_PRIORITY_PCT', '75')) || 0));
   String(cfg_('PHOTO_PRIORITY', '7,9,18,23')).split(',').forEach(function (x) { x = x.trim(); if (x) pri[x] = 1; });
   var alw = {};
-  String(cfg_('PHOTO_ALWAYS', '47')).split(',').forEach(function (x) { x = x.trim(); if (x) alw[x] = 1; });   /* v1.59: permanent selfie points (counted inside PHOTO_PER_ROUND) */
+  String(cfg_('PHOTO_ALWAYS', '47')).split(',').forEach(function (x) { x = x.trim(); if (x) alw[x] = 1; });   /* v1.60: permanent selfie points (counted inside PHOTO_PER_ROUND) */
   var all = pts.filter(function (p) { return p.active; }).map(function (p) {
     var h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sec + '|' + r.date + '|' + r.idx + '|' + p.id).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     return {id: p.id, h: h, always: !!alw[String(p.no)], first: !!pri[String(p.no)] && parseInt(h.slice(8, 16), 16) / 4294967296 < pct / 100};
@@ -646,7 +646,7 @@ function planNow_() {
   catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
 /* Points where GPS is not reliable (indoors, on upper floors, under tank shadow): the scan is recorded as normal but never flagged OUTSIDE, NO_GPS or LOW_ACCURACY. Config GPS_SKIP = point numbers, comma separated. */
-var SHADE_ALWAYS = ['47'];   /* v1.59: point 47 (DTP 2) is in shade: GPS never checked there, whatever Config GPS_SKIP says */
+var SHADE_ALWAYS = ['47'];   /* v1.60: point 47 (DTP 2) is in shade: GPS never checked there, whatever Config GPS_SKIP says */
 function gpsSkipList_() {
   var l = String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).filter(String);
   SHADE_ALWAYS.forEach(function (x) { if (l.indexOf(x) < 0) l.push(x); });
