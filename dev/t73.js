@@ -1,23 +1,24 @@
 const m=require('./mock.js');let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
 const call=m.call,AP=m.props.ADMIN_PIN;
 ok(call({action:'a_points',pin:AP}).ok,'current Admin PIN works before any reset');
-ok(!call({action:'a_reset',code:'123456',newPin:'654321'}).ok,'reset without a code request is refused');
+ok(!call({action:'a_reset',token:'123456',newPin:'654321'}).ok,'reset without a code request is refused');
 let r=call({action:'a_forgot'});
 ok(r.ok&&/^I\*\*\*@/.test(r.to),'forgot sends a code and shows only a masked address: '+r.to);
-let mail=m.ctx.mails[m.ctx.mails.length-1];const code=(mail.htmlBody.match(/letter-spacing:4px">(\d{6})</)||[])[1];
-ok(mail.to==='Ignatius.Ambrosio@ecooils.com.my'&&code&&/reset/i.test(mail.subject),'one email to the owner address with a 6-digit code');
+let mail=m.ctx.mails[m.ctx.mails.length-1];const code=(mail.htmlBody.match(/\?resetpin=([0-9a-f]{64})"/)||[])[1];
+ok(mail.to==='Ignatius.Ambrosio@ecooils.com.my'&&code&&mail.htmlBody.indexOf('https://iggifernandes.github.io/EcoOils-Project-Security-Patrol/?resetpin=')>0&&!/letter-spacing/.test(mail.htmlBody)&&/PIN/i.test(mail.subject),'one email to the owner address with a reset LINK (no code)');
 ok(AP&&call({action:'a_points',pin:AP}).ok,'old PIN still works until the code is used');
-ok(call({action:'a_reset',code:'000000',newPin:'654321'}).err==='code','wrong code refused');
-ok(call({action:'a_reset',code,newPin:'12ab'}).err==='bad_pin','new PIN must be 6 digits');
-r=call({action:'a_reset',code,newPin:'654321'});ok(r.ok,'right code sets the new PIN');
+ok(call({action:'a_reset',token:'0'.repeat(64),newPin:'654321'}).err==='link','wrong link token refused');
+ok(call({action:'a_reset',token:code,newPin:'12ab'}).err==='bad_pin','new PIN must be 6 digits');
+r=call({action:'a_reset',token:code,newPin:'654321'});ok(r.ok,'right code sets the new PIN');
 ok(!call({action:'a_points',pin:AP}).ok&&call({action:'a_points',pin:'654321'}).ok,'old PIN stops, new PIN works');
 ok(!m.props.ADMIN_PIN&&m.props.ADMIN_PIN_HASH&&!/654321/.test(JSON.stringify(m.props)),'plain PIN removed; only a hash is stored');
 ok(m.ctx.mails[m.ctx.mails.length-1].subject.indexOf('changed')>0,'owner gets a "PIN was changed" notice');
-ok(call({action:'a_reset',code,newPin:'111111'}).err==='expired','code works only once');
-// five wrong codes kill the code; rate limit 3 requests per hour
-call({action:'a_forgot'});mail=m.ctx.mails[m.ctx.mails.length-1];const c2=(mail.htmlBody.match(/letter-spacing:4px">(\d{6})</)||[])[1];
-for(let i=0;i<5;i++)call({action:'a_reset',code:'000000',newPin:'222222'});
-ok(['expired','locked'].includes(call({action:'a_reset',code:c2,newPin:'222222'}).err),'after wrong tries even the right code is refused');
+ok(call({action:'a_reset',token:code,newPin:'111111'}).err==='expired','link works only once');
+m.props.ADMIN_RESET_EXP;
+// ten wrong tries lock the reset; rate limit 3 requests per hour
+call({action:'a_forgot'});mail=m.ctx.mails[m.ctx.mails.length-1];const c2=(mail.htmlBody.match(/\?resetpin=([0-9a-f]{64})"/)||[])[1];
+for(let i=0;i<10;i++)call({action:'a_reset',token:'0'.repeat(64),newPin:'222222'});
+ok(['expired','locked'].includes(call({action:'a_reset',token:c2,newPin:'222222'}).err),'after many wrong tries even the right link is refused');
 call({action:'a_forgot'});r=call({action:'a_forgot'});
 ok(r.err==='rate','the 4th code request within the hour is refused');
 console.log(fails?'FAILED':'ALL PASSED');process.exit(fails?1:0);

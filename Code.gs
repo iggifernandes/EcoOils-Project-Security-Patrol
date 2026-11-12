@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.62 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.63 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.62';
+var VERSION = 'v1.63';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -2215,9 +2215,11 @@ function dailySummary() {
   sendTo_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h, hq);
 }
 
-/* ===== AdminEmail.gs (v1.62): Admin PIN reset by email ("Forgot PIN") =====
-   Needs two small edits in Code.gs, see ADMIN-EMAIL-PATCH.txt. The current Admin PIN keeps working until you reset it by email.
-   After a reset the new PIN is stored only as a salted hash (script property ADMIN_PIN_HASH); the old plain ADMIN_PIN property is deleted. */
+/* ===== Admin PIN reset by email link (v1.63; part of this file, NO separate AdminEmail file needed) =====
+   "Forgot PIN?" on the Admin login emails a one-time LINK (valid 30 minutes, works once) to the owner address below.
+   The link opens the app on a screen where the new 6-digit PIN is typed twice. No code to copy.
+   The current Admin PIN keeps working until the first reset; after it the PIN is stored only as a salted hash (script property ADMIN_PIN_HASH). */
+var ADMIN_APP_URL = 'https://iggifernandes.github.io/EcoOils-Project-Security-Patrol/';
 function adminPinMatch_(pin) {
   var p = props_(), h = p.getProperty('ADMIN_PIN_HASH'), s = String(pin || '').trim();
   if (!s) return false;
@@ -2229,38 +2231,38 @@ function adminMask_(e) {
   return m.length < 2 ? '***' : m[0].charAt(0) + '***@' + m[1];
 }
 function adminOwnerMail_() {
-  return String(cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my')).split(',')[0].trim();
+  return String(cfg_('ADMIN_RESET_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my')).split(',')[0].trim();
 }
 function adminEmailRoute_(a, b) {
-  var p = props_(), c = CacheService.getScriptCache(), now = Date.now(), to, code, n;
+  var p = props_(), c = CacheService.getScriptCache(), now = Date.now(), to, tok, n;
   if (a === 'a_forgot') {
     n = Number(c.get('af') || 0);
     if (n >= 3) return {ok: false, err: 'rate'};
     c.put('af', String(n + 1), 3600);
     to = adminOwnerMail_();
-    code = String(100000 + (parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 8), 16) % 900000));
-    p.setProperty('ADMIN_RESET_HASH', hash_(code));
-    p.setProperty('ADMIN_RESET_EXP', String(now + 10 * 60000));
-    p.setProperty('ADMIN_RESET_TRIES', '0');
+    tok = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+    p.setProperty('ADMIN_RESET_HASH', hash_(tok));
+    p.setProperty('ADMIN_RESET_EXP', String(now + 30 * 60000));
+    var link = ADMIN_APP_URL + '?resetpin=' + tok;
+    var btn = 'display:inline-block;background:#44a276;color:#231f20;font-weight:bold;text-decoration:none;padding:12px 20px;border-radius:8px';
     try {
-      MailApp.sendEmail({to: to, subject: 'EcoOils Patrol: Admin PIN reset code / Kode reset PIN Admin',
-        htmlBody: '<p>Your one-time code to set a new Admin PIN is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">' + code + '</p><p>It works once and expires in 10 minutes. If you did not ask for it, ignore this email: your PIN is not changed.</p><hr><p>Kode satu kali untuk membuat PIN Admin baru:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">' + code + '</p><p>Kode hanya berlaku sekali dan kedaluwarsa dalam 10 menit. Jika Anda tidak memintanya, abaikan email ini: PIN Anda tidak berubah.</p>'});
+      MailApp.sendEmail({to: to, subject: 'EcoOils Patrol: set a new Admin PIN / atur PIN Admin baru',
+        htmlBody: '<p>Someone asked to reset the Admin PIN of the EcoOils Patrol app. To set a new 6-digit PIN, open this link:</p><p><a href="' + link + '" style="' + btn + '">Set new Admin PIN</a></p><p style="word-break:break-all;font-size:12px;color:#555">' + link + '</p><p>The link works once and expires in 30 minutes. If you did not ask for it, ignore this email: your PIN is not changed.</p><hr><p>Ada permintaan reset PIN Admin aplikasi Patroli EcoOils. Untuk membuat PIN 6 angka yang baru, buka tautan ini:</p><p><a href="' + link + '" style="' + btn + '">Atur PIN Admin baru</a></p><p>Tautan hanya berlaku sekali dan kedaluwarsa dalam 30 menit. Jika Anda tidak memintanya, abaikan email ini: PIN Anda tidak berubah.</p>'});
     } catch (e) { return {ok: false, err: 'mail'}; }
     return {ok: true, to: adminMask_(to)};
   }
   if (a === 'a_reset') {
     if (locked_('ar', 10)) return {ok: false, err: 'locked'};
-    var exp = Number(p.getProperty('ADMIN_RESET_EXP') || 0), h = p.getProperty('ADMIN_RESET_HASH'), tries = Number(p.getProperty('ADMIN_RESET_TRIES') || 0);
-    var cd = String(b.code || '').trim(), np = String(b.newPin || '').trim();
+    var exp = Number(p.getProperty('ADMIN_RESET_EXP') || 0), h = p.getProperty('ADMIN_RESET_HASH');
+    var tk = String(b.token || '').trim(), np = String(b.newPin || '').trim();
     if (!h || now > exp) return {ok: false, err: 'expired'};
-    if (tries >= 5) { p.deleteProperty('ADMIN_RESET_HASH'); return {ok: false, err: 'expired'}; }
     if (!/^\d{6}$/.test(np)) return {ok: false, err: 'bad_pin'};
-    if (hash_(cd) !== h) { p.setProperty('ADMIN_RESET_TRIES', String(tries + 1)); failed_('ar'); return {ok: false, err: 'code'}; }
+    if (!tk || hash_(tk) !== h) { failed_('ar'); return {ok: false, err: 'link'}; }
     p.setProperty('ADMIN_PIN_HASH', hash_(np));
     p.deleteProperty('ADMIN_PIN');
     p.deleteProperty('ADMIN_RESET_HASH'); p.deleteProperty('ADMIN_RESET_EXP'); p.deleteProperty('ADMIN_RESET_TRIES');
     c.remove('fp'); c.remove('ar');
-    try { MailApp.sendEmail({to: adminOwnerMail_(), subject: 'EcoOils Patrol: Admin PIN was changed / PIN Admin diubah', htmlBody: '<p>The Admin PIN was just changed using the email reset code. If this was not you, request a new reset now.</p><p>PIN Admin baru saja diubah dengan kode reset email. Jika bukan Anda, segera minta reset baru.</p>'}); } catch (e2) {}
+    try { MailApp.sendEmail({to: adminOwnerMail_(), subject: 'EcoOils Patrol: Admin PIN was changed / PIN Admin diubah', htmlBody: '<p>The Admin PIN was just changed using the email link. If this was not you, request a new reset now.</p><p>PIN Admin baru saja diubah lewat tautan email. Jika bukan Anda, segera minta reset baru.</p>'}); } catch (e2) {}
     return {ok: true};
   }
   return null;
