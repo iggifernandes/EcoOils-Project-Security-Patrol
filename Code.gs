@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.61 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.62 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.61';
+var VERSION = 'v1.62';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -113,7 +113,7 @@ function addDtp2() {
   var sh = sh_('Points');
   var have = points_(false).some(function (p) { return p.no === 47; });
   if (have) {
-    /* v1.61: point 47 is the 2nd floor of the DTP; rename a row that was added earlier as 'DDE treatment plant (DTP) - 2' */
+    /* v1.62: point 47 is the 2nd floor of the DTP; rename a row that was added earlier as 'DDE treatment plant (DTP) - 2' */
     var v = sh.getRange(1, 1, sh.getLastRow(), 3).getValues(), i, n = 0;
     for (i = 1; i < v.length; i++) if (Number(v[i][1]) === 47 && /\(DTP\) - 2$/.test(String(v[i][2]))) { sh.getRange(i + 1, 3).setValue('DDE treatment plant (DTP) - 2nd floor'); n++; }
     Logger.log(n ? 'Point 47 renamed to DDE treatment plant (DTP) - 2nd floor.' : 'Point 47 already exists. Nothing changed.');
@@ -465,7 +465,7 @@ function photoSet_(r, pts) {
   var sec = photoSecret_(), pri = {}, pct = Math.min(100, Math.max(0, Number(cfg_('PHOTO_PRIORITY_PCT', '75')) || 0));
   String(cfg_('PHOTO_PRIORITY', '7,9,18,23')).split(',').forEach(function (x) { x = x.trim(); if (x) pri[x] = 1; });
   var alw = {};
-  String(cfg_('PHOTO_ALWAYS', '47')).split(',').forEach(function (x) { x = x.trim(); if (x) alw[x] = 1; });   /* v1.61: permanent selfie points (counted inside PHOTO_PER_ROUND) */
+  String(cfg_('PHOTO_ALWAYS', '47')).split(',').forEach(function (x) { x = x.trim(); if (x) alw[x] = 1; });   /* v1.62: permanent selfie points (counted inside PHOTO_PER_ROUND) */
   var all = pts.filter(function (p) { return p.active; }).map(function (p) {
     var h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sec + '|' + r.date + '|' + r.idx + '|' + p.id).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     return {id: p.id, h: h, always: !!alw[String(p.no)], first: !!pri[String(p.no)] && parseInt(h.slice(8, 16), 16) / 4294967296 < pct / 100};
@@ -478,7 +478,7 @@ function failed_(k) { var c = CacheService.getScriptCache(); c.put(k, String(Num
 function locked_(k, max) { return Number(CacheService.getScriptCache().get(k) || 0) >= max; }
 function adminOk_(pin) {
   if (locked_('fp', 10)) return false;
-  var ok = !!pin && String(pin).trim() === String(props_().getProperty('ADMIN_PIN') || '').trim();
+  var ok = adminPinMatch_(pin);
   if (!ok) failed_('fp');
   return ok;
 }
@@ -554,6 +554,7 @@ function route2_(b) {
   CFGM_ = null; ROSM_ = null; SCANM_ = {};
   var a = String(b.action || '');
   if (a === 'ping') return {ok: true, version: VERSION};
+  var ae = adminEmailRoute_(a, b); if (ae) return ae;   /* v1.62: Admin 'Forgot PIN' by email (these two actions need no PIN) */
   if (a.indexOf('a_') === 0) {
     if (!adminOk_(b.pin)) return {ok: false, err: 'pin'};
     if (CACHE_TTL[a]) return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return admin_(a, b); }, b.fresh);
@@ -652,7 +653,7 @@ function planNow_() {
   catch (e) { return {date: '', shift: '', label: '', rows: []}; }
 }
 /* Points where GPS is not reliable (indoors, on upper floors, under tank shadow): the scan is recorded as normal but never flagged OUTSIDE, NO_GPS or LOW_ACCURACY. Config GPS_SKIP = point numbers, comma separated. */
-var SHADE_ALWAYS = ['47'];   /* v1.61: point 47 (DTP 2) is in shade: GPS never checked there, whatever Config GPS_SKIP says */
+var SHADE_ALWAYS = ['47'];   /* v1.62: point 47 (DTP 2) is in shade: GPS never checked there, whatever Config GPS_SKIP says */
 function gpsSkipList_() {
   var l = String(cfg_('GPS_SKIP', '6,18,21,23,26,27,33,34,35')).split(',').map(function (x) { return x.trim(); }).filter(String);
   SHADE_ALWAYS.forEach(function (x) { if (l.indexOf(x) < 0) l.push(x); });
@@ -2212,4 +2213,55 @@ function dailySummary() {
   var h = both_(dailyHtml_('en', y, tr, top, missCount, flagList, phTaken, phReq) + obsDailyHtml_('en', y), dailyHtml_('id', y, tr, top, missCount, flagList, phTaken, phReq) + obsDailyHtml_('id', y)) + foot;
   var fq = hideGps_(flagList), hq = both_(dailyHtml_('en', y, tr, top, missCount, fq, phTaken, phReq) + obsDailyHtml_('en', y), dailyHtml_('id', y, tr, top, missCount, fq, phTaken, phReq) + obsDailyHtml_('id', y)) + foot;
   sendTo_('Daily patrol summary / Ringkasan patroli harian ' + y + ': ' + totalMissed + ' missed / terlewat; photos / foto ' + phTaken + '/' + phReq, h, hq);
+}
+
+/* ===== AdminEmail.gs (v1.62): Admin PIN reset by email ("Forgot PIN") =====
+   Needs two small edits in Code.gs, see ADMIN-EMAIL-PATCH.txt. The current Admin PIN keeps working until you reset it by email.
+   After a reset the new PIN is stored only as a salted hash (script property ADMIN_PIN_HASH); the old plain ADMIN_PIN property is deleted. */
+function adminPinMatch_(pin) {
+  var p = props_(), h = p.getProperty('ADMIN_PIN_HASH'), s = String(pin || '').trim();
+  if (!s) return false;
+  if (h) return hash_(s) === h;
+  return s === String(p.getProperty('ADMIN_PIN') || '').trim();
+}
+function adminMask_(e) {
+  var m = String(e || '').split('@');
+  return m.length < 2 ? '***' : m[0].charAt(0) + '***@' + m[1];
+}
+function adminOwnerMail_() {
+  return String(cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my')).split(',')[0].trim();
+}
+function adminEmailRoute_(a, b) {
+  var p = props_(), c = CacheService.getScriptCache(), now = Date.now(), to, code, n;
+  if (a === 'a_forgot') {
+    n = Number(c.get('af') || 0);
+    if (n >= 3) return {ok: false, err: 'rate'};
+    c.put('af', String(n + 1), 3600);
+    to = adminOwnerMail_();
+    code = String(100000 + (parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 8), 16) % 900000));
+    p.setProperty('ADMIN_RESET_HASH', hash_(code));
+    p.setProperty('ADMIN_RESET_EXP', String(now + 10 * 60000));
+    p.setProperty('ADMIN_RESET_TRIES', '0');
+    try {
+      MailApp.sendEmail({to: to, subject: 'EcoOils Patrol: Admin PIN reset code / Kode reset PIN Admin',
+        htmlBody: '<p>Your one-time code to set a new Admin PIN is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">' + code + '</p><p>It works once and expires in 10 minutes. If you did not ask for it, ignore this email: your PIN is not changed.</p><hr><p>Kode satu kali untuk membuat PIN Admin baru:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">' + code + '</p><p>Kode hanya berlaku sekali dan kedaluwarsa dalam 10 menit. Jika Anda tidak memintanya, abaikan email ini: PIN Anda tidak berubah.</p>'});
+    } catch (e) { return {ok: false, err: 'mail'}; }
+    return {ok: true, to: adminMask_(to)};
+  }
+  if (a === 'a_reset') {
+    if (locked_('ar', 10)) return {ok: false, err: 'locked'};
+    var exp = Number(p.getProperty('ADMIN_RESET_EXP') || 0), h = p.getProperty('ADMIN_RESET_HASH'), tries = Number(p.getProperty('ADMIN_RESET_TRIES') || 0);
+    var cd = String(b.code || '').trim(), np = String(b.newPin || '').trim();
+    if (!h || now > exp) return {ok: false, err: 'expired'};
+    if (tries >= 5) { p.deleteProperty('ADMIN_RESET_HASH'); return {ok: false, err: 'expired'}; }
+    if (!/^\d{6}$/.test(np)) return {ok: false, err: 'bad_pin'};
+    if (hash_(cd) !== h) { p.setProperty('ADMIN_RESET_TRIES', String(tries + 1)); failed_('ar'); return {ok: false, err: 'code'}; }
+    p.setProperty('ADMIN_PIN_HASH', hash_(np));
+    p.deleteProperty('ADMIN_PIN');
+    p.deleteProperty('ADMIN_RESET_HASH'); p.deleteProperty('ADMIN_RESET_EXP'); p.deleteProperty('ADMIN_RESET_TRIES');
+    c.remove('fp'); c.remove('ar');
+    try { MailApp.sendEmail({to: adminOwnerMail_(), subject: 'EcoOils Patrol: Admin PIN was changed / PIN Admin diubah', htmlBody: '<p>The Admin PIN was just changed using the email reset code. If this was not you, request a new reset now.</p><p>PIN Admin baru saja diubah dengan kode reset email. Jika bukan Anda, segera minta reset baru.</p>'}); } catch (e2) {}
+    return {ok: true};
+  }
+  return null;
 }
