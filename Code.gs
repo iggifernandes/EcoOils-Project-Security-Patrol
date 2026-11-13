@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.63 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.64 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.63';
+var VERSION = 'v1.64';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -64,14 +64,14 @@ function setup() {
   var c = s.getSheetByName('Config');
   if (c.getLastRow() < 2) c.getRange(2, 1, 3, 2).setValues([['SHOW_NAMES', 'yes'], ['NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'], ['PHOTO_PER_ROUND', '8']]);
   var p = PropertiesService.getScriptProperties();
-  if (!p.getProperty('ADMIN_PIN')) p.setProperty('ADMIN_PIN', rand6_());
+  if (!p.getProperty('ADMIN_PIN') && !p.getProperty('ADMIN_PIN_HASH')) p.setProperty('ADMIN_PIN', rand6_());   /* v1.64: never create a plain PIN once the email reset has set a hash */
   folder_();
   showCodes();
 }
 function rand6_() { return String(Math.floor(100000 + Math.random() * 900000)); }
 function showCodes() {
   var p = PropertiesService.getScriptProperties();
-  Logger.log('ADMIN_PIN (for you only): ' + p.getProperty('ADMIN_PIN'));
+  Logger.log(p.getProperty('ADMIN_PIN_HASH') ? 'Admin PIN: set by email reset (use Forgot PIN? on the Admin login if you forgot it)' : 'ADMIN_PIN (for you only): ' + p.getProperty('ADMIN_PIN'));
   Logger.log('To change it, edit it in Project Settings > Script Properties.');
   Logger.log('Guards log in with a personal PIN given by their Danru. Run makeDanruPins() once to create the first PINs for the Danru.');
 }
