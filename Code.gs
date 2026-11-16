@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.64 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.65 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.64';
+var VERSION = 'v1.65';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -420,7 +420,12 @@ function shiftAt_(ms) {
   var d = new Date(h < 7 ? l - 86400000 : l).toISOString().slice(0, 10);
   return {date: d, code: code, label: SHIFTS[code]};
 }
-function dutyList_() { return cfg_('DUTIES', 'Gate 1,Gate 2,Gate 3,Patrol').split(',').map(function (x) { return x.trim(); }).filter(String); }
+/* v1.65: 'Shift Supervisor' is always the first duty in the plan dropdown (even when Config DUTIES was set earlier without it). */
+function dutyList_() {
+  var l = cfg_('DUTIES', 'Gate 1,Gate 2,Gate 3,Patrol').split(',').map(function (x) { return x.trim(); }).filter(String);
+  if (!l.some(function (x) { return x.toLowerCase() === 'shift supervisor'; })) l.unshift('Shift Supervisor');
+  return l;
+}
 function rosterSheet_() {
   var s = SpreadsheetApp.getActiveSpreadsheet(), sh = s.getSheetByName('Roster');
   if (!sh) {

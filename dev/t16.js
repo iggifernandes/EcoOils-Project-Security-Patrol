@@ -20,7 +20,7 @@ const now=m.ctx.shiftAt_(Date.now());
 let r=call({action:'d_plan_get',gp:'111111'});ok(r.err==='auth','bad PIN refused');
 const plain=call({action:'d_plan_get',gp:g1.pin});ok(plain.err==='auth','plain guard cannot read/edit plan tool');
 r=call({action:'d_plan_get',gp:D});
-ok(r.ok&&r.duties.join()==='Gate 1,Gate 2,Gate 3,Patrol'&&r.guards.includes('Test Gate One')&&r.rows.length===0,'danru gets empty plan, duties and guards');
+ok(r.ok&&r.duties.join()==='Shift Supervisor,Gate 1,Gate 2,Gate 3,Patrol'&&r.guards.includes('Test Gate One')&&r.rows.length===0,'danru gets empty plan, duties and guards');
 // save a night plan with missing buddy
 const rows=[{duty:'Gate 1',guard:'Test Gate One',buddy:'Test Gate Two'},{duty:'Patrol',guard:'Test Patrol Three',buddy:''}];
 r=call({action:'d_plan_set',gp:D,date:now.date,shift:'M',rows});
@@ -54,5 +54,5 @@ sc=call({action:'scan',gp:D,pid:call({action:'state',gp:D}).points[3].id,lat:2.9
 call({action:'d_plan_set',gp:D,date:now.date,shift:now.code,rows:[]});
 sc=call({action:'scan',gp:g4.pin,pid:call({action:'state',gp:D}).points[4].id,lat:2.9,lng:99.1,acc:10});ok(!sc.flags.includes('NOT_ON_PLAN'),'no plan = no flag');
 ok(m.ctx.FLAGTXT.en.NOT_ON_PLAN&&m.ctx.FLAGTXT.id.NOT_ON_PLAN,'email text EN+ID for the flag');
-ok(m.ctx.VERSION==='v1.64','version v1.8');
+ok(m.ctx.VERSION==='v1.65','version v1.8');
 console.log(fails?'FAILURES '+fails:'ALL PASSED');process.exit(fails?1:0);
