@@ -52,4 +52,11 @@ const r2=m.call({action:'d_mt_start',gp:sup,type:'monthly',aud:'all'});
 const real=Date.now;Date.now=()=>real()+11*60000;
 const lr=m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+r2.id+':'+r2.token});Date.now=real;
 ok(lr.ok&&lr.late===true,'scan after 10 minutes is flagged late');
-console.log(fails?fails+' FAILED':'ALL PASS');process.exit(fails?1:0);
+// v1.67 role change
+ok(m.call({action:'d_role',gp:sup,name:'Meet Guard 3',role:'Squad Leader'}).ok,'Danru sets a guard to Squad Leader');
+ok(m.ctx.guardsAll_().filter(g=>g.name==='Meet Guard 3')[0].role==='Squad Leader','role saved in the Guards sheet');
+ok(m.call({action:'d_role',gp:sup,name:'Meet Guard 3',role:'Danru'}).err==='bad_role','Danru cannot hand out the Danru title');
+ok(m.call({action:'d_role',gp:sup,name:'Muhammad Irsan',role:'Security Guard'}).err==='danru_locked','Danru cannot change a Danru/supervisor with team access');
+ok(m.call({action:'d_role',gp:g1.pin,name:'Meet Guard 3',role:'Squad Leader'}).err==='auth','plain guard cannot change roles');
+ok(m.call({action:'d_role',pin:m.props.ADMIN_PIN,name:'Meet Guard 3',role:'Shift Supervisor'}).ok,'Admin can change too');
+ console.log(fails?fails+' FAILED':'ALL PASS');process.exit(fails?1:0);

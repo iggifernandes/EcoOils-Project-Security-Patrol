@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.66 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.67 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.66';
+var VERSION = 'v1.67';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -1652,6 +1652,13 @@ function team_(a, b) {
   /* Only the admin may touch a Danru account (a Danru cannot take over a colleague's login). */
   if (t.danru && !adm) return {ok: false, err: 'danru_locked'};
   if (a === 'd_reset') return {ok: true, name: t.name, pin: setPin(t)};
+  if (a === 'd_role') {   /* v1.67: Danru / Admin change a guard's job title (label only; the team-access star stays Admin-only) */
+    var roles = ['Security Guard', 'Shift Supervisor', 'Squad Leader'].concat(adm ? ['Army', 'Danru'] : []), nr = String(b.role || '').trim();
+    if (roles.indexOf(nr) < 0) return {ok: false, err: 'bad_role'};
+    if (me && me.name === t.name) return {ok: false, err: 'self'};
+    sh.getRange(t.row, 2).setValue(nr);
+    return {ok: true, role: nr};
+  }
   if (a === 'd_active') {
     if (me && me.name === t.name) return {ok: false, err: 'self'};
     sh.getRange(t.row, 3).setValue(b.active ? 'Yes' : 'No');
