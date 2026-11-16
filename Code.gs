@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.65 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.66 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.65';
+var VERSION = 'v1.66';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -24,6 +24,8 @@ var HEAD = {
   Equip: ['Check ID', 'Time (WIB)', 'Date', 'Shift', 'Checked by', 'Item', 'Expected', 'Found', 'Condition', 'Note', 'Time ms'],
   Awards: ['Month', 'Winner', 'Qualifiers', 'Drawn at (WIB)', 'Drawn by', 'Status', 'Batch ms'],
   Timesheet: ['Key', 'Date', 'Guard', 'Start', 'End', 'Hours', 'Note', 'Set by', 'Time ms'],
+  Meetings: ['Meeting ID', 'Date', 'Start (WIB)', 'Type', 'Topic', 'Trainer', 'Led by', 'Audience', 'Invited', 'Status', 'Ended (WIB)', 'Discussed (as written)', 'Discussed (EN)', 'Discussed (ID)', 'Photo', 'Token', 'Start ms', 'Open ms', 'End ms'],
+  MeetingAtt: ['Meeting ID', 'Guard', 'Time (WIB)', 'How', 'Late', 'Time ms'],
   Staff: ['Guard', 'NPK'],
   Config: ['Key', 'Value']
 };
@@ -566,7 +568,7 @@ function route2_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release' && a !== 'mt_present') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -577,6 +579,7 @@ function route2_(b) {
   if (a === 'obs') return obsSave_(b, me);
   if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkList_() : {ok: false, err: 'not_duty'});
   if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkDone_(b, me) : {ok: false, err: 'not_duty'});
+  if (a === 'mt_present') return mtPresent_(b, me);
   if (a === 'gate_list') return gateList_();
   if (a === 'gate_get') return gateGet_(b);
   if (a === 'gate_release') return gateRelease_(b, me);
@@ -650,7 +653,7 @@ function state_(me) {
   return {
     ok: true, version: VERSION, now: now, round: r, rlabels: ROUNDS.map(function (x, i) { return rlabel_(i); }), showNames: cfg_('SHOW_NAMES', 'yes') === 'yes', me: {name: me.name, role: me.role, danru: me.danru}, tsOn: cfg_('TS_DANRU', 'no') === 'yes',
     points: points_(true).map(function (p) { var xy = mapXY_(p); return {id: p.id, no: p.no, seq: p.seq, name: p.name, zone: p.zone, hi: p.hi, x: xy.x, y: xy.y}; }),
-    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_(), mine: hkMay_(me)}, gate: gateOn_()
+    done: doneMap_(r), plan: planNow_(), award: awardPublic_(), clock: clockState_(me), hold: holdPublic_(), obs: obsState_(me), hk: {open: hkOpenCount_(), mine: hkMay_(me)}, gate: gateOn_(), mt: mtOpenFor_(me)
   };
 }
 function planNow_() {
@@ -1572,6 +1575,7 @@ function team_(a, b) {
     gr.ok = true; gr.days = days;
     return gr;
   }, b.fresh);
+  if (a.indexOf('d_mt_') === 0) return mtTeam_(a, b, adm ? 'Admin' : me.name, adm);
   if (a === 'd_dash') return cached_(cacheKey_(a, b), CACHE_TTL[a], function () { return dash_(); }, b.fresh);
   if (a === 'd_hk_get') return hkGet_();
   if (a === 'd_hk_save') return hkSave_(b, adm ? 'Admin' : me.name);
@@ -2271,4 +2275,181 @@ function adminEmailRoute_(a, b) {
     return {ok: true};
   }
   return null;
+}
+
+
+/* ---------- v1.66: Apel / meetings / trainings with QR attendance ----------
+   Danru / Shift Supervisor (or Admin) starts a meeting (type, audience fixed at the start), guards mark themselves Present by scanning the QR code shown on the leader's phone
+   (not for the regular Shift Apel: there the leader ticks who attended). At the end the leader writes what was discussed (+ photo): it is saved in English and Bahasa Indonesia
+   (LanguageApp, free) and emailed to NOTIFY_EMAIL with the Present / Absent lists. Ended records are read-only. */
+var MT_TYPES = [
+  {k: 'apel', en: 'Shift Apel', id: 'Apel Shift', self: false}, {k: 'monthly', en: 'Monthly Meeting', id: 'Rapat Bulanan', self: true},
+  {k: 'training', en: 'Training', id: 'Pelatihan', self: true}, {k: 'special', en: 'Special meeting', id: 'Rapat Khusus', self: true},
+  {k: 'mgmt', en: 'Management meeting', id: 'Rapat Manajemen', self: true, aud: 'sup'}, {k: 'toolbox', en: 'Toolbox talk', id: 'Toolbox talk', self: true},
+  {k: 'refresher', en: 'Safety refresher / induction', id: 'Penyegaran / induksi keselamatan', self: true}, {k: 'drill', en: 'Drill / emergency exercise', id: 'Latihan / simulasi darurat', self: true},
+  {k: 'debrief', en: 'Incident debrief', id: 'Evaluasi insiden', self: true}, {k: 'handover', en: 'Handover meeting', id: 'Rapat serah terima', self: true},
+  {k: 'client', en: 'Meeting with client / HSSE', id: 'Rapat dengan klien / HSSE', self: true}, {k: 'other', en: 'Other', id: 'Lainnya', self: true}
+];
+function mtType_(k) { var h = null; MT_TYPES.forEach(function (t) { if (t.k === String(k)) h = t; }); return h; }
+function mtRows_() {
+  var sh = lazy_('Meetings'), n = sh.getLastRow(), N = HEAD.Meetings.length;
+  if (n < 2) return [];
+  return sh.getRange(2, 1, n - 1, N).getValues().map(function (r, i) {
+    var st = Number(r[16]) || 0;
+    return {row: i + 2, id: String(r[0]), type: String(r[3]), topic: String(r[4]), trainer: String(r[5]), by: String(r[6]), aud: String(r[7]), invited: String(r[8]) ? String(r[8]).split('|') : [],
+      status: String(r[9]), text: String(r[11]), en: String(r[12]), idn: String(r[13]), photo: String(r[14]), token: String(r[15]), start: st, open: Number(r[17]) || st, end: Number(r[18]) || 0,
+      date: st ? ymdhms_(st).slice(0, 10) : '', time: st ? ymdhms_(st).slice(11, 16) : ''};
+  });
+}
+function mtAtt_(id) {
+  var sh = lazy_('MeetingAtt'), n = sh.getLastRow(), out = [];
+  if (n < 2) return out;
+  sh.getRange(2, 1, n - 1, HEAD.MeetingAtt.length).getValues().forEach(function (r) {
+    if (String(r[0]) === id) out.push({name: String(r[1]), t: Number(r[5]) || 0, how: String(r[3]), late: String(r[4]) === 'Late'});
+  });
+  return out;
+}
+function mtAddAtt_(id, name, how, ts, late) {
+  lazy_('MeetingAtt').appendRow([id, name, ymdhms_(ts), how, late ? 'Late' : '', ts]);
+}
+function mtView_(m, full) {
+  var t = mtType_(m.type) || {en: m.type, id: m.type, self: false}, att = mtAtt_(m.id), pres = {}, i;
+  att.forEach(function (a) { pres[a.name] = a; });
+  var present = [], absent = [];
+  m.invited.forEach(function (n) { if (pres[n]) present.push({name: n, how: pres[n].how, late: pres[n].late, t: pres[n].t}); else absent.push(n); });
+  att.forEach(function (a) { if (m.invited.indexOf(a.name) < 0) present.push({name: a.name, how: a.how, late: a.late, t: a.t}); });
+  var o = {id: m.id, date: m.date, time: m.time, type: m.type, typeEn: t.en, typeId: t.id, self: t.self, topic: m.topic, trainer: m.trainer, by: m.by, aud: m.aud, status: m.status,
+    invited: m.invited.length, present: present.length, absent: absent.length, late: present.filter(function (p) { return p.late; }).length, minutes: m.end ? Math.max(1, Math.round((m.end - m.open) / 60000)) : 0, photo: m.photo};
+  if (full) { o.presentList = present; o.absentList = absent; o.text = m.text; o.en = m.en; o.idn = m.idn; o.invitedList = m.invited; o.token = m.status === 'Open' ? m.token : ''; }
+  return o;
+}
+function mtOpenFor_(me) {
+  try {
+    var now = Date.now(), out = [];
+    mtRows_().forEach(function (m) {
+      if (m.status !== 'Open' || now - m.open > 14 * 3600000 || m.invited.indexOf(me.name) < 0) return;
+      var t = mtType_(m.type);
+      if (!t || !t.self) return;
+      var here = mtAtt_(m.id).some(function (a) { return a.name === me.name; });
+      out.push({id: m.id, type: m.type, typeEn: t.en, typeId: t.id, topic: m.topic, by: m.by, time: m.time, present: here});
+    });
+    return out;
+  } catch (e) { return []; }
+}
+function mtAudience_(aud, names) {
+  var all = guards_(), list = [];
+  if (aud === 'all') list = all.map(function (g) { return g.name; });
+  else if (aud === 'sup') list = all.filter(function (g) { return g.danru; }).map(function (g) { return g.name; });
+  else {
+    var ok = {}; all.forEach(function (g) { ok[g.name] = 1; });
+    (names || []).forEach(function (n) { n = String(n).trim(); if (ok[n] && list.indexOf(n) < 0) list.push(n); });
+  }
+  return list;
+}
+function mtTeam_(a, b, by, adm) {
+  if (a === 'd_mt_types') return {ok: true, types: MT_TYPES.map(function (t) { return {k: t.k, en: t.en, id: t.id, self: t.self, aud: t.aud || ''}; }), guards: guards_().map(function (g) { return {name: g.name, role: g.role, danru: g.danru}; })};
+  if (a === 'd_mt_start') return mtStart_(b, by);
+  if (a === 'd_mt_get') {
+    var f = null; mtRows_().forEach(function (m) { if (m.id === String(b.id)) f = m; });
+    return f ? {ok: true, m: mtView_(f, true)} : {ok: false, err: 'mt_none'};
+  }
+  if (a === 'd_mt_end') return mtEnd_(b, by, adm);
+  if (a === 'd_mt_list') {
+    var from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from || '')) ? String(b.from) : ymdhms_(Date.now() - 60 * 86400000).slice(0, 10);
+    var to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to || '')) ? String(b.to) : '9999-12-31';
+    var rows = mtRows_().filter(function (m) { return m.date >= from && m.date <= to; }).sort(function (x, y) { return y.start - x.start; }).slice(0, 300);
+    return {ok: true, from: from, to: to, list: rows.map(function (m) { return mtView_(m, adm && b.full === true); })};
+  }
+  return {ok: false, err: 'action'};
+}
+function mtStart_(b, by) {
+  var t = mtType_(b.type);
+  if (!t) return {ok: false, err: 'mt_type'};
+  var aud = String(b.aud || 'all');
+  if (aud !== 'all' && aud !== 'sel' && aud !== 'sup') return {ok: false, err: 'mt_aud'};
+  var inv = mtAudience_(aud, b.names);
+  if (!inv.length) return {ok: false, err: 'mt_nobody'};
+  var now = Date.now(), ts = now;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) && /^\d{2}:\d{2}$/.test(String(b.time || ''))) {
+    var c = Date.parse(b.date + 'T' + b.time + ':00Z') - OFF;
+    if (isFinite(c) && Math.abs(c - now) < 3 * 86400000) ts = c;
+  }
+  var id = 'M' + ymdhms_(ts).slice(2, 10).replace(/-/g, '') + '-' + Utilities.getUuid().slice(0, 5), token = Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    lazy_('Meetings').appendRow([id, ymdhms_(ts).slice(0, 10), ymdhms_(ts).slice(11, 16), t.k, txt_(b.topic, 120), txt_(b.trainer, 80), by, aud, inv.join('|'), 'Open', '', '', '', '', '', token, ts, now, '']);
+    if (inv.indexOf(by) >= 0) mtAddAtt_(id, by, 'Leader', now, false);
+  } finally { lock.releaseLock(); }
+  return {ok: true, id: id, token: token, invited: inv.length};
+}
+function mtPresent_(b, me) {
+  var m = String(b.code || '').trim().split(':');
+  if (m.length !== 3 || m[0] !== 'MTG') return {ok: false, err: 'mt_code'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var f = null; mtRows_().forEach(function (x) { if (x.id === m[1]) f = x; });
+    if (!f || f.token !== m[2]) return {ok: false, err: 'mt_code'};
+    if (f.status !== 'Open') return {ok: false, err: 'mt_closed'};
+    var t = mtType_(f.type);
+    if (!t || !t.self) return {ok: false, err: 'mt_apel'};
+    if (f.invited.indexOf(me.name) < 0) return {ok: false, err: 'mt_not_invited'};
+    var tl = {typeEn: t.en, typeId: t.id, topic: f.topic};
+    if (mtAtt_(f.id).some(function (a) { return a.name === me.name; })) return {ok: true, dup: true, typeEn: tl.typeEn, typeId: tl.typeId, topic: tl.topic};
+    var now = Date.now(), late = now - f.open > Number(cfg_('MT_LATE_MIN', '10')) * 60000;
+    mtAddAtt_(f.id, me.name, 'QR', now, late);
+    return {ok: true, late: late, typeEn: tl.typeEn, typeId: tl.typeId, topic: tl.topic};
+  } finally { lock.releaseLock(); }
+}
+function mtTr_(text, to) {
+  try { var r = LanguageApp.translate(text, '', to); return r ? String(r) : text; } catch (e) { return text; }
+}
+function mtEnd_(b, by, adm) {
+  var text = String(b.text || '').replace(/[ \t]+/g, ' ').trim().slice(0, 4000);
+  if (text.length < 5) return {ok: false, err: 'mt_text'};
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  var f = null, photoFail = false, url = '', blob = null, en = '', idn = '';
+  try {
+    mtRows_().forEach(function (x) { if (x.id === String(b.id)) f = x; });
+    if (!f) return {ok: false, err: 'mt_none'};
+    if (f.status !== 'Open') return {ok: false, err: 'mt_closed'};
+    if (!adm && f.by !== by) return {ok: false, err: 'mt_not_yours'};
+    var now = Date.now(), man = [];
+    (Array.isArray(b.manual) ? b.manual : []).forEach(function (n) { n = String(n).trim(); if (f.invited.indexOf(n) >= 0 && man.indexOf(n) < 0) man.push(n); });
+    var have = {}; mtAtt_(f.id).forEach(function (a) { have[a.name] = 1; });
+    man.forEach(function (n) { if (!have[n]) mtAddAtt_(f.id, n, 'Manual', now, false); });
+    if (b.photo && String(b.photo).length > 100 && String(b.photo).length < 6000000) {
+      try { blob = Utilities.newBlob(Utilities.base64Decode(b.photo), 'image/jpeg', 'MEET_' + f.id + '.jpg'); url = folder_().createFile(blob).getUrl(); } catch (e) { photoFail = true; blob = null; }
+    }
+    en = mtTr_(text, 'en'); idn = mtTr_(text, 'id');
+    var sh = lazy_('Meetings');
+    sh.getRange(f.row, 10).setValue('Ended'); sh.getRange(f.row, 11).setValue(ymdhms_(now));
+    sh.getRange(f.row, 12, 1, 4).setValues([[text, en, idn, url]]);
+    sh.getRange(f.row, 19).setValue(now);
+    f.status = 'Ended'; f.end = now; f.text = text; f.en = en; f.idn = idn; f.photo = url;
+  } finally { lock.releaseLock(); }
+  var v = mtView_(f, true), mailed = true;
+  try { mtMail_(v, blob); } catch (e2) { mailed = false; }
+  return {ok: true, m: v, photoFail: photoFail, mailed: mailed};
+}
+function mtMail_(v, blob) {
+  function lines(arr, late) { return arr.length ? arr.map(function (p) { return esc_(p.name || p) + (p.late ? ' (' + late + ')' : ''); }).join(', ') : '-'; }
+  function body(lang) {
+    var en = lang === 'en', ty = en ? v.typeEn : v.typeId;
+    var L = en ? {t: 'Meeting summary', d: 'Date', by: 'Led by', top: 'Topic', tr: 'Trainer', dur: 'Duration', min: 'min', aud: 'Invited', pre: 'Present', abs: 'Absent', late: 'late', disc: 'What was discussed', ph: 'Photo'}
+      : {t: 'Ringkasan rapat', d: 'Tanggal', by: 'Dipimpin oleh', top: 'Topik', tr: 'Pelatih', dur: 'Durasi', min: 'menit', aud: 'Diundang', pre: 'Hadir', abs: 'Tidak hadir', late: 'terlambat', disc: 'Yang dibahas', ph: 'Foto'};
+    var h = '<h3 style="margin:0 0 8px">' + L.t + ': ' + esc_(ty) + '</h3><p style="margin:0 0 8px">' + L.d + ': ' + v.date + ' ' + v.time + ' WIB<br>' + L.by + ': ' + esc_(v.by) + '<br>' +
+      (v.topic ? L.top + ': ' + esc_(v.topic) + '<br>' : '') + (v.trainer ? L.tr + ': ' + esc_(v.trainer) + '<br>' : '') + L.dur + ': ' + v.minutes + ' ' + L.min + '<br>' +
+      L.aud + ': ' + v.invited + ' · ' + L.pre + ': ' + v.present + ' · ' + L.abs + ': ' + v.absent + '</p>';
+    h += '<p style="margin:0 0 4px"><b>' + L.disc + '</b></p><p style="margin:0 0 10px;white-space:pre-wrap">' + esc_(en ? v.en : v.idn) + '</p>';
+    h += '<p style="margin:0 0 4px"><b>' + L.pre + ' (' + v.present + ')</b><br>' + lines(v.presentList, L.late) + '</p><p style="margin:0 0 4px"><b>' + L.abs + ' (' + v.absent + ')</b><br>' + lines(v.absentList, L.late) + '</p>';
+    if (v.photo) h += '<p style="margin:6px 0 0">' + L.ph + ': <a href="' + esc_(v.photo) + '">' + esc_(v.photo) + '</a></p>';
+    return h;
+  }
+  var opt = {to: cfg_('NOTIFY_EMAIL', 'Ignatius.Ambrosio@ecooils.com.my'), subject: 'EcoOils Patrol: ' + v.typeEn + ' ' + v.date + ' / ' + v.typeId + ' - ' + v.invited + ' invited, ' + v.present + ' present',
+    htmlBody: both_(body('en'), body('id'))};
+  if (blob) opt.attachments = [blob];
+  MailApp.sendEmail(opt);
 }

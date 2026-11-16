@@ -25,7 +25,7 @@ h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
 input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
-#vPatrol.pv #bScan,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#dTabs.pvh{display:none!important}#vPatrol.pv #bGps,#vPatrol.pv #bHk,#vPatrol.pv #bEq,#vPatrol.pv #bHkA,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
+#vPatrol.pv #bScan,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#dTabs.pvh{display:none!important}#vPatrol.pv #bMt,#vPatrol.pv #bGps,#vPatrol.pv #bHk,#vPatrol.pv #bEq,#vPatrol.pv #bHkA,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
 #pvBar{border-color:var(--amber);background:var(--ban);position:sticky;top:48px;z-index:4}
 textarea{min-height:90px;resize:vertical;line-height:1.4}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -138,6 +138,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
   </div>
   <div id="holdBox"></div>
   <div id="clockBox"></div>
+  <div id="mtBanner"></div>
   <button class="btn" id="bScan" type="button"></button>
   <div class="note" id="pend"></div>
   <button class="btn ghost hidden" id="bObs" type="button"></button>
@@ -153,6 +154,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
   <button class="btn ghost hidden" id="bHk" type="button"></button>
   <button class="btn ghost hidden" id="bEq" type="button"></button>
   <button class="btn ghost hidden" id="bHkA" type="button"></button>
+  <button class="btn ghost hidden" id="bMt" type="button"></button>
   <button class="btn ghost" id="bVid" type="button"></button>
   <div id="planCard"></div>
   <div id="awardCard"></div>
@@ -166,6 +168,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 <section id="vHk" class="hidden"><div id="hkBody"></div></section>
 <section id="vEq" class="hidden"><div id="eqBody"></div></section>
 <section id="vHkA" class="hidden"><div id="hkaBody"></div></section>
+<section id="vMt" class="hidden"><div id="mtBody"></div></section>
 
 <section id="vObs" class="hidden"><div id="obsBody"></div></section>
 
@@ -198,7 +201,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 </section>
 
 <section id="vAdmin" class="hidden">
-  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aChk" type="button">Checks</button><button id="aObs" type="button">Observations</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
+  <div class="tabs" style="flex-wrap:wrap"><button id="aStats" class="on" type="button">Stats</button><button id="aMiss" type="button">Missed</button><button id="aChk" type="button">Checks</button><button id="aObs" type="button">Observations</button><button id="aLive" type="button">Live</button><button id="aHist" type="button">History</button><button id="aCal" type="button">Calibrate</button><button id="aSet" type="button">Settings</button><button id="aPlan" type="button">Plan</button><button id="aAward" type="button">Award</button><button id="aTs" type="button">Timesheet</button><button id="aMtg" type="button">Meetings</button><a href="https://iggifernandes.github.io/EcoOils-Project-Security/" target="_blank" rel="noopener" style="flex:none;color:var(--mute);padding:9px 2px;font-size:15px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center">Security app</a><button id="aView" type="button">Guard view</button><button id="aTeam" type="button">Team</button></div>
   <div id="aBody"></div>
   <button class="btn ghost" id="aOut" type="button">Log out of admin</button>
 </section>
@@ -234,7 +237,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.65';
+var VERSION='v1.66';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -369,6 +372,7 @@ function applyLang(){
   $('ver').textContent=VERSION;$('brand').setAttribute('aria-label',tr('title'));
   $('tSetup').textContent=tr('setup');$('lGpin').textContent=tr('pinLabel');$('hGpin').textContent=tr('pinHelp');$('bGpin').textContent=tr('pinGo');
   $('bAdmin').textContent=tr('admin');$('bTeamOpen').textContent=tr('team');$('tBack').textContent=tr('back');$('bPlanOpen').textContent=tr('plan');$('bTsOpen').textContent=tr('tsBtn');$('tsBack').textContent=tr('back');$('bVid').textContent=tr('vidBtn');$('vBack').textContent=tr('back');$('vRec').textContent=tr('vidRec');$('vSend').textContent=tr('vidSend');$('vRetake').textContent=tr('vidRetake');$('vNote').textContent=tr('vidNote');$('pBack').textContent=tr('back');
+  try{mtBtns();mtDraw();if(MT.admin)aMtgDraw();}catch(e){}
   $('lTime').textContent=tr('timeLeft');$('lDone').textContent=tr('done');$('lRem').textContent=tr('rem');$('bScan').textContent=tr('scan');
   $('tRem').textContent=tr('tabRem');$('tDone').textContent=tr('tabDone');$('tMap').textContent=tr('tabMap');setTheme(curTheme());$('bChange').textContent=tr('logout');$('scanSkip').textContent=tr('gwSkip');$('scanX').textContent=tr('cancel');
   $('pinForgot').textContent=tr('forgot');$('rstTitle').textContent=tr('rstTitle');$('rstIntro').textContent=tr('rstIntro');$('rstSend').textContent=tr('rstSend');$('lRstNew').textContent=tr('rstNew');$('lRstNew2').textContent=tr('rstNew2');$('rstGo').textContent=tr('rstGo');$('rstBack').textContent=tr('rstBack');
@@ -387,7 +391,7 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vMt'){try{mtStop();}catch(e){}}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate','vMt'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function isChief(){return !!(S.state&&S.state.me&&S.state.me.role==='Danru');}
@@ -414,7 +418,7 @@ function pendSet(){
 function setHtml(el,h){if(el&&el._h!==h){el._h=h;el.innerHTML=h;}}
 function render(){
   var st=S.state;if(!st||$('vPatrol').classList.contains('hidden'))return;
-  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();hkBtns();gateBtns();
+  $('bTeamOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bPlanOpen').classList.toggle('hidden',!(st.me&&st.me.danru));$('bTsOpen').classList.toggle('hidden',!(st.me&&st.me.danru&&st.tsOn));$('lSecApp').classList.toggle('hidden',!(st.me&&st.me.danru));planCard();awardCard();clockRender();holdRender();obsBtns();hkBtns();gateBtns();mtBtns();
   var d=doneSet(),total=st.points.length,n=0;st.points.forEach(function(p){if(d[p.id])n++;});
   $('rLabel').textContent=(st.round.upcoming?tr('noRound')+' ':tr('round')+' ')+st.round.label;$('who').textContent=S.guard;
   $('nDone').textContent=n;$('nRem').textContent=total-n;$('pbar').style.width=(total?Math.round(100*n/total):0)+'%';
@@ -666,8 +670,8 @@ function aApi(b){
   return api(b).then(function(r){if(r&&r.ok)AC[key]={t:Date.now(),j:JSON.stringify(r),r:r};return r;});
 }
 function aTab(t){
-  A.tab=t;['Stats','Miss','Chk','Obs','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
-  PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,obs:aObsDb,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam}[t];f();
+  A.tab=t;['Stats','Miss','Chk','Obs','Live','Hist','Cal','Set','Plan','Award','Ts','View','Team','Mtg'].forEach(function(k){$('a'+k).classList.toggle('on',k.toLowerCase()===t);});
+  PL.on=false;var f={stats:aStats,miss:aMiss,chk:aChk,obs:aObsDb,live:aLive,hist:aHist,cal:aCal,set:aSet,plan:function(){planOpen('admin');},award:aAward,ts:aTs,view:aView,team:aTeam,mtg:aMtg}[t];if(t!=='mtg')MT.admin=false;f();
 }
 function aLive(idx){
   var st=S.state,cur=st?st.round:null,date=cur?cur.date:'',i=(idx===undefined?(cur?cur.idx:0):Number(idx));
@@ -1009,12 +1013,13 @@ function danDraw(){
   if(days.length){var mx=Math.max.apply(null,days.map(function(x){return x.missed;}).concat([1]));
     h+='<div class="card"><b>'+esc(tr('dsWeek'))+'</b><div class="dbar">'+days.map(function(x){var p=x.rounds?Math.round(1000*x.missed/(x.rounds*Math.max(1,d.round.total)))/10:0;return '<i class="'+pctCls(p)+'" style="height:'+Math.max(4,Math.round(100*x.missed/mx))+'%" title="'+esc(x.date)+': '+x.missed+'"></i>';}).join('')+'</div><div class="dlab">'+days.map(function(x){return '<em>'+esc(x.date.slice(8))+'</em>';}).join('')+'</div></div>';}
   if(!r.upcoming&&d.remaining.length)h+='<details class="card"><summary><b>'+esc(tr('dsRem'))+' ('+d.remaining.length+')</b></summary>'+d.remaining.map(function(p){return '<div class="note">'+p.no+' · '+esc(p.name)+(p.hi?' ★':'')+'</div>';}).join('')+'</details>';
-  h+=(DS.err?'<p class="err">'+esc(DS.err)+'</p>':'')+'<p class="note">'+esc(tr('dsUpd'))+' '+new Date(DS.at).toTimeString().slice(0,5)+'</p><button class="btn ghost" id="dsRef" type="button">'+esc(tr('dsRefresh'))+'</button><button class="btn ghost" id="dsOut" type="button">'+esc(tr('logout'))+'</button>';
+  h+=(DS.err?'<p class="err">'+esc(DS.err)+'</p>':'')+'<p class="note">'+esc(tr('dsUpd'))+' '+new Date(DS.at).toTimeString().slice(0,5)+'</p><button class="btn" id="dsMt" type="button">'+esc(tr('mtBtn'))+'</button><button class="btn ghost" id="dsRef" type="button">'+esc(tr('dsRefresh'))+'</button><button class="btn ghost" id="dsOut" type="button">'+esc(tr('logout'))+'</button>';
   setHtml($('danBody'),h);
 }
 $('danBody').addEventListener('click',function(e){
-  var t=e.target;while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute('data-go')||t.id==='dsRef'||t.id==='dsOut')))t=t.parentNode;
+  var t=e.target;while(t&&t!==this&&!(t.getAttribute&&(t.getAttribute('data-go')||t.id==='dsRef'||t.id==='dsOut'||t.id==='dsMt')))t=t.parentNode;
   if(!t||t===this)return;
+  if(t.id==='dsMt'){mtOpen();return;}
   if(t.id==='dsRef'){danLoad();return;}
   if(t.id==='dsOut'){dropLogin('');return;}
   var g=t.getAttribute('data-go');
@@ -1134,6 +1139,239 @@ $('aBody').addEventListener('click',function(e){
     var L=['Date,Time,Shift,Guard,Type,Category,Point no,Location,Description,Photo,Status,Closed by,Closed at,Close note'];
     obdRows().forEach(function(o){L.push([o.date,o.t,o.shift,o.guard,o.type,o.cat,o.no==null?'':o.no,o.where,o.text,o.photo,o.status,o.by,o.at,o.note].map(c).join(','));});
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));a.download='observations-'+OBD.r.from+'-to-'+OBD.r.to+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+  }
+});
+
+/* ===== Apel / meetings / trainings (v1.66) ===== */
+Object.assign(T.en,{mtBtn:'Apel / meeting',mtTitle:'Apel / meeting',mtNew:'New',mtRun:'Running',mtRec:'Records',mtType:'Type',mtDate:'Date',mtTime:'Time (WIB)',mtAud:'Who is invited',mtAudAll:'All guards',mtAudSel:'Selected guards',mtAudSup:'Supervisors only',mtTopic:'Topic (optional)',mtTrainer:'Trainer / speaker (optional)',mtStart:'Start meeting',mtApelHelp:'Regular Apel: guards do not mark themselves. You tick who attended before you end it.',mtQrHelp:'Guards open their app and tap Present, then scan this QR code. The invited list cannot be changed after you start.',mtLiveP:'Present',mtLiveA:'Not yet present',mtLate:'late',mtTick:'Tick anyone who attended but could not scan',mtDisc:'What was discussed',mtDiscPh:'Write what was discussed and decided (English or Bahasa Indonesia, it is saved and emailed in both)',mtPhoto:'Add photo',mtPhotoOn:'Photo added (tap to change)',mtPhotoRm:'Remove photo',mtEnd:'End meeting and send summary',mtEnded:'Meeting ended. Summary saved and emailed in English and Bahasa Indonesia.',mtEndedNoMail:'Meeting ended and saved, but the email could not be sent.',mtPhotoFail:'The photo could not be saved.',mtNoRec:'No records in this period.',mtNoOpen:'No meeting is running.',mtOpenOne:'Open the running meeting',mtBy:'Led by',mtInv:'invited',mtPres:'present',mtAbs:'absent',mtOpenSt:'Running',mtEndSt:'Ended',mtMin:'min',mtPh:'Photo',mtShowPh:'Show photo',mtSumEN:'English',mtSumID:'Bahasa Indonesia',mtAbsList:'Absent',mtPresList:'Present',mtBanner:'Meeting in progress',mtPresentBtn:'Present: scan QR',mtHere:'You are marked Present',mtDone:'Marked Present',mtDoneLate:'Marked Present (late)',mtFrom:'From',mtTo:'To',mtLoad:'Show',mtCsv:'Download CSV',mtAdmTab:'Meetings',mtBack:'Back',mtNeedSel:'Tick at least one guard.',mtNeedText:'Write what was discussed first.',mtEndTip:'Ending cannot be undone. The record becomes read-only.',err_mt_type:'Choose the meeting type.',err_mt_aud:'Choose who is invited.',err_mt_nobody:'No one is invited. Choose guards.',err_mt_text:'Write what was discussed (at least a few words).',err_mt_none:'Meeting not found.',err_mt_closed:'This meeting has ended.',err_mt_not_yours:'Only the leader (or Admin) can end this meeting.',err_mt_code:'This is not a valid meeting QR code.',err_mt_apel:'Regular Apel does not use QR attendance.',err_mt_not_invited:'You are not on the invited list for this meeting.'});
+Object.assign(T.id,{mtBtn:'Apel / rapat',mtTitle:'Apel / rapat',mtNew:'Baru',mtRun:'Berjalan',mtRec:'Catatan',mtType:'Jenis',mtDate:'Tanggal',mtTime:'Jam (WIB)',mtAud:'Siapa yang diundang',mtAudAll:'Semua petugas',mtAudSel:'Petugas terpilih',mtAudSup:'Hanya supervisor',mtTopic:'Topik (opsional)',mtTrainer:'Pelatih / pembicara (opsional)',mtStart:'Mulai rapat',mtApelHelp:'Apel biasa: petugas tidak menandai sendiri. Anda mencentang yang hadir sebelum mengakhiri.',mtQrHelp:'Petugas membuka aplikasi, ketuk Hadir, lalu pindai kode QR ini. Daftar undangan tidak dapat diubah setelah rapat dimulai.',mtLiveP:'Hadir',mtLiveA:'Belum hadir',mtLate:'terlambat',mtTick:'Centang yang hadir tetapi tidak bisa memindai',mtDisc:'Yang dibahas',mtDiscPh:'Tulis yang dibahas dan diputuskan (Inggris atau Bahasa Indonesia, disimpan dan diemail dalam keduanya)',mtPhoto:'Tambah foto',mtPhotoOn:'Foto ditambahkan (ketuk untuk ganti)',mtPhotoRm:'Hapus foto',mtEnd:'Akhiri rapat dan kirim ringkasan',mtEnded:'Rapat selesai. Ringkasan disimpan dan diemail dalam Bahasa Inggris dan Indonesia.',mtEndedNoMail:'Rapat selesai dan disimpan, tetapi email tidak dapat dikirim.',mtPhotoFail:'Foto tidak dapat disimpan.',mtNoRec:'Tidak ada catatan pada periode ini.',mtNoOpen:'Tidak ada rapat yang berjalan.',mtOpenOne:'Buka rapat yang berjalan',mtBy:'Dipimpin',mtInv:'diundang',mtPres:'hadir',mtAbs:'tidak hadir',mtOpenSt:'Berjalan',mtEndSt:'Selesai',mtMin:'mnt',mtPh:'Foto',mtShowPh:'Tampilkan foto',mtSumEN:'Inggris',mtSumID:'Bahasa Indonesia',mtAbsList:'Tidak hadir',mtPresList:'Hadir',mtBanner:'Rapat sedang berlangsung',mtPresentBtn:'Hadir: pindai QR',mtHere:'Anda tercatat Hadir',mtDone:'Tercatat Hadir',mtDoneLate:'Tercatat Hadir (terlambat)',mtFrom:'Dari',mtTo:'Sampai',mtLoad:'Tampilkan',mtCsv:'Unduh CSV',mtAdmTab:'Rapat',mtBack:'Kembali',mtNeedSel:'Centang minimal satu petugas.',mtNeedText:'Tulis dulu yang dibahas.',mtEndTip:'Mengakhiri tidak dapat dibatalkan. Catatan menjadi hanya-baca.',err_mt_type:'Pilih jenis rapat.',err_mt_aud:'Pilih siapa yang diundang.',err_mt_nobody:'Tidak ada yang diundang. Pilih petugas.',err_mt_text:'Tulis yang dibahas (minimal beberapa kata).',err_mt_none:'Rapat tidak ditemukan.',err_mt_closed:'Rapat ini sudah selesai.',err_mt_not_yours:'Hanya pemimpin (atau Admin) yang dapat mengakhiri rapat ini.',err_mt_code:'Ini bukan kode QR rapat yang valid.',err_mt_apel:'Apel biasa tidak memakai absensi QR.',err_mt_not_invited:'Anda tidak ada dalam daftar undangan rapat ini.'});
+var MT={tab:'new',admin:false,types:null,guards:[],f:{type:'apel',aud:'all',names:[],topic:'',trainer:'',date:'',time:''},cur:null,list:null,det:{},open:{},err:'',busy:false,photo:'',manual:[],text:'',poll:null,gmsg:'',from:'',to:'',qrOn:null};
+function mtAuth(b){if(MT.admin)b.pin=A.pin;else b.gp=S.pin;return b;}
+function mtTL(v){return lang==='id'?(v.typeId||v.typeEn):v.typeEn;}
+function mtTyp(k){var h=null;((MT.types)||[]).forEach(function(t){if(t.k===k)h=t;});return h;}
+function mtNowParts(){var d=new Date(nowMs()+7*3600000).toISOString();return {date:d.slice(0,10),time:d.slice(11,16)};}
+var qrGenLoad=null;
+function loadQrGen(){
+  if(window.qrcode)return Promise.resolve();
+  if(!qrGenLoad)qrGenLoad=new Promise(function(ok,no){var e=document.createElement('script');e.src='qrcode.js';e.onload=ok;e.onerror=function(){qrGenLoad=null;no();};document.head.appendChild(e);});
+  return qrGenLoad;
+}
+function mtQrSvg(text){
+  var qr=qrcode(0,'M');qr.addData(text);qr.make();
+  var n=qr.getModuleCount(),q=4,size=n+2*q,d='';
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))d+='M'+(c+q)+' '+(r+q)+'h1v1h-1z';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" shape-rendering="crispEdges" style="width:100%;max-width:300px;display:block;margin:0 auto;background:#fff"><rect width="'+size+'" height="'+size+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
+}
+function mtStop(){if(MT.poll){clearInterval(MT.poll);MT.poll=null;}}
+function mtOpen(){
+  MT.admin=false;show('vMt');MT.err='';MT.gmsg='';MT.tab='new';
+  var p=mtNowParts();MT.f.date=p.date;MT.f.time=p.time;
+  $('mtBody').innerHTML='<h1>'+esc(tr('mtTitle'))+'</h1><p><span class="sp"></span></p>';
+  var a=MT.types?Promise.resolve({ok:true}):api(mtAuth({action:'d_mt_types'})).then(function(r){if(r&&r.ok){MT.types=r.types;MT.guards=r.guards;}return r;});
+  a.then(function(r){
+    if(!r||!r.ok)throw 0;
+    return api(mtAuth({action:'d_mt_list'}));
+  }).then(function(r){
+    if(!r||!r.ok)throw 0;
+    MT.list=r.list;var mine=r.list.filter(function(x){return x.status==='Open'&&x.by===S.guard;})[0];
+    if(mine)return mtLoadCur(mine.id).then(function(){MT.tab='run';mtDraw();});
+    MT.cur=null;mtDraw();
+  }).catch(function(){$('mtBody').innerHTML='<h1>'+esc(tr('mtTitle'))+'</h1><p class="err">'+esc(errText('server'))+'</p><button class="btn ghost" id="mtBack" type="button">'+esc(tr('back'))+'</button>';});
+}
+function mtLoadCur(id){
+  return api(mtAuth({action:'d_mt_get',id:id})).then(function(r){
+    if(r&&r.ok){MT.cur=r.m;if(MT.cur.id!==MT.curId){MT.curId=MT.cur.id;MT.manual=[];MT.text='';MT.photo='';}}
+    return r;
+  });
+}
+function mtTabs(){
+  return '<div class="tabs"><button type="button" data-mtt="new"'+(MT.tab==='new'?' class="on"':'')+'>'+esc(tr('mtNew'))+'</button><button type="button" data-mtt="run"'+(MT.tab==='run'?' class="on"':'')+'>'+esc(tr('mtRun'))+(MT.cur?' (1)':'')+'</button><button type="button" data-mtt="rec"'+(MT.tab==='rec'?' class="on"':'')+'>'+esc(tr('mtRec'))+'</button></div>';
+}
+function mtDraw(){
+  if($('vMt').classList.contains('hidden')||MT.admin)return;
+  mtStop();
+  var h='<h1>'+esc(tr('mtTitle'))+'</h1>'+mtTabs();
+  if(MT.tab==='new')h+=mtFormHtml();else if(MT.tab==='run')h+=mtRunHtml();else h+=mtRecHtml();
+  $('mtBody').innerHTML=h;
+  if(MT.tab==='run'&&MT.cur){mtLiveDraw();mtQrDraw();MT.poll=setInterval(mtPoll,8000);}
+}
+function mtFormHtml(){
+  var f=MT.f,t=mtTyp(f.type),h='';
+  h+='<label for="mtType">'+esc(tr('mtType'))+'</label><select id="mtType">'+(MT.types||[]).map(function(x){return '<option value="'+x.k+'"'+(x.k===f.type?' selected':'')+'>'+esc(lang==='id'?x.id:x.en)+'</option>';}).join('')+'</select>';
+  h+='<div style="display:flex;gap:10px"><div style="flex:1"><label for="mtDate">'+esc(tr('mtDate'))+'</label><input type="date" id="mtDate" value="'+esc(f.date)+'"></div><div style="flex:1"><label for="mtTime">'+esc(tr('mtTime'))+'</label><input type="time" id="mtTime" value="'+esc(f.time)+'"></div></div>';
+  h+='<label for="mtAud">'+esc(tr('mtAud'))+'</label><select id="mtAud"><option value="all"'+(f.aud==='all'?' selected':'')+'>'+esc(tr('mtAudAll'))+'</option><option value="sel"'+(f.aud==='sel'?' selected':'')+'>'+esc(tr('mtAudSel'))+'</option><option value="sup"'+(f.aud==='sup'?' selected':'')+'>'+esc(tr('mtAudSup'))+'</option></select>';
+  if(f.aud==='sel')h+='<div class="card" style="max-height:220px;overflow:auto">'+MT.guards.map(function(g){return '<label class="remember" style="margin:4px 0"><input type="checkbox" data-gn="'+esc(g.name)+'"'+(f.names.indexOf(g.name)>=0?' checked':'')+'><span>'+esc(g.name)+' <small class="note">'+esc(g.role)+'</small></span></label>';}).join('')+'</div>';
+  h+='<label for="mtTopic">'+esc(tr('mtTopic'))+'</label><input type="text" id="mtTopic" maxlength="120" value="'+esc(f.topic)+'">';
+  if(f.type==='training'||f.type==='refresher')h+='<label for="mtTrainer">'+esc(tr('mtTrainer'))+'</label><input type="text" id="mtTrainer" maxlength="80" value="'+esc(f.trainer)+'">';
+  h+='<div class="note" style="margin-top:8px">'+esc(t&&!t.self?tr('mtApelHelp'):tr('mtQrHelp'))+'</div>';
+  h+='<div class="err" id="mtErr">'+esc(MT.err)+'</div><button class="btn" id="mtStartBtn" type="button"'+(MT.busy?' disabled':'')+'>'+esc(tr('mtStart'))+'</button><button class="btn ghost" id="mtBack" type="button">'+esc(tr('back'))+'</button>';
+  return h;
+}
+function mtRunHtml(){
+  var m=MT.cur;
+  if(!m)return '<div class="card"><p>'+esc(tr('mtNoOpen'))+'</p></div><button class="btn ghost" id="mtBack" type="button">'+esc(tr('back'))+'</button>';
+  var h='<div class="card"><b>'+esc(mtTL(m))+(m.topic?' · '+esc(m.topic):'')+'</b><br><small class="note">'+esc(m.date)+' '+esc(m.time)+' · '+esc(tr('mtBy'))+' '+esc(m.by)+'</small></div>';
+  if(m.self)h+='<div class="card" style="text-align:center"><div id="mtQr"><span class="sp"></span></div><div class="note">'+esc(tr('mtQrHelp'))+'</div></div>';
+  else h+='<div class="note">'+esc(tr('mtApelHelp'))+'</div>';
+  h+='<div id="mtLive"></div>';
+  h+='<label for="mtText">'+esc(tr('mtDisc'))+'</label><textarea id="mtText" rows="6" maxlength="4000" placeholder="'+esc(tr('mtDiscPh'))+'">'+esc(MT.text)+'</textarea>';
+  h+='<label class="btn ghost" style="text-align:center;cursor:pointer;margin-top:12px">'+esc(MT.photo?tr('mtPhotoOn'):tr('mtPhoto'))+'<input id="mtPhotoIn" type="file" accept="image/*" capture="environment" style="display:none"></label>';
+  if(MT.photo)h+='<button class="btn ghost" id="mtPhotoRm" type="button">'+esc(tr('mtPhotoRm'))+'</button>';
+  h+='<div class="note">'+esc(tr('mtEndTip'))+'</div><div class="err" id="mtErr">'+esc(MT.err)+'</div><button class="btn" id="mtEndBtn" type="button"'+(MT.busy?' disabled':'')+'>'+esc(tr('mtEnd'))+'</button>';
+  return h;
+}
+function mtLiveDraw(){
+  var m=MT.cur,el=$('mtLive');if(!m||!el)return;
+  var h='<div class="counts"><div class="cnt d"><b>'+m.present+'</b><span>'+esc(tr('mtLiveP'))+'</span></div><div class="cnt r"><b>'+m.absent+'</b><span>'+esc(tr('mtLiveA'))+'</span></div></div>';
+  if(m.absentList.length){h+='<div class="zh">'+esc(tr('mtTick'))+'</div>';m.absentList.forEach(function(n){h+='<label class="remember" style="margin:3px 0"><input type="checkbox" data-mn="'+esc(n)+'"'+(MT.manual.indexOf(n)>=0?' checked':'')+'><span>'+esc(n)+'</span></label>';});}
+  if(m.presentList.length){h+='<div class="zh">'+esc(tr('mtPresList'))+'</div>';m.presentList.forEach(function(p){h+='<div class="pt"><b>'+esc(p.name)+'</b><small>'+(p.t?fmtT(p.t)+' · ':'')+esc(p.how)+(p.late?' · '+esc(tr('mtLate')):'')+'</small></div>';});}
+  el.innerHTML=h;
+}
+function mtQrDraw(){
+  var m=MT.cur;if(!m||!m.self||!m.token)return;
+  var code='MTG:'+m.id+':'+m.token;
+  loadQrGen().then(function(){var e=$('mtQr');if(e&&MT.cur&&MT.cur.id===m.id)e.innerHTML=mtQrSvg(code);},function(){var e=$('mtQr');if(e)e.textContent=errText('server');});
+}
+function mtPoll(){
+  if($('vMt').classList.contains('hidden')||MT.tab!=='run'||!MT.cur){mtStop();return;}
+  api(mtAuth({action:'d_mt_get',id:MT.cur.id})).then(function(r){
+    if(!r||!r.ok||MT.tab!=='run'||!MT.cur)return;
+    if(r.m.status!=='Open'){MT.cur=null;MT.tab='rec';mtRecLoad();return;}
+    MT.cur=r.m;mtLiveDraw();
+  }).catch(function(){});
+}
+function mtRowHtml(v){
+  var o=!!MT.open[v.id];
+  return '<div class="card" style="padding:10px"><button type="button" data-mid="'+esc(v.id)+'" style="all:unset;display:block;width:100%;cursor:pointer"><b>'+esc(v.date)+' '+esc(v.time)+' · '+esc(mtTL(v))+'</b><br><small class="note">'+(v.topic?esc(v.topic)+' · ':'')+esc(v.by)+' · '+v.present+'/'+v.invited+' '+esc(tr('mtPres'))+(v.late?' ('+v.late+' '+esc(tr('mtLate'))+')':'')+' · '+esc(v.status==='Open'?tr('mtOpenSt'):tr('mtEndSt'))+'</small></button>'+(o?mtDetHtml(MT.det[v.id]):'')+'</div>';
+}
+function photoThumb(u){var m=/\/d\/([^/?]+)/.exec(u||'')||/[?&]id=([^&]+)/.exec(u||'');return m?'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w900':'';}
+function mtDetHtml(m){
+  if(!m)return '<p><span class="sp"></span></p>';
+  var h='<div style="margin-top:8px">';
+  if(m.trainer)h+='<div class="note">'+esc(m.trainer)+'</div>';
+  if(m.minutes)h+='<div class="note">'+m.minutes+' '+esc(tr('mtMin'))+'</div>';
+  if(m.status==='Ended'){
+    h+='<div class="zh">'+esc(tr('mtSumEN'))+'</div><p style="white-space:pre-wrap;margin:4px 0">'+esc(m.en)+'</p><div class="zh">'+esc(tr('mtSumID'))+'</div><p style="white-space:pre-wrap;margin:4px 0">'+esc(m.idn)+'</p>';
+  }
+  h+='<div class="zh">'+esc(tr('mtPresList'))+' ('+m.present+')</div><p style="margin:4px 0">'+(m.presentList.map(function(p){return esc(p.name)+(p.late?' ('+esc(tr('mtLate'))+')':'');}).join(', ')||'-')+'</p>';
+  h+='<div class="zh">'+esc(tr('mtAbsList'))+' ('+m.absent+')</div><p style="margin:4px 0">'+(m.absentList.map(esc).join(', ')||'-')+'</p>';
+  if(m.photo){var th=photoThumb(m.photo);h+=th?'<img src="'+esc(th)+'" alt="" style="max-width:100%;border-radius:8px;margin-top:6px">':'<a href="'+esc(m.photo)+'" target="_blank" rel="noopener">'+esc(tr('mtPh'))+'</a>';}
+  return h+'</div>';
+}
+function mtRecHtml(){
+  var h='';
+  if(!MT.list)return '<p><span class="sp"></span></p>';
+  if(!MT.list.length)h+='<p class="note">'+esc(tr('mtNoRec'))+'</p>';
+  MT.list.forEach(function(v){h+=mtRowHtml(v);});
+  return h+'<button class="btn ghost" id="mtBack" type="button">'+esc(tr('back'))+'</button>';
+}
+function mtRecLoad(){
+  MT.list=null;mtDraw();
+  api(mtAuth({action:'d_mt_list'})).then(function(r){MT.list=(r&&r.ok)?r.list:[];if(MT.tab==='rec')mtDraw();}).catch(function(){MT.list=[];if(MT.tab==='rec')mtDraw();});
+}
+function mtToggle(id){
+  MT.open[id]=!MT.open[id];
+  if(MT.open[id]&&!MT.det[id]){api(mtAuth({action:'d_mt_get',id:id})).then(function(r){if(r&&r.ok){MT.det[id]=r.m;mtRedrawRec();}});}
+  mtRedrawRec();
+}
+function mtRedrawRec(){if(MT.admin)aMtgDraw();else if(MT.tab==='rec')mtDraw();}
+function mtErr(t){MT.err=t;var e=$('mtErr');if(e)e.textContent=t;}
+$('mtBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  var b=t.closest?t.closest('button'):null;if(b)t=b;
+  var tab=t.getAttribute&&t.getAttribute('data-mtt');
+  if(tab){MT.tab=tab;MT.err='';if(tab==='rec')mtRecLoad();else mtDraw();return;}
+  if(t.id==='mtBack'){mtStop();showPatrol();return;}
+  var mid=t.getAttribute&&t.getAttribute('data-mid');if(mid){mtToggle(mid);return;}
+  if(t.id==='mtStartBtn'){
+    var f=MT.f;if(f.aud==='sel'&&!f.names.length){mtErr(tr('mtNeedSel'));return;}
+    MT.busy=true;mtErr('');t.disabled=true;
+    api(mtAuth({action:'d_mt_start',type:f.type,aud:f.aud,names:f.names,topic:f.topic,trainer:(f.type==='training'||f.type==='refresher')?f.trainer:'',date:f.date,time:f.time}),40000).then(function(r){
+      MT.busy=false;
+      if(!r||!r.ok){mtErr(errText(r&&r.err||'server'));t.disabled=false;return;}
+      MT.curId='';return mtLoadCur(r.id).then(function(){MT.tab='run';MT.f.topic='';MT.f.trainer='';mtDraw();});
+    }).catch(function(){MT.busy=false;t.disabled=false;mtErr(errText('server'));});
+    return;
+  }
+  if(t.id==='mtPhotoRm'){MT.photo='';mtDraw();return;}
+  if(t.id==='mtEndBtn'){
+    if(String(MT.text).replace(/\s+/g,' ').trim().length<5){mtErr(tr('mtNeedText'));return;}
+    MT.busy=true;mtErr('');t.disabled=true;
+    api(mtAuth({action:'d_mt_end',id:MT.cur.id,text:MT.text,manual:MT.manual,photo:MT.photo}),90000).then(function(r){
+      MT.busy=false;
+      if(!r||!r.ok){t.disabled=false;mtErr(errText(r&&r.err||'server'));return;}
+      var msg=r.mailed?tr('mtEnded'):tr('mtEndedNoMail');if(r.photoFail)msg+=' '+tr('mtPhotoFail');
+      MT.cur=null;MT.curId='';MT.photo='';MT.text='';MT.manual=[];mtStop();
+      $('mtBody').innerHTML='<h1>'+esc(tr('mtTitle'))+'</h1><div class="card"><p>'+esc(msg)+'</p></div><button class="btn" id="mtRecBtn" type="button" data-mtt="rec">'+esc(tr('mtRec'))+'</button><button class="btn ghost" id="mtBack" type="button">'+esc(tr('back'))+'</button>';
+    }).catch(function(){MT.busy=false;t.disabled=false;mtErr(errText('server'));});
+  }
+});
+$('mtBody').addEventListener('input',function(e){
+  var t=e.target;
+  if(t.id==='mtTopic')MT.f.topic=t.value;else if(t.id==='mtTrainer')MT.f.trainer=t.value;else if(t.id==='mtText')MT.text=t.value;else if(t.id==='mtDate')MT.f.date=t.value;else if(t.id==='mtTime')MT.f.time=t.value;
+});
+$('mtBody').addEventListener('change',function(e){
+  var t=e.target;
+  if(t.id==='mtType'){MT.f.type=t.value;var ty=mtTyp(t.value);if(ty&&ty.aud)MT.f.aud=ty.aud;mtDraw();return;}
+  if(t.id==='mtAud'){MT.f.aud=t.value;mtDraw();return;}
+  var gn=t.getAttribute&&t.getAttribute('data-gn');
+  if(gn){var i=MT.f.names.indexOf(gn);if(t.checked&&i<0)MT.f.names.push(gn);else if(!t.checked&&i>=0)MT.f.names.splice(i,1);return;}
+  var mn=t.getAttribute&&t.getAttribute('data-mn');
+  if(mn){var j=MT.manual.indexOf(mn);if(t.checked&&j<0)MT.manual.push(mn);else if(!t.checked&&j>=0)MT.manual.splice(j,1);return;}
+  if(t.id==='mtPhotoIn'){var fl=t.files&&t.files[0];if(!fl)return;
+    shrink(fl,[stampTime(),(S.guard||'')+' | '+(MT.cur?mtTL(MT.cur):tr('mtTitle'))],900).then(function(p){MT.photo=p;mtDraw();},function(){mtErr(tr('photoFail'));});}
+});
+$('bMt').addEventListener('click',mtOpen);
+/* Guards: banner while a meeting that needs Present is running */
+function mtBtns(){
+  var st=S.state,box=$('mtBanner'),me=st&&st.me;if(!box)return;
+  if(me&&me.danru)$('bMt').classList.remove('hidden');else $('bMt').classList.add('hidden');
+  $('bMt').textContent=tr('mtBtn');
+  var l=(st&&st.mt)||[],h='';
+  l.forEach(function(x){
+    h+='<div class="card" style="border-left:6px solid var(--ok,#2a8)"><b>'+esc(tr('mtBanner'))+'</b><br>'+esc(lang==='id'?x.typeId:x.typeEn)+(x.topic?' · '+esc(x.topic):'')+'<br><small class="note">'+esc(tr('mtBy'))+' '+esc(x.by)+' · '+esc(x.time)+'</small>'+
+      (x.present?'<p style="margin:6px 0 0"><b>&#10003; '+esc(tr('mtHere'))+'</b></p>':'<button class="btn" type="button" data-mtp="'+esc(x.id)+'" style="margin-top:8px">'+esc(tr('mtPresentBtn'))+'</button>')+'</div>';
+  });
+  if(MT.gmsg)h+='<div class="card"><p style="margin:0">'+esc(MT.gmsg)+'</p></div>';
+  setHtml(box,h);
+}
+$('mtBanner').addEventListener('click',function(e){
+  var t=e.target&&e.target.closest?e.target.closest('button[data-mtp]'):null;if(!t)return;
+  openScan(function(raw){
+    MT.gmsg='';
+    api({action:'mt_present',gp:S.pin,code:String(raw||'').trim()},40000).then(function(r){
+      MT.gmsg=(r&&r.ok)?(r.late?tr('mtDoneLate'):tr('mtDone')):errText(r&&r.err||'server');
+      if(r&&r.ok&&S.state){(S.state.mt||[]).forEach(function(x){if(x.id===t.getAttribute('data-mtp'))x.present=true;});}
+      mtBtns();loadState(true);
+    }).catch(function(){MT.gmsg=errText('server');mtBtns();});
+  });
+});
+/* Admin: all meeting records (date range, CSV) */
+function aMtg(){
+  MT.admin=true;var p=mtNowParts();if(!MT.from)MT.from=new Date(nowMs()+7*3600000-30*86400000).toISOString().slice(0,10);if(!MT.to)MT.to=p.date;
+  MT.list=null;MT.open={};aMtgDraw();
+  api({action:'d_mt_list',pin:A.pin,from:MT.from,to:MT.to,full:true}).then(function(r){
+    if(!r||!r.ok){aErr(r);return;}
+    MT.list=r.list;aMtgDraw();
+  }).catch(function(){$('aBody').innerHTML='<p class="err">'+esc(errText('server'))+'</p>';});
+}
+function aMtgDraw(){
+  if(!MT.admin)return;
+  var h='<h1>'+esc(tr('mtAdmTab'))+'</h1><div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap"><div><label for="amF">'+esc(tr('mtFrom'))+'</label><input type="date" id="amF" value="'+esc(MT.from)+'"></div><div><label for="amT">'+esc(tr('mtTo'))+'</label><input type="date" id="amT" value="'+esc(MT.to)+'"></div><button class="btn sm" id="amGo" type="button">'+esc(tr('mtLoad'))+'</button><button class="btn ghost sm" id="amCsv" type="button">'+esc(tr('mtCsv'))+'</button></div>';
+  if(!MT.list)h+='<p><span class="sp"></span></p>';
+  else{if(!MT.list.length)h+='<p class="note">'+esc(tr('mtNoRec'))+'</p>';MT.list.forEach(function(v){h+=mtRowHtml(v);});}
+  $('aBody').innerHTML=h;
+}
+$('aBody').addEventListener('click',function(e){
+  if(!MT.admin||A.tab!=='mtg')return;
+  var t=e.target;if(!t)return;var b=t.closest?t.closest('button'):null;if(b)t=b;
+  if(t.id==='amGo'){MT.from=$('amF').value||MT.from;MT.to=$('amT').value||MT.to;aMtg();return;}
+  var mid=t.getAttribute&&t.getAttribute('data-mid');if(mid){mtToggle(mid);return;}
+  if(t.id==='amCsv'&&MT.list){
+    var c=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';};
+    var L=['Date,Time,Type,Topic,Trainer,Led by,Invited,Present,Absent,Late,Minutes,Status,Present names,Absent names,Discussed (EN),Discussed (ID),Photo'];
+    MT.list.forEach(function(v){L.push([v.date,v.time,v.typeEn,v.topic,v.trainer,v.by,v.invited,v.present,v.absent,v.late,v.minutes,v.status,(v.presentList||[]).map(function(p){return p.name+(p.late?' (late)':'');}).join('; '),(v.absentList||[]).join('; '),v.en,v.idn,v.photo].map(c).join(','));});
+    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));a.download='meetings-'+MT.from+'-to-'+MT.to+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
   }
 });
 
@@ -2077,7 +2315,7 @@ $('rstForm').addEventListener('submit',function(e){
   try{history.replaceState(null,'',location.pathname);}catch(e){}
   setTimeout(function(){openPin();$('rstNew').value='';$('rstNew2').value='';rstShow(true,true);},0);})();
 $('aStats').addEventListener('click',function(){aTab('stats');});$('aMiss').addEventListener('click',function(){aTab('miss');});$('aChk').addEventListener('click',function(){aTab('chk');});$('aObs').addEventListener('click',function(){aTab('obs');});$('aLive').addEventListener('click',function(){aTab('live');});$('aHist').addEventListener('click',function(){aTab('hist');});
-$('aCal').addEventListener('click',function(){aTab('cal');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aView').addEventListener('click',function(){aTab('view');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
+$('aCal').addEventListener('click',function(){aTab('cal');});$('aMtg').addEventListener('click',function(){aTab('mtg');});$('aSet').addEventListener('click',function(){aTab('set');});$('aPlan').addEventListener('click',function(){aTab('plan');});$('aAward').addEventListener('click',function(){aTab('award');});$('aView').addEventListener('click',function(){aTab('view');});$('aTs').addEventListener('click',function(){aTab('ts');});$('aTeam').addEventListener('click',function(){aTab('team');});
 $('aOut').addEventListener('click',function(){aLogout();});
 window.addEventListener('online',function(){S.online=true;S.flushing=false;flush();});
 window.addEventListener('offline',function(){S.online=false;render();});

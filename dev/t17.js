@@ -29,17 +29,17 @@ let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
  ok(await pg.locator('#bPlanOpen').isVisible(),'Danru sees Shift plan button');
  ok((await pg.locator('#bPlanOpen').innerText())==='Shift plan','button text EN');
  await pg.click('#bPlanOpen');await pg.waitForSelector('#plDate',{timeout:8000});
- ok(await pg.locator('select[data-f=duty]').count()===4,'4 default duty rows (Gate 1-3, Patrol)');
+ ok(await pg.locator('select[data-f=duty]').count()===5,'5 default duty rows (Shift Supervisor, Gate 1-3, Patrol)');
  // fill Gate 1: guard + buddy, Patrol: guard only
  const sels=pg.locator('select[data-f=guard]');
- await sels.nth(0).selectOption('Plan Gate One');
- await pg.locator('select[data-f=buddy]').nth(0).selectOption('Plan Gate Two');
- const opt=await pg.locator('select[data-f=guard]').nth(3).locator('option[value="Plan Gate One"]').getAttribute('disabled');
+ await sels.nth(1).selectOption('Plan Gate One');
+ await pg.locator('select[data-f=buddy]').nth(1).selectOption('Plan Gate Two');
+ const opt=await pg.locator('select[data-f=guard]').nth(4).locator('option[value="Plan Gate One"]').getAttribute('disabled');
  ok(opt!==null,'a guard already used is disabled in other rows');
- await pg.locator('select[data-f=guard]').nth(3).selectOption('Plan Patrol Three');
+ await pg.locator('select[data-f=guard]').nth(4).selectOption('Plan Patrol Three');
  // switch to Night: reloads, then fill again
  await pg.click('[data-a=sh][data-v=M]');await pg.waitForSelector('select[data-f=duty]');await pg.waitForTimeout(400);
- await pg.locator('select[data-f=guard]').nth(3).selectOption('Plan Patrol Three');
+ await pg.locator('select[data-f=guard]').nth(4).selectOption('Plan Patrol Three');
  ok((await pg.locator('#planBody').innerText()).includes('buddy is needed'),'night shift shows buddy needed hint');
  await pg.click('[data-a=save]');await pg.waitForFunction(()=>document.querySelector('#plMsg')&&document.querySelector('#plMsg').textContent.length>0);
  ok((await pg.locator('#plMsg').innerText()).includes('no buddy for: Patrol'),'night save warns which duty has no buddy');

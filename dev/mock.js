@@ -21,7 +21,7 @@ const ctx={console,Date,Math,JSON,String,Number,Object,Array,isFinite,parseInt,
  LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},
  Utilities:{getUuid:()=>crypto.randomUUID(),DigestAlgorithm:{SHA_256:'sha256'},computeDigest:(a,s)=>Array.from(crypto.createHash('sha256').update(s).digest()).map(b=>b>127?b-256:b),newBlob:()=>({}),base64Decode:()=>[1,2,3]},
  ContentService:{createTextOutput:s=>({s,setMimeType(){return this}}),MimeType:{JSON:1}},
- MailApp:{sendEmail(m){ctx.mails.push(m)}},mails:[],
+ MailApp:{sendEmail(m){ctx.mails.push(m)}},mails:[],LanguageApp:{translate:(t,f,to)=>(to==='id'?'[ID] ':'[EN] ')+t},
  DriveApp:{createFolder:()=>({getId:()=>'x',createFile:()=>({getUrl:()=>'https://drive.example/photo'+Math.random()})}),getFolderById:()=>({createFile:()=>({getUrl:()=>'https://drive.example/photo'+Math.random()})})},
  ScriptApp:{getProjectTriggers:()=>[]},Logger:{log:m=>ctx.logs.push(m)},logs:[]};
 vm.createContext(ctx);vm.runInContext(src,ctx);

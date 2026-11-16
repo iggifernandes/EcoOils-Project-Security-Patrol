@@ -1,0 +1,55 @@
+const m=require('./mock.js');
+m.ctx.makeDanruPins();const dp={};m.ctx.logs.filter(l=>l.startsWith('DANRU PIN')).forEach(l=>{const x=l.match(/DANRU PIN\s+(.*?)\s+=\s+(\d{6})/);dp[x[1]]=x[2]});
+let fails=0;const ok=(c,t)=>{console.log((c?'PASS ':'FAIL ')+t);if(!c)fails++};
+const sup=dp['Rendi Irawan'];
+const g1=m.call({action:'d_add',gp:sup,name:'Meet Guard 1'}),g2=m.call({action:'d_add',gp:sup,name:'Meet Guard 2'}),g3=m.call({action:'d_add',gp:sup,name:'Meet Guard 3'});
+let r=m.call({action:'d_mt_types',gp:sup});
+ok(r.ok&&r.types.length>=12&&r.types.some(t=>t.k==='apel'&&!t.self),'types listed, Apel has no self-present');
+ok(!m.call({action:'d_mt_start',gp:g1.pin,type:'training',aud:'all'}).ok,'a plain guard cannot start a meeting');
+ok(m.call({action:'d_mt_start',gp:sup,type:'zzz',aud:'all'}).err==='mt_type','bad type refused');
+ok(m.call({action:'d_mt_start',gp:sup,type:'training',aud:'sel',names:[]}).err==='mt_nobody','empty selection refused');
+r=m.call({action:'d_mt_start',gp:sup,type:'training',topic:'Fire safety',trainer:'HSSE',aud:'sel',names:['Meet Guard 1','Meet Guard 2','Rendi Irawan']});
+ok(r.ok&&r.invited===3&&r.token,'training started for 3 selected');
+const id=r.id,tok=r.token;
+let s=m.call({action:'state',gp:g1.pin});
+ok(s.mt&&s.mt.length===1&&s.mt[0].id===id&&!s.mt[0].present&&!JSON.stringify(s.mt).includes(tok),'guard sees the open meeting, token not exposed');
+ok(m.call({action:'state',gp:g3.pin}).mt.length===0,'a guard who is not invited sees nothing');
+ok(m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+id+':bad'}).err==='mt_code','wrong QR refused');
+ok(m.call({action:'mt_present',gp:g3.pin,code:'MTG:'+id+':'+tok}).err==='mt_not_invited','not invited refused');
+r=m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+id+':'+tok});
+ok(r.ok&&!r.late,'guard 1 marked present by QR');
+ok(m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+id+':'+tok}).dup===true,'second scan is a duplicate, not a second row');
+ok(m.call({action:'state',gp:g1.pin}).mt[0].present===true,'banner shows present after scanning');
+r=m.call({action:'d_mt_get',gp:sup,id});
+ok(r.m.present===2&&r.m.absent===1&&r.m.absentList[0]==='Meet Guard 2'&&r.m.token===tok,'leader sees live attendance (leader auto present)');
+ok(m.call({action:'d_mt_end',gp:sup,id,text:'x'}).err==='mt_text','summary text required');
+ok(m.call({action:'d_mt_end',gp:dp['Jhonsen Panjaitan'],id,text:'Fire extinguisher use explained'}).err==='mt_not_yours','another supervisor cannot end it');
+r=m.call({action:'d_mt_end',gp:sup,id,text:'Fire extinguisher use explained and practised.',manual:['Meet Guard 2','Meet Guard 3'],photo:'A'.repeat(200)});
+ok(r.ok&&r.m.status==='Ended'&&r.m.present===3&&r.m.absent===0&&r.m.late===0,'ended: manual tick adds Guard 2, non-invited name ignored');
+ok(r.m.en.startsWith('[EN]')&&r.m.idn.startsWith('[ID]'),'summary saved in English and Bahasa Indonesia');
+const mail=m.ctx.mails[m.ctx.mails.length-1];
+ok(mail&&/Training/.test(mail.subject)&&/Pelatihan/.test(mail.subject)&&mail.htmlBody.includes('[EN] Fire')&&mail.htmlBody.includes('[ID] Fire')&&mail.htmlBody.includes('Meet Guard 2')&&Array.isArray(mail.attachments),'email has EN + ID summary, attendance and the photo');
+ok(m.call({action:'mt_present',gp:g2.pin,code:'MTG:'+id+':'+tok}).err==='mt_closed','scanning after the end is refused');
+ok(m.call({action:'d_mt_end',gp:sup,id,text:'Changed afterwards'}).err==='mt_closed','ended record is read-only');
+ok(m.call({action:'state',gp:g1.pin}).mt.length===0,'banner gone once ended');
+// Apel: no self-present
+r=m.call({action:'d_mt_start',gp:sup,type:'apel',aud:'all'});
+ok(r.ok,'Apel started');
+ok(m.call({action:'state',gp:g1.pin}).mt.length===0,'no Present option for the regular Apel');
+ok(m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+r.id+':'+r.token}).err==='mt_apel','QR attendance refused for Apel');
+const e=m.call({action:'d_mt_end',gp:sup,id:r.id,text:'Safety briefing, gate duties reviewed',manual:['Meet Guard 1']});
+ok(e.ok&&e.m.present>=2&&e.m.absent>0,'Apel attendance ticked by the leader');
+// management = supervisors only
+r=m.call({action:'d_mt_start',gp:sup,type:'mgmt',aud:'sup'});
+ok(r.ok&&m.call({action:'d_mt_get',gp:sup,id:r.id}).m.invitedList.every(n=>['Muhammad Irsan','Jhonsen Panjaitan','Rendi Irawan','Try Agung Pramana'].indexOf(n)>=0),'management meeting invites supervisors only');
+// list + admin
+const l=m.call({action:'d_mt_list',gp:sup});
+ok(l.ok&&l.list.length===3&&l.list[0].text===undefined,'danru list: no long text');
+const al=m.call({action:'d_mt_list',pin:m.props.ADMIN_PIN,full:true});
+ok(al.ok&&al.list.some(x=>x.id===id&&x.en&&x.presentList),'admin list with full text');
+// late flag
+const r2=m.call({action:'d_mt_start',gp:sup,type:'monthly',aud:'all'});
+const real=Date.now;Date.now=()=>real()+11*60000;
+const lr=m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+r2.id+':'+r2.token});Date.now=real;
+ok(lr.ok&&lr.late===true,'scan after 10 minutes is flagged late');
+console.log(fails?fails+' FAILED':'ALL PASS');process.exit(fails?1:0);
