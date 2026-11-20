@@ -52,7 +52,7 @@ const r2=m.call({action:'d_mt_start',gp:sup,type:'monthly',aud:'all'});
 const real=Date.now;Date.now=()=>real()+11*60000;
 const lr=m.call({action:'mt_present',gp:g1.pin,code:'MTG:'+r2.id+':'+r2.token});Date.now=real;
 ok(lr.ok&&lr.late===true,'scan after 10 minutes is flagged late');
-// v1.67 role change
+// v1.68 role change
 ok(m.call({action:'d_role',gp:sup,name:'Meet Guard 3',role:'Squad Leader'}).ok,'Danru sets a guard to Squad Leader');
 ok(m.ctx.guardsAll_().filter(g=>g.name==='Meet Guard 3')[0].role==='Squad Leader','role saved in the Guards sheet');
 ok(m.call({action:'d_role',gp:sup,name:'Meet Guard 3',role:'Danru'}).err==='bad_role','Danru cannot hand out the Danru title');
