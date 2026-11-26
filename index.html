@@ -20,6 +20,15 @@ input,select,button,textarea{font-family:Jost,system-ui,Arial,sans-serif}
 body::after{content:"";position:fixed;right:-30px;bottom:-30px;width:150px;height:150px;background:var(--dots) center/contain no-repeat;opacity:.3;pointer-events:none;z-index:0}
 header,main{position:relative;z-index:1}
 main{max-width:780px;margin:0 auto;padding:0 16px 80px}
+/* v1.70: wraps to any screen ratio (phone portrait/landscape, tablet, laptop, large and ultrawide monitors) */
+main{width:100%;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+img,video,canvas,svg{max-width:100%}
+input,select,textarea{max-width:100%;min-width:0}
+@media(min-width:900px){main{max-width:min(94vw,1040px)}.kg{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}.counts{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}.modal .box{max-width:560px}}
+@media(min-width:1500px){main{max-width:min(92vw,1360px)}}
+@media(max-height:480px) and (orientation:landscape){header.eh{padding:4px 14px 2px}header.eh .eh-logo{height:28px}main{padding-bottom:40px}.modal .box{max-height:96vh}.frame{width:56vmin;height:56vmin}}
+@media(max-width:340px){.tabs button{font-size:13px;padding-left:4px;padding-right:4px}.kg{grid-template-columns:1fr}}
+
 h1{font-weight:300;font-size:22px;letter-spacing:.14em;text-transform:uppercase;color:var(--h1);margin:0 0 16px;padding:26px 0 14px;border-bottom:1px solid var(--text);position:relative;line-height:1.25}
 h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;background:var(--green)}
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
@@ -239,7 +248,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.69';
+var VERSION='v1.70';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -1200,7 +1209,7 @@ function mtDraw(){
 function mtFormHtml(){
   var f=MT.f,t=mtTyp(f.type),h='';
   h+='<label for="mtType">'+esc(tr('mtType'))+'</label><select id="mtType">'+(MT.types||[]).map(function(x){return '<option value="'+x.k+'"'+(x.k===f.type?' selected':'')+'>'+esc(lang==='id'?x.id:x.en)+'</option>';}).join('')+'</select>';
-  h+='<div style="display:flex;gap:10px"><div style="flex:1"><label for="mtDate">'+esc(tr('mtDate'))+'</label><input type="date" id="mtDate" value="'+esc(f.date)+'"></div><div style="flex:1"><label for="mtTime">'+esc(tr('mtTime'))+'</label><input type="time" id="mtTime" value="'+esc(f.time)+'"></div></div>';
+  h+='<div style="display:flex;gap:10px"><div style="flex:1;min-width:0"><label for="mtDate">'+esc(tr('mtDate'))+'</label><input type="date" id="mtDate" value="'+esc(f.date)+'"></div><div style="flex:1;min-width:0"><label for="mtTime">'+esc(tr('mtTime'))+'</label><input type="time" id="mtTime" value="'+esc(f.time)+'"></div></div>';
   h+='<label for="mtAud">'+esc(tr('mtAud'))+'</label><select id="mtAud"><option value="all"'+(f.aud==='all'?' selected':'')+'>'+esc(tr('mtAudAll'))+'</option><option value="sel"'+(f.aud==='sel'?' selected':'')+'>'+esc(tr('mtAudSel'))+'</option><option value="sup"'+(f.aud==='sup'?' selected':'')+'>'+esc(tr('mtAudSup'))+'</option></select>';
   if(f.aud==='sel')h+='<div class="card" style="max-height:220px;overflow:auto">'+MT.guards.map(function(g){return '<label class="remember" style="margin:4px 0"><input type="checkbox" data-gn="'+esc(g.name)+'"'+(f.names.indexOf(g.name)>=0?' checked':'')+'><span>'+esc(g.name)+' <small class="note">'+esc(g.role)+'</small></span></label>';}).join('')+'</div>';
   h+='<label for="mtTopic">'+esc(tr('mtTopic'))+'</label><input type="text" id="mtTopic" maxlength="120" value="'+esc(f.topic)+'">';
