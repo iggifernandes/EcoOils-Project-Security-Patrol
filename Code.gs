@@ -1,8 +1,8 @@
-// Code.gs VERSION v1.68 (keep this line first; bump with var VERSION below)
+// Code.gs VERSION v1.69 (keep this line first; bump with var VERSION below)
 /* EcoOils Mentari - Security Patrol backend (Google Apps Script)
    Paste into Extensions > Apps Script of the "EcoOils Patrol Log" Google Sheet.
    Do NOT upload this file to GitHub (it holds the guard list). */
-var VERSION = 'v1.68';
+var VERSION = 'v1.69';
 var OFF = 7 * 3600000;      // Jakarta (WIB), no daylight saving
 var RMS = 2 * 3600000;      // one round = 2 hours
 var RSHIFT = 7 * 3600000;   // rounds start at 07:00 (shift change); the 'date' of a round is the day that started at 07:00, so a night round belongs to the date it started
@@ -568,7 +568,7 @@ function route2_(b) {
     return admin_(a, b);
   }
   if (a.indexOf('d_') === 0) return team_(a, b);
-  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release' && a !== 'mt_present') return {ok: false, err: 'action'};
+  if (a !== 'state' && a !== 'scan' && a !== 'photo' && a !== 'clockin' && a !== 'video' && a !== 'obs' && a !== 'hk_list' && a !== 'hk_done' && a !== 'gate_list' && a !== 'gate_get' && a !== 'gate_release' && a !== 'audit_list' && a !== 'audit_done' && a !== 'mt_present') return {ok: false, err: 'action'};
   if (locked_('fg', 20)) return {ok: false, err: 'locked'};
   var me = guardByPin_(b.gp);
   if (!me) return {ok: false, err: 'pin'};
@@ -580,6 +580,7 @@ function route2_(b) {
   if (a === 'hk_list') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkList_() : {ok: false, err: 'not_duty'});
   if (a === 'hk_done') return me.danru ? {ok: false, err: 'not_guard'} : (hkMay_(me) ? hkDone_(b, me) : {ok: false, err: 'not_duty'});
   if (a === 'mt_present') return mtPresent_(b, me);
+  if (a === 'audit_list' || a === 'audit_done') return gateAudit_(a, b, me);
   if (a === 'gate_list') return gateList_();
   if (a === 'gate_get') return gateGet_(b);
   if (a === 'gate_release') return gateRelease_(b, me);
@@ -2459,4 +2460,25 @@ function mtMail_(v, blob) {
     htmlBody: both_(body('en'), body('id'))};
   if (blob) opt.attachments = [blob];
   MailApp.sendEmail(opt);
+}
+
+
+/* ---------- Gate pass audit (v1.69) ----------
+   The Gate Pass system picks passes released each evening (flags + a random sample). The Danru or a Shift Supervisor checks each one against the paper
+   original here and reports inconsistencies. Calls the Gate Pass bridge actions b_audit_list / b_audit_done (needs Gate Pass Code.gs v1.21). Guards cannot audit.
+   The auto score and flags are NOT sent to the phone, so the auditor is not steered; the owner sees them in the Gate Pass Admin > Audit. */
+function gateAudit_(a, b, me) {
+  if (!(me.role === 'Danru' || me.role === 'Shift Supervisor')) return {ok: false, err: 'not_auditor'};
+  if (a === 'audit_list') {
+    var r = gateCall_({action: 'b_audit_list'});
+    if (!r || !r.ok) return {ok: false, err: r && r.err === 'gate_off' ? 'gate_off' : (r && r.err === 'action' ? 'gate_old' : 'gate_down')};
+    return {ok: true, n: r.n, doneToday: r.doneToday, list: (r.list || []).map(function (x) { return {ref: x.ref, company: x.company, vehicle: x.vehicle, carrier: x.carrier, items: x.items, releasedBy: x.releasedBy, releasedAt: x.releasedAt, status: x.status}; })};
+  }
+  var ref = gateRef_(b.ref);
+  if (!ref) return {ok: false, err: 'bad_ref'};
+  var yn = function (x) { return x === 'yes' ? 'yes' : (x === 'no' ? 'no' : ''); };
+  var d = gateCall_({action: 'b_audit_done', ref: ref, by: me.name, role: me.role, paper: yn(b.paper), photos: yn(b.photos), items: yn(b.items), note: String(b.note || '').replace(/\s+/g, ' ').trim().slice(0, 400)});
+  if (!d) return {ok: false, err: 'gate_down'};
+  if (!d.ok) return {ok: false, err: d.err === 'action' ? 'gate_old' : (d.err || 'gate_down'), by: d.by || ''};
+  return {ok: true, inconsistency: !!d.inconsistency};
 }

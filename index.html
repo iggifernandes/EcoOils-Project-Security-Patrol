@@ -25,7 +25,7 @@ h1::after{content:"";position:absolute;left:0;bottom:-4px;width:44px;height:7px;
 @media(max-width:420px){h1{font-size:18px;letter-spacing:.1em}.lang button{font-size:14px;padding:3px 6px}}
 label{display:block;font-weight:500;font-size:14px;margin:14px 0 4px}
 input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--fld);border-radius:var(--r);padding:11px;font-size:16px;min-height:44px}
-#vPatrol.pv #bScan,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#dTabs.pvh{display:none!important}#vPatrol.pv #bMt,#vPatrol.pv #bGps,#vPatrol.pv #bHk,#vPatrol.pv #bEq,#vPatrol.pv #bHkA,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
+#vPatrol.pv #bScan,#vPatrol.pv #bObsL,#vPatrol.pv #bGate,#vPatrol.pv #bAudit,#vPatrol.pv #bVid,#vPatrol.pv #bTeamOpen,#vPatrol.pv #bPlanOpen,#vPatrol.pv #bTsOpen,#vPatrol.pv #lSecApp,#vPatrol.pv #bHold,#vPatrol.pv #bGps,#dTabs.pvh{display:none!important}#vPatrol.pv #bMt,#vPatrol.pv #bGps,#vPatrol.pv #bHk,#vPatrol.pv #bEq,#vPatrol.pv #bHkA,#vPatrol.pv #clockBox,#vPatrol.pv #bChange,#vPatrol.pv #pend{display:none!important}
 #pvBar{border-color:var(--amber);background:var(--ban);position:sticky;top:48px;z-index:4}
 textarea{min-height:90px;resize:vertical;line-height:1.4}
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
@@ -144,6 +144,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
   <button class="btn ghost hidden" id="bObs" type="button"></button>
   <button class="btn ghost hidden" id="bObsL" type="button"></button>
   <button class="btn ghost hidden" id="bGate" type="button"></button>
+  <button class="btn ghost hidden" id="bAudit" type="button"></button>
   <div id="obsNote"></div>
   <button class="btn ghost hidden" id="bTeamOpen" type="button"></button>
   <button class="btn ghost hidden" id="bPlanOpen" type="button"></button>
@@ -175,6 +176,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 <section id="vObsL" class="hidden"><div id="obsLBody"></div></section>
 
 <section id="vGate" class="hidden"><div id="gateBody"></div></section>
+<section id="vAudit" class="hidden"><div id="auditBody"></div></section>
 
 <section id="vVid" class="hidden">
   <button class="btn ghost" id="vBack" type="button"></button>
@@ -237,7 +239,7 @@ header.eh .eh-l button.on,header.eh .eh-l button.active,header.eh .eh-l button[a
 (function(){'use strict';
 /* ===== CONFIG: paste the Apps Script Web App URL between the quotes ===== */
 var API_URL='https://script.google.com/macros/s/AKfycbx700JNqQAhFp6JX1mJ_E5oRFSen9K5u0vFtxnRwCtYJYnEYTqfPwhm3BrPfm6ELyOWog/exec';
-var VERSION='v1.68';
+var VERSION='v1.69';
 var ZORD=['GT','FN','PL','UT','LD','BL','MP'];
 var ZN={en:{GT:'Gate / entry',FN:'Perimeter fence',PL:'Process plant',UT:'Utilities / tanks',LD:'Laydown',BL:'Buildings',MP:'Muster point'},
         id:{GT:'Gerbang / pintu masuk',FN:'Pagar keliling',PL:'Area pabrik',UT:'Utilitas / tangki',LD:'Area laydown',BL:'Gedung',MP:'Titik kumpul'}};
@@ -391,7 +393,7 @@ function setTheme(t){
 function setLang(l){lang=l;ls('sp_lang',l);applyLang();}
 
 /* ===== login ===== */
-function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vMt'){try{mtStop();}catch(e){}}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate','vMt'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
+function show(id){try{dTabsSet(id);}catch(e){}if(id!=='vMt'){try{mtStop();}catch(e){}}if(id!=='vPatrol'){try{ckStop();}catch(e){}}if(id!=='vVid'){try{vClose();}catch(e){}}['vSetup','vPatrol','vAdmin','vTeam','vPlan','vTs','vVid','vObs','vObsL','vGps','vHk','vEq','vHkA','vDan','vGate','vAudit','vMt'].forEach(function(v){$(v).classList.toggle('hidden',v!==id);});}
 function showSetup(err){show('vSetup');$('setErr').textContent=err||'';$('gpin').value='';}
 function showPatrol(){show('vPatrol');render();}
 function isChief(){return !!(S.state&&S.state.me&&S.state.me.role==='Danru');}
@@ -1864,6 +1866,7 @@ var GT={list:null,n:0,at:0,ref:'',data:null,chk:{},busy:false,view:'list',rej:fa
 function gateOn(){return !!(S.state&&S.state.gate);}
 function gateLabel(){var b=$('bGate');if(!b)return;b.textContent=tr('gateBtn')+(GT.list?' ('+GT.n+')':'');}
 function gateBtns(){
+  var ab=$('bAudit');if(ab){var ar=S.state&&S.state.me&&(S.state.me.role==='Danru'||S.state.me.role==='Shift Supervisor');ab.classList.toggle('hidden',!(gateOn()&&ar));ab.textContent=tr('auditBtn')+(AU.list?' ('+AU.list.length+')':'');if(gateOn()&&ar&&!PV.on&&Date.now()-AU.at>60000)auditLoad(true);}
   var b=$('bGate');if(!b)return;var on=gateOn();b.classList.toggle('hidden',!on);if(!on)return;
   gateLabel();if(!PV.on&&Date.now()-GT.at>40000)gateBadge();
 }
@@ -1964,6 +1967,83 @@ $('gzSt').addEventListener('pointerdown',function(e){try{$('gzSt').setPointerCap
 $('gzSt').addEventListener('pointermove',function(e){var p=GZ.pt[e.pointerId];if(!p)return;var k=Object.keys(GZ.pt);if(k.length===2){GZ.pt[e.pointerId]={x:e.clientX,y:e.clientY};var a=GZ.pt[k[0]],b=GZ.pt[k[1]],dd=Math.hypot(a.x-b.x,a.y-b.y);if(GZ.d0>0)gzSet(GZ.s0*dd/GZ.d0);}else if(GZ.s>1){GZ.x+=e.clientX-p.x;GZ.y+=e.clientY-p.y;GZ.pt[e.pointerId]={x:e.clientX,y:e.clientY};gzApply();}});
 ['pointerup','pointercancel'].forEach(function(n){$('gzSt').addEventListener(n,function(e){delete GZ.pt[e.pointerId];});});
 $('bGate').addEventListener('click',gateOpen);
+/* ===== Gate pass audit (v1.69): Danru / Shift Supervisor check passes picked by the Gate Pass system ===== */
+var AU={list:null,at:0,view:'list',ref:'',data:null,a:{},err:'',busy:false,done:''};
+function auErr(c){var k='err_au_'+c;return (T[lang]&&T[lang][k])||T.en[k]||errText(c);}
+function auditLoad(quiet){
+  AU.at=Date.now();
+  api({action:'audit_list',gp:S.pin},45000).then(function(r){
+    if(r&&r.ok){AU.list=r.list;AU.doneToday=r.doneToday;var b=$('bAudit');if(b)b.textContent=tr('auditBtn')+' ('+r.list.length+')';AU.err='';}
+    else if(!quiet){AU.err=auErr(r?r.err:'gate_down');}
+    if(!$('vAudit').classList.contains('hidden')&&AU.view==='list')auditDraw();
+  },function(){if(!quiet){AU.err=tr('gateNoNet');auditDraw();}});
+}
+function auditOpen(){AU.view='list';AU.err='';AU.done='';show('vAudit');auditDraw();auditLoad(false);}
+function auditDraw(){
+  var b=$('auditBody'),h='<h1>'+esc(tr('auditTitle'))+'</h1>';
+  if(AU.view==='list'){
+    h+='<p class="note">'+esc(tr('auditIntro'))+'</p>';
+    if(AU.done)h+='<div class="card"><p style="text-align:center"><b>&#10003; '+esc(AU.done)+'</b></p></div>';
+    h+='<div class="err">'+esc(AU.err||'')+'</div>';
+    h+='<div class="zh">'+esc(tr('auditToDo'))+(AU.list?' ('+AU.list.length+')':'')+(AU.doneToday?' · '+esc(tr('auditDoneToday'))+' '+AU.doneToday:'')+'</div>';
+    if(AU.list&&!AU.list.length)h+='<div class="card empty"><p class="note">'+esc(tr('auditNone'))+'</p></div>';
+    (AU.list||[]).forEach(function(p){h+='<div class="pt" data-aopen="'+esc(p.ref)+'" style="cursor:pointer"><b>'+esc(p.ref)+'</b><small>'+esc(p.company+' · '+p.vehicle)+'<br>'+esc(tr('auditRelBy'))+' '+esc(p.releasedBy||'-')+' · '+esc(p.releasedAt||'')+'</small></div>';});
+    h+='<button class="btn ghost" id="aRefresh" type="button">'+esc(tr('pvRefresh'))+'</button><button class="btn ghost" id="aHome" type="button">'+esc(tr('back'))+'</button>';
+  }else if(AU.view==='load'){
+    h+='<p><span class="sp"></span>'+esc(tr('loading'))+'</p>';
+  }else{
+    var d=AU.data,p=d.pass,im=d.images||{};
+    h+='<div class="card"><div style="font-size:22px;font-weight:300;letter-spacing:.06em;text-align:center">'+esc(p.ref)+'</div><table><tr><th>'+esc(tr('gateCompany'))+'</th><td>'+esc(p.company)+'</td></tr><tr><th>'+esc(tr('gateVehicle'))+'</th><td><b>'+esc(p.vehicle)+'</b></td></tr><tr><th>'+esc(tr('gateDriver'))+'</th><td>'+esc(p.carrier)+'<br>ID '+esc(p.icNo)+'</td></tr><tr><th>'+esc(tr('auditRelBy'))+'</th><td>'+esc(p.decidedBy||'-')+'<br>'+esc(p.decidedAt||'')+'</td></tr></table></div>';
+    h+='<div class="zh">'+esc(tr('gateItems'))+' ('+p.items.length+')</div><div class="scroll"><table><tr><th>#</th><th>'+esc(tr('gateItem'))+'</th><th>'+esc(tr('gateQty'))+'</th></tr>'+p.items.map(function(it,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(it.item)+'</td><td><b>'+esc(it.qty+(it.unit?' '+it.unit:''))+'</b></td></tr>';}).join('')+'</table></div>';
+    h+='<div class="zh">'+esc(tr('gateSigned'))+'</div>'+((im.signed||[]).length?(im.signed||[]).map(function(u,i){return u?'<img class="gimg" data-gz="signed'+i+'" alt="" src="'+u+'" style="width:100%;border:1px solid var(--line);border-radius:8px;margin-top:6px">':'';}).join(''):'<p class="err">'+esc(tr('gate_no_signed_copy'))+'</p>');
+    h+='<div class="zh">'+esc(tr('gateViews'))+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+['front','load','top','left','right','x1','x2','x3','x4'].filter(function(v){return im[v]!==undefined&&im[v];}).map(function(v){return '<div><small class="note">'+esc(tr('gph_'+v))+'</small><img class="gimg" data-gz="'+v+'" alt="" src="'+im[v]+'" style="width:100%;border:1px solid var(--line);border-radius:8px"></div>';}).join('')+'</div>';
+    h+='<div class="zh">'+esc(tr('auditCheck'))+'</div>';
+    [['paper','auditQ1'],['photos','auditQ2'],['items','auditQ3']].forEach(function(q){
+      h+='<div class="card"><p style="margin:0 0 8px">'+esc(tr(q[1]))+'</p><div style="display:flex;gap:8px"><button class="btn sm'+(AU.a[q[0]]==='yes'?'':' ghost')+'" type="button" data-aq="'+q[0]+'" data-av="yes" style="flex:1">'+esc(tr('auditYes'))+'</button><button class="btn sm'+(AU.a[q[0]]==='no'?'':' ghost')+'" type="button" data-aq="'+q[0]+'" data-av="no" style="flex:1">'+esc(tr('auditNo'))+'</button></div></div>';});
+    var bad=AU.a.paper==='no'||AU.a.photos==='no'||AU.a.items==='no';
+    h+='<label for="aNote">'+esc(tr(bad?'auditNoteReq':'auditNoteOpt'))+'</label><textarea id="aNote" rows="3" maxlength="400">'+esc(AU.note||'')+'</textarea>';
+    h+='<div class="err" id="aErr">'+esc(AU.err||'')+'</div>';
+    h+='<button class="btn" id="aSend" type="button"'+(AU.a.paper&&AU.a.photos&&AU.a.items&&!AU.busy?'':' disabled')+'>'+esc(tr('auditSend'))+'</button><button class="btn ghost" id="aBackList" type="button">'+esc(tr('gateBackList'))+'</button>';
+  }
+  b.innerHTML=h;
+}
+function auditLoadRef(ref){
+  AU.ref=ref;AU.a={};AU.note='';AU.err='';AU.view='load';auditDraw();
+  api({action:'gate_get',gp:S.pin,ref:ref},45000).then(function(r){return r;},function(){return null;}).then(function(r){
+    if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));return;}
+    if(!r||!r.ok){AU.view='list';AU.err=auErr(r?r.err:'gate_down');auditDraw();return;}
+    AU.data=r;AU.view='detail';auditDraw();window.scrollTo(0,0);
+  });
+}
+function auditSend(){
+  if(AU.busy)return;var note=(($('aNote')&&$('aNote').value)||'').replace(/\s+/g,' ').trim();AU.note=note;
+  var bad=AU.a.paper==='no'||AU.a.photos==='no'||AU.a.items==='no';
+  if(bad&&note.length<3){AU.err=auErr('need_note');auditDraw();return;}
+  AU.busy=true;AU.err='';auditDraw();
+  api({action:'audit_done',gp:S.pin,ref:AU.ref,paper:AU.a.paper,photos:AU.a.photos,items:AU.a.items,note:note},60000).then(function(r){return r;},function(){return null;}).then(function(r){
+    AU.busy=false;
+    if(r&&r.err==='pin'){dropLogin(tr('badGuardPin'));return;}
+    if(!r){AU.err=tr('gateNoNet');auditDraw();return;}
+    if(!r.ok){AU.err=auErr(r.err);if(r.err==='already_done'||r.err==='own_release'){}auditDraw();return;}
+    AU.view='list';AU.done=AU.ref+': '+tr(r.inconsistency?'auditSentBad':'auditSentOk');AU.at=0;auditLoad(false);auditDraw();window.scrollTo(0,0);
+  });
+}
+$('auditBody').addEventListener('click',function(e){
+  var t=e.target;if(!t)return;
+  var z=t.getAttribute&&t.getAttribute('data-gz');
+  if(z){GZ.s=1;GZ.x=0;GZ.y=0;gzApply();$('gzImg').src=t.src;$('gzModal').classList.remove('hidden');return;}
+  var q=t.getAttribute&&t.getAttribute('data-aq');
+  if(q){AU.note=($('aNote')&&$('aNote').value)||AU.note||'';AU.a[q]=t.getAttribute('data-av');AU.err='';auditDraw();return;}
+  var o=t.closest&&t.closest('[data-aopen]');if(o){auditLoadRef(o.getAttribute('data-aopen'));return;}
+  var id=t.id;
+  if(id==='aHome'){showPatrol();}
+  else if(id==='aRefresh'){AU.err='';AU.done='';auditLoad(false);}
+  else if(id==='aBackList'){AU.view='list';AU.err='';auditDraw();auditLoad(false);}
+  else if(id==='aSend'){auditSend();}
+});
+$('bAudit').addEventListener('click',auditOpen);
+Object.assign(T.en,{auditBtn:'Gate pass audit',auditTitle:'Gate pass audit',auditIntro:'Every evening the system picks passes released today. Check each one against the paper original kept at the gate and report anything that does not match.',auditToDo:'To audit',auditDoneToday:'done today',auditNone:'Nothing to audit now.',auditRelBy:'Released by',auditCheck:'Your audit',auditQ1:'The paper original is held at the gate and has all four signatures.',auditQ2:'The photos match the real vehicle and the plate.',auditQ3:'The items released match the list on the paper.',auditYes:'Yes',auditNo:'No',auditNoteReq:'Describe what does not match (required)',auditNoteOpt:'Note (optional)',auditSend:'Send audit',auditSentOk:'audit saved.',auditSentBad:'inconsistency reported to the HSSE manager.',err_au_not_auditor:'Only the Danru or a Shift Supervisor can audit.',err_au_own_release:'You released this pass yourself, so someone else must audit it.',err_au_need_note:'Describe what does not match.',err_au_need_checks:'Answer all three questions.',err_au_already_done:'This pass was already audited.',err_au_notfound:'This audit was not found. Refresh the list.',err_au_gate_old:'The Gate Pass system must be updated (Code.gs v1.21).',err_au_gate_off:'The Gate Pass link is not set up.',err_au_gate_down:'Cannot reach the Gate Pass system. Try again.'});
+Object.assign(T.id,{auditBtn:'Audit gate pass',auditTitle:'Audit gate pass',auditIntro:'Setiap malam sistem memilih pass yang dilepas hari ini. Cek tiap pass dengan kertas asli di gerbang dan laporkan jika ada yang tidak sesuai.',auditToDo:'Perlu diaudit',auditDoneToday:'selesai hari ini',auditNone:'Tidak ada yang perlu diaudit sekarang.',auditRelBy:'Dilepas oleh',auditCheck:'Audit Anda',auditQ1:'Kertas asli ada di gerbang dan memiliki keempat tanda tangan.',auditQ2:'Foto sesuai dengan kendaraan dan plat yang sebenarnya.',auditQ3:'Barang yang dilepas sesuai dengan daftar di kertas.',auditYes:'Ya',auditNo:'Tidak',auditNoteReq:'Jelaskan apa yang tidak sesuai (wajib)',auditNoteOpt:'Catatan (opsional)',auditSend:'Kirim audit',auditSentOk:'audit tersimpan.',auditSentBad:'ketidaksesuaian dilaporkan ke manajer HSSE.',err_au_not_auditor:'Hanya Danru atau Shift Supervisor yang bisa mengaudit.',err_au_own_release:'Anda sendiri yang melepas pass ini, jadi orang lain harus mengauditnya.',err_au_need_note:'Jelaskan apa yang tidak sesuai.',err_au_need_checks:'Jawab ketiga pertanyaan.',err_au_already_done:'Pass ini sudah diaudit.',err_au_notfound:'Audit tidak ditemukan. Segarkan daftar.',err_au_gate_old:'Sistem Gate Pass harus diperbarui (Code.gs v1.21).',err_au_gate_off:'Tautan Gate Pass belum diatur.',err_au_gate_down:'Tidak bisa menghubungi sistem Gate Pass. Coba lagi.'});
 Object.assign(T.en,{gateC5c:'COURIER pass: the courier company and name match the courier\'s company ID card or uniform (no ID number is taken)',gateBtn:'Gate pass',gateTitle:'Material gate pass',gateScan:'Scan pass QR',gateManual:'Or type the reference number',gateOpenBtn:'Open',gatePending:'Waiting for release',gateNone:'No passes waiting for release.',gateReady:'READY FOR RELEASE CHECK',gateNot:'DO NOT RELEASE',
  gate_no_signed_copy:'The signed copy has not been uploaded yet.',gate_already_released:'Already released:',gate_expired:'This pass has expired.',gate_rejected:'This pass was rejected.',gate_cancelled:'This pass was cancelled.',
  gateCompany:'Company',gateVehicle:'Vehicle',gateDriver:'Person taking out',gatePurpose:'Purpose',gatePurA:'Rejected items back to supplier',gatePurB:"Contractor's own material",gateIcRep:'IC rep',gateDept:'EcoOils dept',gateUntil:'Valid until',gateItems:'Items',gateItem:'Item',gateQty:'Qty',
